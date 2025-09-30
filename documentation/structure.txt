@@ -1,0 +1,55 @@
+Green Maple Leaf App/
+    src/
+        main/
+            main.html
+            css/
+            js/
+            assets/
+
+        gcs_interface/
+            gcs_interface.html
+            css/
+            js/
+            assets/
+
+        geofence_editor/
+            geofence_editor.html
+            css/
+                editor_ui/
+                interactable_map/
+            js/
+                editor_ui/
+                interactable_map/
+            assets/
+
+        preferences/
+            preferences.html
+            css/
+            js/
+            assets/
+
+        settings/
+            settings.html
+            css/
+            js/
+            assets/
+
+        shared/
+            css/
+                leaflet/
+                    leaflet.css
+                fonts/
+                    all.min.css (cloudflare symbols)
+            js/
+                file-manager.js
+                leaflet/
+                    leaflet.js
+                    turf.js ?
+                    leaflet.curve.js
+                    pattern.js
+            assets/
+
+    saves/
+        geofence/
+            example_geo_save.json (.mapleleaf)
+        config.json

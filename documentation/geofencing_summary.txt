@@ -1,0 +1,53 @@
+Geofence Editor Summary - 9/29/25
+
+An editor designed to allow users to create a geofence for the rocket, which will be used to provide
+early warning into uncharted areas.
+Allow users to pick from and edit simplist shapes such as squares, rectangles, circles, triangles, and freeform 
+shapes called "regions".
+Each region is an object only consisting of one shape.
+Each region also has a specific color, name, and restriction type (No-fly or fly zone.)
+Multiple regions can be combined by merging two shapes together which creates a new freeform shape.
+- Must be of the same restriction.
+
+Regions can be created from the "Create Regions" section located on the most upper left.
+First the user will select a region type (Circle, Rectangle, etc.).
+Secondly, the user is then able to create the shape by scaling it to it's appropriate scale. 
+- (Done by highlighting)
+- (Non rectangular shapes are inscribed in square type scaling during this).
+
+The shapes of regions can be edited by various tools found in the editor UI.
+Some tools consist of:
+- Add Anchor point
+- Remove Anchor point
+- Restore Handles
+- Scale
+- Rotate
+- Translate
+Tool selection can be found on the left of the screen (Default selected tool is Translate tool).
+Tools are only visible when a region is being edited.
+
+Regions can indeed overlap, however the most superior region will be the highest region in the "Region Hierarchy".
+(Regions with superiority will have higher priority during statistical analysis during the flight).
+"Region Hierarchy" located on the left under tools.
+
+In the hierarchy, users have many options:
+- Toggle visibility of regions. (Does not dismiss it's presence).
+- Move region up and down the hierarchy (drag).
+- Edit region (While editing this makes the Hierarchy inactive and cannot be manipulated in anyway EXCEPT visibility buttons).
+- Config region info such as: Name/Label, Color (/w Transparency), Restriction Zone (Fly or No-Fly zone).
+- Delete the region.
+
+Users can create many regions and save them all as a geofence.
+The geofence will be saved locally to a json file (which will be called a .mapleleaf file to make it cooler).
+These files can be loaded one at a time.
+(MULTIPLE geofence files CANNOT be merged or blended together).
+
+A geofence file (.mapleleaf)
+Will consist of a variety of information including:
+- Shape type of each region.
+- Front end anchor points of each region.
+- Biezer curve of each region.
+- Data regarding region color, restriction type, and name.
+
+A geofence file can then be used and displayed in the GCS Interface where there it is then approximated for further 
+use.
