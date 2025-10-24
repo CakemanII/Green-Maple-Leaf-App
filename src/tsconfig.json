@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "ES6",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true,
+    "removeComments": false,
+    "noEmitOnError": false,
+    "allowJs": false
+  },
+  "files": [],
+  "references": [
+    { "path": "./main" },
+    { "path": "./gcs_interface" },
+    { "path": "./geofence_editor" },
+    { "path": "./preferences" },
+    { "path": "./settings" },
+    { "path": "./shared" }
+  ]
+}

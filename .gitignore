@@ -1,6 +1,9 @@
 # Node modules and TypeScript library files
 src/node_modules/
 
+# Compiled JavaScript output
+src/*/compiled_js/
+
 # TypeScript cache
 *.tsbuildinfo
 
