@@ -1,26 +1,26 @@
 class JSONFileManager {
+    // Configuration path of the JSON file
     private configFilePath: string;
+    // Parent directory to save geofence files
     private geofenceSaveDirectory: string;
+    // Flag to determine if saved data should be cached for read operations
     private cacheSavedIntoRead: boolean;
+    // Map to track the last read times of files. (This will be used to see if the file has changed since last read)
     private timesLastRead: Map<string, number>;
+    // Map to store previous contents of files. (This will be used to return cached data if the file hasn't changed)
     private previousFileContents: Map<string, string>;
 
     constructor(configFilePath: string, geofenceSaveDirectory: string, cacheSavedIntoRead: boolean) {
+        // Initialize given variables
         this.configFilePath = configFilePath;
         this.geofenceSaveDirectory = geofenceSaveDirectory;
         this.cacheSavedIntoRead = cacheSavedIntoRead;
 
+        // Initialize arrays/maps
         this.timesLastRead = new Map<string, number>();
         this.previousFileContents = new Map<string, string>();
     }
 
-    /**
-     * Gets the last modified time of the file.
-     * In browser environment, this would need to be tracked manually or from server response.
-     * @param {string} filePath - The path/identifier for the file.
-     * @returns {number} The last modified time in milliseconds since the epoch.
-     */
-    private getFileLastModifiedTime(filePath: string): number {
-        return 0; // Placeholder implementation
-    }
+    // Additional methods for file management would go here
+    // ...
 }
