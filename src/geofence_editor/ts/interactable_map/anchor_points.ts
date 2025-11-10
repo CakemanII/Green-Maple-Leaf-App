@@ -1,11 +1,9 @@
 /// <reference types="leaflet" />
-import * as L from 'leaflet';
-import { Map } from "./map";
 
 /**
  * Anchor Point Object for Interactable Map
  */
-export class AnchorPoint {
+class AnchorPoint {
     private static MAIN_VISUAL: L.Icon = L.icon({
         iconUrl: './icons/map_line_handle_icon.png',
         iconSize: [32, 32], // adjust as needed
@@ -90,7 +88,7 @@ export class AnchorPoint {
             icon: AnchorPoint.MAIN_VISUAL,
             draggable: AnchorPoint.shouldBeInteractable(this.interactionHandlers),
             riseOnHover: false
-        }).addTo(Map.mapInstance);
+        }).addTo(InteractiveMap.mapInstance);
 
         // Add drag events to update position
         AnchorPoint.basicDragEvents(this.mainVisual);
@@ -148,7 +146,7 @@ export class AnchorPoint {
                 icon: AnchorPoint.CONTROL_HANDLE_VISUAL, 
                 draggable: true 
             }
-        ).addTo(Map.mapInstance);
+        ).addTo(InteractiveMap.mapInstance);
 
         // Assign basic drag events
         AnchorPoint.basicDragEvents(handleVisual);
@@ -204,7 +202,7 @@ export class AnchorPoint {
             weight: 3,
             dashArray: '8, 4',
             opacity: 0.9
-        }).addTo(Map.mapInstance);
+        }).addTo(InteractiveMap.mapInstance);
 
         // Assign to the correct field
         if (isIncomingHandle) {
@@ -223,7 +221,7 @@ export class AnchorPoint {
     {
         // Remove main visual
         if (this.mainVisual) {
-            Map.mapInstance.removeLayer(this.mainVisual);
+            InteractiveMap.mapInstance.removeLayer(this.mainVisual);
             this.mainVisual = null;
         }
 
@@ -248,7 +246,7 @@ export class AnchorPoint {
         }
 
         // Remove existing control handle
-        Map.mapInstance.removeLayer(isIncomingHandle ? this.incomingHandleVisual! : this.outgoingHandleVisual!);
+        InteractiveMap.mapInstance.removeLayer(isIncomingHandle ? this.incomingHandleVisual! : this.outgoingHandleVisual!);
 
         // Remove the guide line as well
         this.removeControlHandleGuide(isIncomingHandle);
@@ -273,7 +271,7 @@ export class AnchorPoint {
         }
 
         // Remove existing guide lines
-        Map.mapInstance.removeLayer(isIncomingGuide ? this.incomingHandleGuideVisual! : this.outgoingHandleGuideVisual!);
+        InteractiveMap.mapInstance.removeLayer(isIncomingGuide ? this.incomingHandleGuideVisual! : this.outgoingHandleGuideVisual!);
 
         // Clear the reference
         if (isIncomingGuide) {
@@ -586,9 +584,9 @@ export class AnchorPoint {
      */
     private static basicDragEvents(anchorVisual: L.Marker)
     {
-        anchorVisual.on('dragstart', () => { Map.mapInstance.dragging.disable(); });
+        anchorVisual.on('dragstart', () => { InteractiveMap.mapInstance.dragging.disable(); });
         anchorVisual.on('click', (e) => { L.DomEvent.stopPropagation(e); });
-        anchorVisual.on('dragend', () => { Map.mapInstance.dragging.enable(); });
+        anchorVisual.on('dragend', () => { InteractiveMap.mapInstance.dragging.enable(); });
         anchorVisual.on('contextmenu', (e) => { L.DomEvent.stopPropagation(e); });
     }
 
