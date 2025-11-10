@@ -8,6 +8,14 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="../shared/css/leaflet/leaflet.css" />
     
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
         * {
             margin: 0;
@@ -18,7 +26,10 @@
         body {
             height: 100vh;
             overflow: hidden;
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: #0d0d0d;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         
         main {
@@ -27,26 +38,415 @@
         }
         
         #editor-side-panel {
-            width: 300px;
-            background-color: #2c3e50;
+            width: 280px;
+            background-color: #1a1a1a;
             color: white;
-            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-section {
+            padding: 15px;
+        }
+        
+        #layers-container {
+            max-height: 400px;
             overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        #layers-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #layers-container::-webkit-scrollbar-track {
+            background: #0d0d0d;
+            border-radius: 4px;
+        }
+        
+        #layers-container::-webkit-scrollbar-thumb {
+            background: #3a3a3a;
+            border-radius: 4px;
+        }
+        
+        #layers-container::-webkit-scrollbar-thumb:hover {
+            background: #4a4a4a;
+        }
+        
+        .section-content {
+            background-color: #242424;
+            border: 1px solid #333333;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 14px;
+            color: #6ba3ff;
+        }
+        
+        .section-header i {
+            font-size: 14px;
+        }
+        
+        .region-button {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            background-color: #0d0d0d;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .region-button:hover {
+            background-color: #1a1a1a;
+        }
+        
+        .region-button i {
+            width: 16px;
+            font-size: 14px;
+        }
+        
+        .tool-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .tool-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 12px 8px;
+            background-color: #0d0d0d;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 11px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .tool-button:hover {
+            background-color: #1a1a1a;
+        }
+        
+        .tool-button i {
+            font-size: 18px;
+            transition: transform 0.3s ease;
+        }
+        
+        /* Move tool - scale up on hover */
+        #tool-move:hover i {
+            transform: scale(1.3);
+        }
+        
+        /* Scale tool - scale up on hover */
+        #tool-scale:hover i {
+            transform: scale(1.3);
+        }
+        
+        /* Rotate tool - rotate on hover */
+        #tool-rotate:hover i {
+            animation: quickRotate 0.5s ease;
+        }
+        
+        @keyframes quickRotate {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .toggle-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 12px;
+            background-color: #0d0d0d;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .toggle-button:hover {
+            background-color: #1a1a1a;
+        }
+        
+        .toggle-button:hover i {
+            animation: anchorDrop 0.6s ease;
+        }
+        
+        .toggle-button.active {
+            background-color: #6ba3ff;
+            color: #0d0d0d;
+        }
+        
+        .toggle-button.active:hover {
+            background-color: #5a92ee;
+        }
+        
+        .toggle-button i {
+            font-size: 14px;
+            transition: transform 0.3s ease;
+        }
+        
+        @keyframes anchorDrop {
+            0% {
+                transform: translateY(-4px);
+                opacity: 0.7;
+            }
+            50% {
+                transform: translateY(2px);
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes anchorSwing {
+            0%, 100% {
+                transform: rotate(-15deg);
+            }
+            50% {
+                transform: rotate(15deg);
+            }
+        }
+        
+        .layer-item {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            margin-bottom: 6px;
+            background-color: #0d0d0d;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .layer-item:hover {
+            background-color: #1a1a1a;
+        }
+        
+        .layer-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #6ba3ff;
+            flex-shrink: 0;
+        }
+        
+        .layer-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .layer-name {
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .layer-actions {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .layer-action-btn {
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .layer-action-btn:hover {
+            opacity: 0.8;
+            transform: translateY(-2px);
+        }
+        
+        .layer-action-btn i {
+            transition: transform 0.3s ease;
+        }
+        
+        .layer-action-btn.edit {
+            background-color: #4a90e2;
+            color: white;
+        }
+        
+        .layer-action-btn.edit:hover i {
+            animation: editBounce 0.5s ease;
+        }
+        
+        .layer-action-btn.eye {
+            background-color: #50c878;
+            color: white;
+        }
+        
+        .layer-action-btn.eye:hover i {
+            animation: eyeBlink 0.3s ease;
+        }
+        
+        .layer-action-btn.settings {
+            background-color: #ffa500;
+            color: white;
+        }
+        
+        .layer-action-btn.settings:hover i {
+            animation: settingsSpin 0.6s ease;
+        }
+        
+        .layer-action-btn.delete {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .layer-action-btn.delete:hover i {
+            animation: deleteShake 0.5s ease;
+        }
+        
+        @keyframes editBounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            25% {
+                transform: translateY(-3px);
+            }
+            50% {
+                transform: translateY(0);
+            }
+            75% {
+                transform: translateY(-2px);
+            }
+        }
+        
+        @keyframes eyeBlink {
+            0%, 100% {
+                transform: scaleY(1);
+            }
+            45%, 55% {
+                transform: scaleY(0.1);
+            }
+        }
+        
+        @keyframes settingsSpin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(180deg);
+            }
+        }
+        
+        @keyframes deleteShake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-3px) rotate(-5deg);
+            }
+            50% {
+                transform: translateX(3px) rotate(5deg);
+            }
+            75% {
+                transform: translateX(-2px) rotate(-3deg);
+            }
         }
         
         #editor-container {
             flex: 1;
             position: relative;
+            display: flex;
+            flex-direction: column;
         }
         
         #map-container {
-            width: 100%;
-            height: 100%;
+            flex: 1;
+            position: relative;
         }
         
         #map {
             width: 100%;
             height: 100%;
+        }
+        
+        .map-info {
+            background-color: #1a1a1a;
+            color: #888888;
+            padding: 8px 16px;
+            font-size: 11px;
+            font-family: 'Inter', sans-serif;
+            border-top: 1px solid #262626;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            z-index: 1000;
+        }
+        
+        .map-info-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .map-info-right {
+            margin-left: auto;
+            font-size: 10px;
+            opacity: 0.7;
+        }
+        
+        /* Move Leaflet attribution to bottom bar */
+        .leaflet-control-attribution {
+            display: none !important;
+        }
+        
+        /* Style zoom controls */
+        .leaflet-control-zoom {
+            border: none !important;
+        }
+        
+        .leaflet-control-zoom a {
+            background-color: #1a1a1a !important;
+            color: white !important;
+            border: 1px solid #262626 !important;
+        }
+        
+        .leaflet-control-zoom a:hover {
+            background-color: #262626 !important;
         }
     </style>
 </head>
@@ -58,13 +458,192 @@
     
     <main>
         <section id="editor-side-panel">
-            <!-- Geofence editor side panel will go here -->
-            <!-- Will contain tools, add region, and region hierarchy -->
+            <!-- Create Regions Section -->
+            <div class="panel-section">
+                <div class="section-content">
+                    <div class="section-header">
+                        <i class="fas fa-plus-circle"></i>
+                        <span>CREATE REGIONS</span>
+                    </div>
+                    <button class="region-button rectangle">
+                        <i class="far fa-square"></i>
+                        <span>Rectangle</span>
+                    </button>
+                    <button class="region-button circle">
+                        <i class="far fa-circle"></i>
+                        <span>Circle</span>
+                    </button>
+                    <button class="region-button freeform">
+                        <i class="fas fa-draw-polygon"></i>
+                        <span>Free Form</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Region Tools Section -->
+            <div class="panel-section">
+                <div class="section-content">
+                    <div class="section-header">
+                        <i class="fas fa-tools"></i>
+                        <span>REGION TOOLS</span>
+                    </div>
+                    <div class="tool-buttons">
+                        <button class="tool-button" id="tool-move">
+                            <i class="fas fa-arrows-alt"></i>
+                            <span>Move</span>
+                        </button>
+                        <button class="tool-button" id="tool-scale">
+                            <i class="fas fa-expand-alt"></i>
+                            <span>Scale</span>
+                        </button>
+                        <button class="tool-button" id="tool-rotate">
+                            <i class="fas fa-sync-alt"></i>
+                            <span>Rotate</span>
+                        </button>
+                    </div>
+                    <button class="toggle-button" id="toggle-anchors">
+                        <i class="fas fa-anchor"></i>
+                        <span>Add Anchors</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Map Layers Section -->
+            <div class="panel-section">
+                <div class="section-content">
+                    <div class="section-header">
+                        <i class="fas fa-layer-group"></i>
+                        <span>MAP LAYERS</span>
+                    </div>
+                    <div id="layers-container">
+                    <div class="layer-item">
+                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="layer-content">
+                            <div class="layer-name">Test Rectangle 1</div>
+                            <div class="layer-actions">
+                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
+                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
+                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layer-item">
+                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="layer-content">
+                            <div class="layer-name">Test Circle 2</div>
+                            <div class="layer-actions">
+                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
+                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
+                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layer-item">
+                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="layer-content">
+                            <div class="layer-name">Landing Zone Alpha</div>
+                            <div class="layer-actions">
+                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
+                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
+                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layer-item">
+                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="layer-content">
+                            <div class="layer-name">No Fly Zone North</div>
+                            <div class="layer-actions">
+                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
+                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
+                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layer-item">
+                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="layer-content">
+                            <div class="layer-name">Patrol Route 1</div>
+                            <div class="layer-actions">
+                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
+                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
+                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layer-item">
+                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="layer-content">
+                            <div class="layer-name">Restricted Area West</div>
+                            <div class="layer-actions">
+                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
+                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
+                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layer-item">
+                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="layer-content">
+                            <div class="layer-name">Safety Perimeter</div>
+                            <div class="layer-actions">
+                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
+                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
+                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layer-item">
+                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="layer-content">
+                            <div class="layer-name">Mission Area Beta</div>
+                            <div class="layer-actions">
+                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
+                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
+                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layer-item">
+                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="layer-content">
+                            <div class="layer-name">Search Grid 3</div>
+                            <div class="layer-actions">
+                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
+                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
+                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
         </section>
 
         <section id="editor-container">
             <div id="map-container">
                 <div id="map"></div>
+            </div>
+            <div class="map-info">
+                <div class="map-info-left">
+                    <span id="map-coords">Lat: 13.090179, Lng: -30.536698</span>
+                    <span>•</span>
+                    <span id="map-zoom">Zoom: 6</span>
+                    <span>•</span>
+                    <span id="map-mode">None</span>
+                </div>
+                <div class="map-info-right">
+                    <span id="map-attribution">© <a href="https://www.maptiler.com/copyright/" target="_blank" style="color: #6ba3ff; text-decoration: none;">MapTiler</a></span>
+                </div>
             </div>
         </section>
     </main>
@@ -77,6 +656,61 @@
         document.addEventListener('DOMContentLoaded', function() {
             const mapInstance = new InteractiveMap();
             console.log('Map initialized successfully');
+            
+            // Update map coordinates and zoom info
+            const mapCoordsEl = document.getElementById('map-coords');
+            const mapZoomEl = document.getElementById('map-zoom');
+            const map = InteractiveMap.mapInstance;
+            
+            // Update on mouse move
+            map.on('mousemove', function(e) {
+                const lat = e.latlng.lat.toFixed(6);
+                const lng = e.latlng.lng.toFixed(6);
+                mapCoordsEl.textContent = `Lat: ${lat}, Lng: ${lng}`;
+            });
+            
+            // Update on zoom
+            function updateZoom() {
+                mapZoomEl.textContent = `Zoom: ${map.getZoom()}`;
+            }
+            map.on('zoom', updateZoom);
+            updateZoom();
+            
+            // Add event listeners for region buttons
+            document.querySelectorAll('.region-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const mode = this.querySelector('span').textContent;
+                    document.getElementById('map-mode').textContent = mode;
+                    console.log('Creating region:', mode);
+                });
+            });
+            
+            // Add event listeners for tool buttons
+            document.querySelectorAll('.tool-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const tool = this.querySelector('span').textContent;
+                    document.getElementById('map-mode').textContent = tool;
+                    console.log('Tool selected:', tool);
+                });
+            });
+            
+            // Add event listener for toggle anchors button
+            const toggleAnchorsBtn = document.getElementById('toggle-anchors');
+            toggleAnchorsBtn.addEventListener('click', function() {
+                this.classList.toggle('active');
+                const isActive = this.classList.contains('active');
+                console.log('Add Anchors:', isActive ? 'ON' : 'OFF');
+            });
+            
+            // Add event listeners for layer action buttons
+            document.querySelectorAll('.layer-action-btn').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const action = this.classList[1]; // edit, eye, settings, delete
+                    const layerName = this.closest('.layer-item').querySelector('.layer-name').textContent;
+                    console.log(`Action: ${action} on layer: ${layerName}`);
+                });
+            });
         });
     </script>
 </body>
