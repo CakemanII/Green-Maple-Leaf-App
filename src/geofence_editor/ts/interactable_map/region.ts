@@ -157,7 +157,7 @@ abstract class MapRegion
         console.log("Updating region...");
 
         // Recalculate backend anchor data from frontend shape point data
-        // this.translateToBackendData(); // TODO: Implement this method
+        this.translateToBackendData();
 
         // Update the shape
         this.updateShape();

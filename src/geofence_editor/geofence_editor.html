@@ -674,6 +674,29 @@
             const regionEditor = new MapRegionEditor();
             console.log('MapRegionEditor initialized successfully');
             
+            // Add test region after editor is initialized
+            const HOME_LATITUDE = 13.090179;
+            const HOME_LONGITUDE = -30.536698;
+            const testRegion1 = {
+                type: 'rectangle',
+                data: {
+                    points: [
+                        { lat: HOME_LATITUDE + 110.1, lng: HOME_LONGITUDE - 110.1 },
+                        { lat: HOME_LATITUDE + 110.1, lng: HOME_LONGITUDE + 110.1 },
+                        { lat: HOME_LATITUDE - 110.1, lng: HOME_LONGITUDE + 110.1 },
+                        { lat: HOME_LATITUDE - 110.1, lng: HOME_LONGITUDE - 110.1 }
+                    ]
+                },
+                style: {
+                    color: { r: 0, g: 122, b: 255 },  // Blue color as RGB object
+                    opacity: 0.5,
+                    restricted: false,
+                    label: 'Test Rectangle 1'
+                }
+            };
+            
+            MapRegionRegionManager.INSTANCE.loadRegion(testRegion1.type, testRegion1.data, testRegion1.style);
+            
             // Update map coordinates and zoom info
             const mapCoordsEl = document.getElementById('map-coords');
             const mapZoomEl = document.getElementById('map-zoom');

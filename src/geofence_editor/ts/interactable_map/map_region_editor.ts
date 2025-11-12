@@ -66,7 +66,7 @@ class MapRegionEditor
         if (this.activeTool) {
             this.activeTool!.onAnchorDrag(anchorPoint);
         }
-        this.updateRegion();
+        MapRegionRegionManager.INSTANCE.updateActiveRegionFrontend();
     }
 
     /**
@@ -76,7 +76,7 @@ class MapRegionEditor
         if (this.activeTool) {
             this.activeTool.onAnchorDragEnd(anchorPoint);
         }
-        this.updateRegion();
+        MapRegionRegionManager.INSTANCE.updateActiveRegionFrontend();
     }
 
     /**
@@ -86,7 +86,7 @@ class MapRegionEditor
         if (this.activeTool) {
             this.activeTool!.onHandleDrag(anchorPoint, isIncoming);
         }
-        this.updateRegion();
+        MapRegionRegionManager.INSTANCE.updateActiveRegionFrontend();
     }
 
     /**
@@ -117,25 +117,6 @@ class MapRegionEditor
     }
     // #endregion
 
-    public updateRegion()
-    {
-        // Update the region's frontend shape point data from current anchor points
-        if (MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints && MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints.length > 0) {
-            MapRegionRegionManager.INSTANCE.ActiveEditingRegion!.setFrontendAnchorPositions(
-                MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints.map(
-                    anchor => ({
-                        anchorPos: anchor.GetAnchorPosition,
-                        relIncomingHandlePos: anchor.GetRelativeIncomingHandlePosition,
-                        relOutgoingHandlePos: anchor.GetRelativeOutgoingHandlePosition
-                    })
-                )
-            );
-            
-            // Update the region visual
-            MapRegionRegionManager.INSTANCE.ActiveEditingRegion!.update();
-        }
-    }
-
     /**
      * Switches UI to creation mode - hides tools, shows create buttons
      */
@@ -158,9 +139,9 @@ class MapRegionEditor
     private initializeToolButtons()
     {
         // Attach buttons to tools
-        const scaleBtn: Element = document.getElementById('scaleBtn')!;
-        const rotateBtn: Element = document.getElementById('rotateBtn')!;
-        const moveBtn: Element = document.getElementById('moveBtn')!;
+        const scaleBtn: Element = document.getElementById('tool-move')!;
+        const rotateBtn: Element = document.getElementById('tool-rotate')!;
+        const moveBtn: Element = document.getElementById('tool-scale')!;
 
         this.attachButtonToTool(scaleBtn, 'scale');
         this.attachButtonToTool(rotateBtn, 'rotate');
@@ -244,7 +225,7 @@ class MapRegionAnchorManager
 
     // Anchor point management
     private centralizedPoint: AnchorPoint | null; // Centralized anchor point for region manipulation
-    public get CentralizedPoint(): AnchorPoint | null { return MapRegionAnchorManager.INSTANCE.CentralizedPoint; }
+    public get CentralizedPoint(): AnchorPoint | null { return this.centralizedPoint; }
     private activeAnchorPoints: AnchorPoint[]; // All active anchor points for the region
     public get ActiveAnchorPoints(): AnchorPoint[] { return this.activeAnchorPoints; }
 
@@ -623,7 +604,7 @@ class MapRegionAnchorManager
         }
 
         if (updateRegion) {
-            MapRegionEditor.INSTANCE.updateRegion();
+            MapRegionRegionManager.INSTANCE.updateActiveRegionFrontend();
         }
 
         return newAnchor;
@@ -825,8 +806,6 @@ class MapRegionRegionManager
 
         // Add region to the regions array
         this.regions.push(newRegion);
-
-        return newRegion;
     }
 
     /**
@@ -895,6 +874,32 @@ class MapRegionRegionManager
         this.regions.length = 0;
     }
     // #endregion
+
+    public updateActiveRegionFrontend()
+    {
+        // Update the region's frontend shape point data from current anchor points
+        if (MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints && MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints.length > 0) {
+            this.activeEditingRegion!.setFrontendAnchorPositions(
+                MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints.map(
+                    anchor => ({
+                        anchorPos: anchor.GetAnchorPosition,
+                        relIncomingHandlePos: anchor.GetRelativeIncomingHandlePosition,
+                        relOutgoingHandlePos: anchor.GetRelativeOutgoingHandlePosition
+                    })
+                )
+            );
+            
+            // Update the region visual
+            this.activeEditingRegion!.update();
+        }
+    }
+
+    public updateAllRegions()
+    {
+        for (const region of this.regions) {
+            region.update();
+        }
+    }
 }
 
 /**
