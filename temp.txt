@@ -1,0 +1,1786 @@
+// #region Map Editor
+
+/**
+ * Class to manage anchor points within the map region editor.
+ */
+class MapRegionEditorAnchorManager
+{
+    constructor(editor) {
+        this.editor = editor;
+        
+        // Anchor Points
+        this._centralizedPoint = null; // The anchor point used for moving all other points
+        this._anchorPoints = []; // Array of all anchor points in the active region
+
+        // Pivot and Scale Anchor Management
+        this._currentPivotAnchor = null; // Current pivot anchor for rotation tool
+        this._currentScaleAnchor = null; // Current scale anchor for scale tool
+        this._anchorStatusMap = new Map(); // Map to track anchor status (pivot, scale, etc.)
+        
+        // Ghost anchor for showing original pivot/scale position during drag
+        this._ghostAnchor = null; // Leaflet marker for ghost anchor
+        this._ghostAnchorActive = false; // Track if ghost anchor is currently shown
+        this._ghostGridLines = []; // Array to store grid lines from ghost anchor to target points
+
+        // Selection Tracking
+        this._selectedAnchors = [];
+        this._selectedHandles = []; // Example Element: [AnchorPoint, isIncoming]
+        this._isDragging = false; // Track if any marker is currently being dragged
+    }
+
+    // #region Pivot and Scale Anchor Management
+    /**
+     * Sets an anchor as the pivot point and updates visual status.
+     * @param {AnchorPoint} anchorPoint - The anchor to set as pivot.
+     */
+    setPivotAnchor(anchorPoint) {
+        // Clear previous pivot status
+        if (this._currentPivotAnchor) {
+            this.clearAnchorStatus(this._currentPivotAnchor, 'pivot');
+        }
+        
+        // Set new pivot
+        this._currentPivotAnchor = anchorPoint;
+        if (anchorPoint) {
+            this.setAnchorStatus(anchorPoint, 'pivot');
+            console.log('Set pivot anchor:', anchorPoint);
+        }
+    }
+
+    /**
+     * Sets an anchor as the scale point and updates visual status.
+     * @param {AnchorPoint} anchorPoint - The anchor to set as scale point.
+     */
+    setScaleAnchor(anchorPoint) {
+        // Clear previous scale status
+        if (this._currentScaleAnchor) {
+            this.clearAnchorStatus(this._currentScaleAnchor, 'scale');
+        }
+        
+        // Set new scale anchor
+        this._currentScaleAnchor = anchorPoint;
+        if (anchorPoint) {
+            this.setAnchorStatus(anchorPoint, 'scale');
+            console.log('Set scale anchor:', anchorPoint);
+        }
+    }
+
+    /**
+     * Sets visual status on an anchor point.
+     * @param {AnchorPoint} anchorPoint - The anchor to set status on.
+     * @param {String} status - The status to set ('pivot', 'scale').
+     */
+    setAnchorStatus(anchorPoint, status) {
+        if (!this._anchorStatusMap.has(anchorPoint)) {
+            this._anchorStatusMap.set(anchorPoint, new Set());
+        }
+        
+        this._anchorStatusMap.get(anchorPoint).add(status);
+        this.updateAnchorVisualStatus(anchorPoint);
+        
+        console.log(`Set ${status} status on anchor:`, anchorPoint);
+    }
+
+    /**
+     * Clears a specific status from an anchor point.
+     * @param {AnchorPoint} anchorPoint - The anchor to clear status from.
+     * @param {String} status - The status to clear ('pivot', 'scale').
+     */
+    clearAnchorStatus(anchorPoint, status) {
+        if (this._anchorStatusMap.has(anchorPoint)) {
+            this._anchorStatusMap.get(anchorPoint).delete(status);
+            
+            // Remove the anchor from map if no statuses remain
+            if (this._anchorStatusMap.get(anchorPoint).size === 0) {
+                this._anchorStatusMap.delete(anchorPoint);
+            }
+            
+            this.updateAnchorVisualStatus(anchorPoint, true);
+            console.log(`Cleared ${status} status from anchor:`, anchorPoint);
+        }
+    }
+
+    /**
+     * Clears all anchor statuses and updates visuals.
+     */
+    clearAllAnchorStatuses() {
+        const anchorsToUpdate = Array.from(this._anchorStatusMap.keys());
+        
+        // Clear current pivot and scale references
+        this._currentPivotAnchor = null;
+        this._currentScaleAnchor = null;
+        
+        // Clear the status map
+        this._anchorStatusMap.clear();
+        
+        // Update visuals for all previously affected anchors
+        anchorsToUpdate.forEach(anchor => {
+            this.updateAnchorVisualStatus(anchor, true);
+        });
+    }
+
+    /**
+     * Updates the visual status of an anchor point based on its current statuses.
+     * @param {AnchorPoint} anchorPoint - The anchor to update.
+     * @param {Boolean} clearAll - Whether to clear all classes before applying new ones.
+     */
+    updateAnchorVisualStatus(anchorPoint, clearAll = false) {
+        const statusSet = this._anchorStatusMap.get(anchorPoint);
+        const mainVisual = anchorPoint.mainVisual;
+        
+        if (!mainVisual) return;
+        
+        const element = mainVisual.getElement();
+        if (!element) return;
+        
+        if (clearAll) {
+            // Remove all status classes
+            element.classList.remove('pivot-anchor', 'scale-anchor');
+        }
+        
+        if (statusSet) {
+            // Add classes based on current statuses
+            if (statusSet.has('pivot')) {
+                element.classList.add('pivot-anchor');
+            }
+            if (statusSet.has('scale')) {
+                element.classList.add('scale-anchor');
+            }
+        }
+    }
+
+    /**
+     * Gets the current pivot anchor.
+     * @returns {AnchorPoint|null} The current pivot anchor or null.
+     */
+    getCurrentPivotAnchor() {
+        return this._currentPivotAnchor;
+    }
+
+    /**
+     * Gets the current scale anchor.
+     * @returns {AnchorPoint|null} The current scale anchor or null.
+     */
+    getCurrentScaleAnchor() {
+        return this._currentScaleAnchor;
+    }
+    // #endregion
+
+    // #region Ghost Anchor Management
+    /**
+     * Shows a ghost anchor at the specified position to indicate original pivot/scale point.
+     * @param {L.LatLng} position - The position to show the ghost anchor.
+     * @param {String} type - The type of ghost anchor ('pivot' or 'scale').
+     * @param {Array} targetAnchors - Optional array of anchor points to draw grid lines to.
+     */
+    showGhostAnchor(position, type = 'pivot', targetAnchors = null) {
+        // Remove existing ghost anchor if any
+        this.hideGhostAnchor();
+        
+        // Create ghost anchor marker
+        this._ghostAnchor = L.marker(position, {
+            icon: ANCHOR_ICON,
+            interactive: false, // Make it non-interactive
+            keyboard: false,
+            riseOnHover: false,
+            zIndexOffset: -1000 // Place behind other markers
+        }).addTo(map);
+        
+        // Add ghost styling based on type
+        const element = this._ghostAnchor.getElement();
+        if (element) {
+            element.classList.add('ghost-anchor');
+            if (type === 'pivot') {
+                element.classList.add('ghost-pivot-anchor');
+            } else if (type === 'scale') {
+                element.classList.add('ghost-scale-anchor');
+            }
+        }
+        
+        // Create grid lines to target anchors if provided
+        this._ghostGridLines = [];
+        if (targetAnchors && targetAnchors.length > 0) {
+            targetAnchors.forEach(anchor => {
+                const line = L.polyline([position, anchor.latlng], {
+                    color: type === 'pivot' ? '#9d4edd' : '#06ffa5',
+                    weight: 3,
+                    opacity: 0.8,
+                    dashArray: '8, 4',
+                    interactive: false
+                }).addTo(map);
+                
+                this._ghostGridLines.push(line);
+            });
+        }
+        
+        this._ghostAnchorActive = true;
+        console.log(`Ghost ${type} anchor shown at:`, position, 'with', targetAnchors ? targetAnchors.length : 0, 'grid lines');
+    }
+
+    /**
+     * Hides the ghost anchor if it's currently shown.
+     */
+    hideGhostAnchor() {
+        if (this._ghostAnchor) {
+            map.removeLayer(this._ghostAnchor);
+            this._ghostAnchor = null;
+        }
+        
+        // Remove grid lines
+        if (this._ghostGridLines) {
+            this._ghostGridLines.forEach(line => {
+                if (map.hasLayer(line)) {
+                    map.removeLayer(line);
+                }
+            });
+            this._ghostGridLines = [];
+        }
+        
+        if (this._ghostAnchorActive) {
+            this._ghostAnchorActive = false;
+            console.log('Ghost anchor and grid lines hidden');
+        }
+    }
+
+    /**
+     * Updates the grid lines from ghost anchor to target anchors with their current positions.
+     * @param {Array} targetAnchors - Array of anchor points to draw lines to.
+     * @param {String} type - The type of ghost anchor ('pivot' or 'scale').
+     */
+    updateGhostGridLines(targetAnchors, type = 'pivot') {
+        if (!this._ghostAnchor || !this._ghostAnchorActive || !targetAnchors) {
+            return;
+        }
+
+        // Remove existing grid lines
+        if (this._ghostGridLines) {
+            this._ghostGridLines.forEach(line => {
+                if (map.hasLayer(line)) {
+                    map.removeLayer(line);
+                }
+            });
+            this._ghostGridLines = [];
+        }
+
+        // Create new grid lines with current positions
+        const ghostPosition = this._ghostAnchor.getLatLng();
+        targetAnchors.forEach(anchor => {
+            const line = L.polyline([ghostPosition, anchor.latlng], {
+                color: type === 'pivot' ? '#9d4edd' : '#06ffa5',
+                weight: 3,
+                opacity: 0.8,
+                dashArray: '8, 4',
+                interactive: false
+            }).addTo(map);
+            
+            this._ghostGridLines.push(line);
+        });
+    }
+
+    /**
+     * Checks if ghost anchor is currently active.
+     * @returns {Boolean} True if ghost anchor is active.
+     */
+    isGhostAnchorActive() {
+        return this._ghostAnchorActive;
+    }
+    // #endregion
+
+    // #region Anchor Point Functions
+    /**
+     * Finds the two closest anchor points to a given position and returns their index and distances.
+     * @param {L.LatLng} latlng - The position to find closest anchors to.
+     * @returns {Object} Object containing information about the two closest anchors.
+     */
+    findTwoClosestAnchors(latlng) {
+        if (this._anchorPoints.length < 2) {
+            return { firstIndex: 0, secondIndex: 0, firstDistance: Infinity, secondDistance: Infinity };
+        }
+
+        let firstClosestIndex = 0;
+        let secondClosestIndex = 1;
+        let firstClosestDistance = latlng.distanceTo(this._anchorPoints[0].latlng);
+        let secondClosestDistance = latlng.distanceTo(this._anchorPoints[1].latlng);
+
+        // Ensure first is closer than second
+        if (secondClosestDistance < firstClosestDistance) {
+            [firstClosestIndex, secondClosestIndex] = [secondClosestIndex, firstClosestIndex];
+            [firstClosestDistance, secondClosestDistance] = [secondClosestDistance, firstClosestDistance];
+        }
+
+        // Check the rest of the anchors
+        for (let i = 2; i < this._anchorPoints.length; i++) {
+            const distance = latlng.distanceTo(this._anchorPoints[i].latlng);
+            
+            if (distance < firstClosestDistance) {
+                // New first closest
+                secondClosestIndex = firstClosestIndex;
+                secondClosestDistance = firstClosestDistance;
+                firstClosestIndex = i;
+                firstClosestDistance = distance;
+            } else if (distance < secondClosestDistance) {
+                // New second closest
+                secondClosestIndex = i;
+                secondClosestDistance = distance;
+            }
+        }
+
+        return {
+            firstIndex: firstClosestIndex,
+            secondIndex: secondClosestIndex,
+            firstDistance: firstClosestDistance,
+            secondDistance: secondClosestDistance
+        };
+    }
+
+    /**
+     * Creates a new anchor point and optionally adds it to the anchor points array.
+     * @param {L.LatLng} latlng - The position of the new anchor point.
+     * @param {L.LatLng} relIncomingHandlePos - Relative incoming handle position.
+     * @param {L.LatLng} relOutgoingHandlePos - Relative outgoing handle position.
+     * @param {Boolean} updateRegion - Whether to update the region after creating the anchor.
+     * @param {Boolean} pushToAnchorPoints - Whether to add this anchor to the anchor points array.
+     * @param {Boolean} insertBetweenClosests - Whether to insert between the two closest anchors.
+     * @returns {AnchorPoint} The created anchor point.
+     */
+    createAnchorPoint(latlng, relIncomingHandlePos, relOutgoingHandlePos, updateRegion = true, pushToAnchorPoints = true, insertBetweenClosests = false) {
+        // Create the new anchor point
+        const newAnchor = new AnchorPoint(
+            latlng,
+            relIncomingHandlePos,
+            relOutgoingHandlePos,
+            {
+                onAnchorDrag: (a, b) => { this.editor._onAnchorDrag(a, b); },
+                onAnchorDragEnd: (a, b) => { this.editor._onAnchorDragEnd(a, b); },
+                onHandleDrag: (a, b, c) => { this.editor._onHandleDrag(a, b, c); },
+                onAnchorClick: (a) => { this.editor._onAnchorClick(a); },
+                onHandleClick: (a, b) => { this.editor._onHandleClick(a, b); },
+                onAnchorRightClick: (a, e) => { this.editor._onAnchorRightClick(a, e); }
+            }
+        );
+
+        if (pushToAnchorPoints) {
+            if (insertBetweenClosests && this._anchorPoints.length >= 2) {
+                // Find the two closest anchors and insert between them
+                const closestInfo = this.findTwoClosestAnchors(latlng);
+                const insertIndex = Math.max(closestInfo.firstIndex, closestInfo.secondIndex);
+                this._anchorPoints.splice(insertIndex, 0, newAnchor);
+            } else {
+                // Simply push to the end
+                this._anchorPoints.push(newAnchor);
+            }
+        }
+
+        if (updateRegion) {
+            this.editor._updateRegion();
+        }
+
+        return newAnchor;
+    }
+
+    /**
+     * Clears all anchor points from the manager and removes them from the map.
+     */
+    clearAnchors() {
+        // Remove all anchor visuals from the map
+        this._anchorPoints.forEach(anchor => {
+            if (anchor.remove) {
+                anchor.remove();
+            }
+        });
+
+        // Clear the anchors array
+        this._anchorPoints = [];
+
+        // Clear centralized point
+        if (this._centralizedPoint && this._centralizedPoint.remove) {
+            this._centralizedPoint.remove();
+        }
+        this._centralizedPoint = null;
+
+        // Clear all anchor statuses
+        this.clearAllAnchorStatuses();
+
+        // Clear selected anchors and handles
+        this._selectedAnchors = [];
+        this._selectedHandles = [];
+
+        // Reset dragging state
+        this._isDragging = false;
+    }
+
+    /**
+     * Updates the interactivity of all anchor points based on current tool state
+     */
+    updateAllAnchorInteractivity() {
+        this._anchorPoints.forEach(anchor => {
+            if (anchor.updateInteractivity) {
+                anchor.updateInteractivity();
+            }
+        });
+        
+        if (this._centralizedPoint && this._centralizedPoint.updateInteractivity) {
+            this._centralizedPoint.updateInteractivity();
+        }
+    }
+
+    /**
+     * Calculates and sets the centralized point based on current anchor points.
+     */
+    calculateCentralizedPoint() {
+        if (this._anchorPoints.length === 0) {
+            this._centralizedPoint = null;
+            return;
+        }
+
+        // Calculate center point from all anchors
+        let totalLat = 0;
+        let totalLng = 0;
+        
+        this._anchorPoints.forEach(anchor => {
+            totalLat += anchor.latlng.lat;
+            totalLng += anchor.latlng.lng;
+        });
+
+        const centerLat = totalLat / this._anchorPoints.length;
+        const centerLng = totalLng / this._anchorPoints.length;
+        const centerLatLng = L.latLng(centerLat, centerLng);
+
+        // Create centralized point anchor
+        this._centralizedPoint = this.createAnchorPoint(
+            centerLatLng,
+            null,
+            null,
+            false, // Don't update region
+            false, // Don't add to anchor points array
+            false  // Don't insert between closest anchors
+        );
+
+        console.log('Calculated centralized point:', this._centralizedPoint);
+    }
+
+    // Additional anchor management methods would go here...
+    // #endregion
+
+    // #region Selection Functions
+    // Selection management methods would go here...
+    // #endregion
+
+    // #region Centralized Point Functions
+    // Centralized point management methods would go here...
+    // #endregion
+}
+
+/**
+ * Class to manage regions within the map region editor.
+ */
+class MapRegionEditorRegionManager
+{
+    constructor(editor) {
+        this.editor = editor;
+        
+        // Primary Fields
+        this._activeEditingRegion = null; // The region currently being edited
+        this._regions = []; // Array of all regions on the map
+    }
+
+    // #region Region Loading Functions
+    /**
+     * Loads different types of regions and appends them to _regions array.
+     * @param {string} regionType - Type of region ('rectangle', 'circle', 'custom')
+     * @param {object} regionData - Configuration data for the region
+     * @param {object} styleOptions - Style options for the region (optional)
+     */
+    loadRegion(regionType, regionData = null, styleOptions = {}) {
+        let newRegion;
+
+        // Create region based on type
+        switch (regionType.toLowerCase()) {
+            case 'rectangle':
+                newRegion = new MapRectangleRegion();
+                if (regionData && regionData.points) {
+                    // Custom rectangle with specific points
+                    newRegion._frontendShapePointData = regionData.points.map(point => ({
+                        latlng: L.latLng(point.lat, point.lng),
+                        relIncomingHandle: point.relIncomingHandle || null,
+                        relOutgoingHandle: point.relOutgoingHandle || null
+                    }));
+                } else {
+                    // Default rectangle configuration
+                    newRegion._frontendShapePointData = newRegion.INTIAL_FRONTEND_CONFIGURATION;
+                }
+                break;
+
+            case 'circle':
+                newRegion = new MapCircleRegion();
+                if (regionData && regionData.center && regionData.radius) {
+                    // Custom circle with specific center and radius
+                    newRegion._frontendShapePointData = [
+                        {
+                            latlng: L.latLng(regionData.center.lat, regionData.center.lng),
+                            relIncomingHandle: null,
+                            relOutgoingHandle: null
+                        },
+                        {
+                            latlng: L.latLng(regionData.center.lat, regionData.center.lng + regionData.radius),
+                            relIncomingHandle: null,
+                            relOutgoingHandle: null
+                        }
+                    ];
+                } else {
+                    // Default circle configuration
+                    newRegion._frontendShapePointData = newRegion.INTIAL_FRONTEND_CONFIGURATION;
+                }
+                break;
+
+            case 'custom':
+                // Custom region with user-defined points
+                if (!regionData || !regionData.points || regionData.points.length < 3) {
+                    console.error('Custom region requires at least 3 points');
+                    return null;
+                }
+                newRegion = new MapRectangleRegion(); // Use base rectangle class for custom shapes
+                newRegion._frontendShapePointData = regionData.points.map(point => ({
+                    latlng: L.latLng(point.lat, point.lng),
+                    relIncomingHandle: point.relIncomingHandle || null,
+                    relOutgoingHandle: point.relOutgoingHandle || null
+                }));
+                break;
+
+            default:
+                console.error(`Unknown region type: ${regionType}`);
+                return null;
+        }
+
+        // Apply style options
+        const defaultStyle = {
+            color: 'blue',
+            opacity: 0.3,
+            restrictedRegion: false,
+            regionLabel: `${regionType.charAt(0).toUpperCase() + regionType.slice(1)} Region`
+        };
+
+        const finalStyle = { ...defaultStyle, ...styleOptions };
+        newRegion.updateStyleParameters(finalStyle);
+
+        // Add region to the regions array
+        this._regions.push(newRegion);
+
+        return newRegion;
+    }
+
+    /**
+     * Loads multiple regions from an array of region configurations.
+     * @param {Array} regionsConfig - Array of region configuration objects
+     */
+    loadMultipleRegions(regionsConfig) {
+        const loadedRegions = [];
+        
+        regionsConfig.forEach((config, index) => {
+            const { type, data, style } = config;
+            const region = this.loadRegion(type, data, style);
+            
+            if (region) {
+                loadedRegions.push(region);
+                //console.log(`Loaded region ${index + 1}/${regionsConfig.length}`);
+            } else {
+                console.error(`Failed to load region ${index + 1}:`, config);
+            }
+        });
+
+        return loadedRegions;
+    }
+
+    /**
+     * Loads a region from JSON data.
+     * @param {string} jsonData - JSON string containing region configuration
+     */
+    loadRegionFromJSON(jsonData) {
+        try {
+            const config = JSON.parse(jsonData);
+            return this.loadRegion(config.type, config.data, config.style);
+        } catch (error) {
+            console.error('Error parsing JSON region data:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Gets all loaded regions.
+     * @returns {Array} Array of all loaded regions
+     */
+    getAllRegions() {
+        return this._regions;
+    }
+
+    /**
+     * Removes a region from the _regions array.
+     * @param {number} index - Index of the region to remove
+     * @returns {boolean} True if region was removed successfully
+     */
+    removeRegion(index) {
+        if (index >= 0 && index < this._regions.length) {
+            const removedRegion = this._regions.splice(index, 1)[0];
+            //console.log('Removed region:', removedRegion);
+            return true;
+        }
+        console.error(`Invalid region index: ${index}`);
+        return false;
+    }
+
+    /**
+     * Clears all regions from the _regions array.
+     */
+    clearAllRegions() {
+        this._regions.length = 0;
+    }
+    // #endregion
+
+    // #region Region Management Functions
+    /**
+     * Loads a region into the editor for editing.
+     * @param {MapRegion} region - The region to load into the editor
+     * @returns {boolean} True if the region was successfully loaded for editing
+     */
+    loadRegionIntoEditor(region) {
+        if (!region) {
+            console.error('Cannot load null/undefined region into editor');
+            return false;
+        }
+
+        // Set this region as the active editing region
+        this._activeEditingRegion = region;
+
+        // Clear existing anchor points in the editor
+        this.editor.anchorManager.clearAnchors();
+
+        // Load the region's frontend shape point data into the editor's anchor points
+        if (region._frontendShapePointData && region._frontendShapePointData.length > 0) {
+            region._frontendShapePointData.forEach(pointData => {
+                this.editor.anchorManager.createAnchorPoint(
+                    pointData.latlng,
+                    pointData.relIncomingHandle,
+                    pointData.relOutgoingHandle,
+                    false, // Don't update region yet
+                    true,  // Add to anchor points array
+                    false  // Don't insert between closest anchors
+                );
+            });
+
+            // Calculate and set the centralized point
+            this.editor.anchorManager.calculateCentralizedPoint();
+            
+            // Update anchor interactivity now that we have a tool
+            this.editor.anchorManager.updateAllAnchorInteractivity();
+
+            // Update the region to reflect any changes
+            if (this._activeEditingRegion) {
+                this._activeEditingRegion.update();
+            }
+
+            //console.log('Loaded region into editor for editing:', region);
+            return true;
+        } else {
+            console.warn('Region has no frontend shape point data to load');
+            return false;
+        }
+    }
+
+    /**
+     * Saves the current editor state back to the active editing region.
+     * @returns {boolean} True if the region was successfully saved
+     */
+    saveRegionFromEditor() {
+        if (!this._activeEditingRegion) {
+            console.warn('No active editing region to save');
+            return false;
+        }
+
+        // Update the active editing region's frontend shape point data from the editor's anchor points
+        const anchorPoints = this.editor._anchorPoints;
+        if (anchorPoints && anchorPoints.length > 0) {
+            this._activeEditingRegion._frontendShapePointData = anchorPoints.map(anchor => ({
+                latlng: anchor.latlng,
+                relIncomingHandle: anchor.relIncomingHandlePos,
+                relOutgoingHandle: anchor.relOutgoingHandlePos
+            }));
+
+            // Update the region
+            this._activeEditingRegion.update();
+
+            //console.log('Saved editor state to region:', this._activeEditingRegion);
+            return true;
+        } else {
+            console.warn('No anchor points in editor to save');
+            return false;
+        }
+    }
+
+    /**
+     * Stops editing the current region and clears the editor.
+     * @returns {boolean} True if editing was successfully stopped
+     */
+    stopEditingRegion() {
+        if (this._activeEditingRegion) {
+            // Save any changes before stopping
+            this.saveRegionFromEditor();
+            
+            // Clear the active editing region
+            this._activeEditingRegion = null;
+
+            // Clear the editor's anchor points
+            this.editor.anchorManager.clearAnchors();
+            
+            // Switch back to creation UI mode
+            this.editor.showCreationUI();
+
+            //console.log('Stopped editing region');
+            return true;
+        }
+        return false;
+    }
+    // #endregion
+}
+
+/**
+ * Main class for the Map Region Editor.
+ */
+class MapRegionEditor
+{
+    constructor()
+    {
+        // Key State Tracking
+        this._keyStates = new MapRegionEditorKeyStates();
+
+        // Management Classes
+        this.anchorManager = new MapRegionEditorAnchorManager(this);
+        this.regionManager = new MapRegionEditorRegionManager(this);
+
+        // Tool State
+        this._activeTool = null; // Current active tool (class instance)
+
+        // Initialize buttons
+        this.#initializeToolButtons();
+        
+        // Set default tool to translate/move
+        this.setActiveTool('move');
+        
+        // Start with creation UI mode
+        this.showCreationUI();
+    }
+
+    // #region Property Getters for Management Classes
+    // Anchor Manager Properties
+    get _centralizedPoint() { return this.anchorManager._centralizedPoint; }
+    set _centralizedPoint(value) { this.anchorManager._centralizedPoint = value; }
+    
+    get _anchorPoints() { return this.anchorManager._anchorPoints; }
+    set _anchorPoints(value) { this.anchorManager._anchorPoints = value; }
+    
+    get _selectedAnchors() { return this.anchorManager._selectedAnchors; }
+    set _selectedAnchors(value) { this.anchorManager._selectedAnchors = value; }
+    
+    get _selectedHandles() { return this.anchorManager._selectedHandles; }
+    set _selectedHandles(value) { this.anchorManager._selectedHandles = value; }
+    
+    get _isDragging() { return this.anchorManager._isDragging; }
+    set _isDragging(value) { this.anchorManager._isDragging = value; }
+
+    // Region Manager Properties  
+    get _activeEditingRegion() { return this.regionManager._activeEditingRegion; }
+    set _activeEditingRegion(value) { this.regionManager._activeEditingRegion = value; }
+    
+    get _regions() { return this.regionManager._regions; }
+    set _regions(value) { this.regionManager._regions = value; }
+
+    // Delegated Methods from Anchor Manager
+    setPivotAnchor(anchorPoint) { return this.anchorManager.setPivotAnchor(anchorPoint); }
+    setScaleAnchor(anchorPoint) { return this.anchorManager.setScaleAnchor(anchorPoint); }
+    setAnchorStatus(anchorPoint, status) { return this.anchorManager.setAnchorStatus(anchorPoint, status); }
+    clearAnchorStatus(anchorPoint, status) { return this.anchorManager.clearAnchorStatus(anchorPoint, status); }
+    clearAllAnchorStatuses() { return this.anchorManager.clearAllAnchorStatuses(); }
+    updateAnchorVisualStatus(anchorPoint, clearAll = false) { return this.anchorManager.updateAnchorVisualStatus(anchorPoint, clearAll); }
+    getCurrentPivotAnchor() { return this.anchorManager.getCurrentPivotAnchor(); }
+    getCurrentScaleAnchor() { return this.anchorManager.getCurrentScaleAnchor(); }
+    showGhostAnchor(position, type = 'pivot', targetAnchors = null) { return this.anchorManager.showGhostAnchor(position, type, targetAnchors); }
+    hideGhostAnchor() { return this.anchorManager.hideGhostAnchor(); }
+    updateGhostGridLines(targetAnchors, type = 'pivot') { return this.anchorManager.updateGhostGridLines(targetAnchors, type); }
+    isGhostAnchorActive() { return this.anchorManager.isGhostAnchorActive(); }
+    findTwoClosestAnchors(latlng) { return this.anchorManager.findTwoClosestAnchors(latlng); }
+    createAnchorPoint(latlng, relIncomingHandlePos, relOutgoingHandlePos, updateRegion = true, pushToAnchorPoints = true, insertBetweenClosests = false) {
+        return this.anchorManager.createAnchorPoint(latlng, relIncomingHandlePos, relOutgoingHandlePos, updateRegion, pushToAnchorPoints, insertBetweenClosests);
+    }
+    clearAnchors() { return this.anchorManager.clearAnchors(); }
+    calculateCentralizedPoint() { return this.anchorManager.calculateCentralizedPoint(); }
+
+    // Delegated Methods from Region Manager
+    loadRegion(regionType, regionData = null, styleOptions = {}) { return this.regionManager.loadRegion(regionType, regionData, styleOptions); }
+    loadMultipleRegions(regionsConfig) { return this.regionManager.loadMultipleRegions(regionsConfig); }
+    loadRegionFromJSON(jsonData) { return this.regionManager.loadRegionFromJSON(jsonData); }
+    getAllRegions() { return this.regionManager.getAllRegions(); }
+    removeRegion(index) { return this.regionManager.removeRegion(index); }
+    clearAllRegions() { return this.regionManager.clearAllRegions(); }
+    loadRegionIntoEditor(region) { 
+        const result = this.regionManager.loadRegionIntoEditor(region); 
+        this.showEditingUI();
+        return result;
+    }
+    saveRegionFromEditor() { return this.regionManager.saveRegionFromEditor(); }
+    stopEditingRegion() { return this.regionManager.stopEditingRegion(); }
+    // #endregion
+
+    // #region Event Callbacks for Sub-managers
+    /**
+     * Called when an anchor is being dragged
+     */
+    _onAnchorDrag(anchorPoint, newPosition) {
+        if (this._activeTool) {
+            this._activeTool.onAnchorDrag?.(anchorPoint, newPosition);
+        }
+        this._updateRegion();
+    }
+
+    /**
+     * Called when an anchor drag operation ends
+     */
+    _onAnchorDragEnd(anchorPoint, newPosition) {
+        if (this._activeTool) {
+            this._activeTool.onAnchorDragEnd?.(anchorPoint, newPosition);
+        }
+        this._updateRegion();
+    }
+
+    /**
+     * Called when a control handle is being dragged
+     */
+    _onHandleDrag(anchorPoint, handleType, newPosition) {
+        if (this._activeTool) {
+            this._activeTool.onHandleDrag?.(anchorPoint, handleType, newPosition);
+        }
+        this._updateRegion();
+    }
+
+    /**
+     * Called when an anchor is clicked
+     */
+    _onAnchorClick(anchorPoint) {
+        if (this._activeTool) {
+            this._activeTool.onAnchorClick?.(anchorPoint);
+        }
+    }
+
+    /**
+     * Called when a control handle is clicked
+     */
+    _onHandleClick(anchorPoint, handleType) {
+        if (this._activeTool) {
+            this._activeTool.onHandleClick?.(anchorPoint, handleType);
+        }
+    }
+
+    /**
+     * Called when an anchor is right-clicked
+     */
+    _onAnchorRightClick(anchorPoint, event) {
+        if (this._activeTool) {
+            this._activeTool.onAnchorRightClick?.(anchorPoint, event);
+        }
+    }
+
+    /**
+     * Updates the visual representation of the region
+     */
+    _updateRegion() {
+        if (this.regionManager && this.regionManager._activeEditingRegion) {
+            // Update the region's frontend shape point data from current anchor points
+            if (this._anchorPoints && this._anchorPoints.length > 0) {
+                this.regionManager._activeEditingRegion._frontendShapePointData = this._anchorPoints.map(anchor => ({
+                    latlng: anchor.latlng,
+                    relIncomingHandle: anchor.relIncomingHandlePos,
+                    relOutgoingHandle: anchor.relOutgoingHandlePos
+                }));
+                
+                // Update the region visual
+                if (typeof this.regionManager._activeEditingRegion.update === 'function') {
+                    this.regionManager._activeEditingRegion.update();
+                }
+            }
+        }
+    }
+    // #endregion
+
+    // #region UI Management
+    /**
+     * Switches UI to editing mode - shows tools, hides create buttons
+     */
+    showEditingUI() {
+        console.log('showEditingUI() called');
+        const toolsPanel = document.querySelector('.tools-panel');
+        const createPanel = document.querySelector('.create-panel');
+        
+        console.log('toolsPanel found:', !!toolsPanel);
+        console.log('createPanel found:', !!createPanel);
+        
+        if (toolsPanel) {
+            console.log('tools panel before change - display:', getComputedStyle(toolsPanel).display);
+            console.log('tools panel before change - visibility:', getComputedStyle(toolsPanel).visibility);
+            console.log('tools panel before change - opacity:', getComputedStyle(toolsPanel).opacity);
+            
+            toolsPanel.style.display = 'block';
+            toolsPanel.style.visibility = 'visible';
+            toolsPanel.style.opacity = '1';
+            
+            console.log('Set tools panel to display: block');
+            console.log('tools panel after change - display:', getComputedStyle(toolsPanel).display);
+            console.log('tools panel after change - visibility:', getComputedStyle(toolsPanel).visibility);
+            console.log('tools panel offsetHeight:', toolsPanel.offsetHeight);
+            console.log('tools panel offsetWidth:', toolsPanel.offsetWidth);
+        }
+        
+        if (createPanel) {
+            createPanel.style.display = 'none';
+            console.log('Set create panel to display: none');
+        }
+        
+        console.log('Switched to editing UI mode');
+    }
+    
+    /**
+     * Switches UI to creation mode - hides tools, shows create buttons
+     */
+    showCreationUI() {
+        const toolsPanel = document.querySelector('.tools-panel');
+        const createPanel = document.querySelector('.create-panel');
+        
+        if (toolsPanel) {
+            toolsPanel.style.display = 'none';
+        }
+        
+        if (createPanel) {
+            createPanel.style.display = 'block';
+        }
+        
+        console.log('Switched to creation UI mode');
+    }
+    // #endregion
+
+    // #region Initialization
+    #initializeToolButtons()
+    {
+        // Attach buttons to tools
+        const scaleBtn = document.getElementById('scaleBtn');
+        const rotateBtn = document.getElementById('rotateBtn');
+        const moveBtn = document.getElementById('moveBtn');
+
+        this.attachButtonToTool(scaleBtn, 'scale');
+        this.attachButtonToTool(rotateBtn, 'rotate');
+        this.attachButtonToTool(moveBtn, 'move');
+    }
+
+    // #endregion
+
+    // #region Tools
+    /**
+     * Sets the active tool based on the provided tool name.
+     * @param {String} toolName - Name of the tool to activate ('scale', 'rotate', 'move').
+     */
+    setActiveTool(toolName)
+    {
+        // Clear all pivot and scale anchor statuses when switching tools
+        this.clearAllAnchorStatuses();
+
+        // Delete the current tool
+        this._activeTool = null;
+
+        // Create the new tool based on the name
+        switch (toolName)
+        {
+            case 'scale':
+                this._activeTool = new MapRegionEditorScaleTool(this);
+                // Set centralized point as default scale anchor with visual indicator
+                if (this._centralizedPoint) {
+                    this.setScaleAnchor(this._centralizedPoint);
+                }
+                break;
+            case 'rotate':
+                this._activeTool = new MapRegionEditorRotateTool(this);
+                // Set centralized point as default pivot anchor with visual indicator
+                if (this._centralizedPoint) {
+                    this.setPivotAnchor(this._centralizedPoint);
+                }
+                break;
+            case 'move':
+                this._activeTool = new MapRegionEditorTranslateTool(this);
+                // No special centralized point status needed for move tool
+                break;
+            default:
+                console.warn("Unknown tool name: " + toolName);
+                break;
+        }
+        
+        // Update anchor interactivity when tool changes
+        this.anchorManager.updateAllAnchorInteractivity();
+        
+        console.log(`Set active tool to: ${toolName}`);
+    }
+
+    // Buttons
+    attachButtonToTool(buttonElement, toolName)
+    {
+        buttonElement.addEventListener('click', () => {
+            this.setActiveTool(toolName);
+        });
+    }
+
+    /**
+     * Legacy method for backward compatibility. Delegates to setActiveTool.
+     * @param {String} toolName - Name of the tool to activate ('scale', 'rotate', 'translate').
+     */
+    setTool(toolName) {
+        // Map 'translate' to 'move' for consistency
+        if (toolName === 'translate') {
+            toolName = 'move';
+        }
+        this.setActiveTool(toolName);
+    }
+
+    // #endregion
+}
+
+/**
+ * Class to track the state of modifier keys (Ctrl, Shift, Alt, Delete).
+ */
+class MapRegionEditorKeyStates
+{
+    #isCtrlPressed; #isShiftPressed; #isAltPressed; #isDeletePressed;
+    constructor()
+    {
+        // Key State Tracking
+        this.#isCtrlPressed = false; // Track if ctrl key is currently pressed
+        this.#isShiftPressed = false; // Track if shift key is currently pressed
+        this.#isAltPressed = false; // Track if alt key is currently pressed
+        this.#isDeletePressed = false; // Track if delete key is currently pressed
+
+        // Set up keyboard event listeners
+        this.#initKeyboardListeners();
+    }
+
+    /**
+     * Sets up keyboard event listeners for tracking key states.
+     */
+    #initKeyboardListeners() {
+        // Keydown listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Control') {
+                this.#isCtrlPressed = true;
+            } else if (e.key === 'Shift') {
+                this.#isShiftPressed = true;
+            } else if (e.key === 'Alt') {
+                this.#isAltPressed = true;
+            } else if (e.key === 'Delete') {
+                this.#isDeletePressed = true;
+            }
+        });
+        // Keyup listeners
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'Control') {
+                this.#isCtrlPressed = false;
+            } else if (e.key === 'Shift') {
+                this.#isShiftPressed = false;
+            } else if (e.key === 'Alt') {
+                this.#isAltPressed = false;
+            } else if (e.key === 'Delete') {
+                this.#isDeletePressed = false;
+            }
+        });
+    }
+
+    // #region Key State Getters
+    get isCtrlPressed() { return this.#isCtrlPressed; }
+    get isShiftPressed() { return this.#isShiftPressed; }
+    get isAltPressed() { return this.#isAltPressed; }
+    get isDeletePressed() { return this.#isDeletePressed; }
+    // #endregion
+}
+
+/**
+ * Base class for tools used in the Map Region Editor.
+ */
+class MapRegionEditorTool {
+    /**
+     * 
+     * @param {MapRegionEditor} editor 
+     */
+    constructor(editor) {
+        // Base Tool State
+        this.editor = editor; // Reference to the MapRegionEditor instance
+
+        // Initialize the tool with the editor reference
+        this.#checkOverrides();
+    }
+
+    // #region Initialization Functions
+    /**
+     * Checks if the necessary methods are overridden in the derived class.
+     */
+    #checkOverrides()
+    {
+        // Ensure that the derived class has overridden necessary functions
+        if (this.anchorMoved === MapRegionEditorTool.prototype.anchorMoved) {
+            throw new Error("Derived class must override anchorMoved method.");
+        }
+        if (this.handleMoved === MapRegionEditorTool.prototype.handleMoved) {
+            throw new Error("Derived class must override handleMoved method.");
+        }
+        if (this.anchorRightClicked === MapRegionEditorTool.prototype.anchorRightClicked) {
+            throw new Error("Derived class must override anchorRightClicked method.");
+        }
+        if (this.handleRightClicked === MapRegionEditorTool.prototype.handleRightClicked) {
+            throw new Error("Derived class must override handleRightClicked method.");
+        }
+    }
+
+    // #endregion
+
+    // #region Override Functions
+    /**
+     * Called when an anchor point is moved.
+     * @param {AnchorPoint} anchorPoint - The anchor point being dragged.
+     * @param {L.Marker} anchorVisual - The visual marker of the anchor point.
+     */
+    anchorMoved(anchorPoint, anchorVisual) {}
+
+    /**
+     * Called when a control handle is moved.
+     * @param {AnchorPoint} anchorPoint - The anchor point the handle belongs to.
+     * @param {boolean} isIncoming - True if the handle is the incoming handle, false for outgoing.
+     * @param {L.Marker} handleVisual - The visual marker of the control handle.
+     */
+    handleMoved(anchorPoint, isIncoming, handleVisual) {}
+
+    /**
+     * Called when an anchor point is right-clicked.
+     * @param {AnchorPoint} anchorPoint - The anchor point being right-clicked.
+     * @param {MouseEvent} event - The mouse event.
+     */
+    anchorRightClicked(anchorPoint, event) {}
+
+    /**
+     * Called when a control handle is right-clicked.
+     * @param {AnchorPoint} anchorPoint - The anchor point the handle belongs to.
+     * @param {boolean} isIncoming - True if the handle is the incoming handle, false for outgoing.
+     * @param {L.Marker} handleVisual - The visual marker of the control handle.
+     * @param {MouseEvent} event - The mouse event.
+     */
+    handleRightClicked(anchorPoint, isIncoming, handleVisual, event) {}
+
+    // #endregion
+}
+
+/**
+ * Map Region Editor Translate tool (Move Tool)
+ */
+class MapRegionEditorTranslateTool extends MapRegionEditorTool {
+    constructor(editor) {
+        super(editor); // Initialize parent class
+    }
+
+    // #region Utility Functions
+    /**
+     * Moves all anchor points based on the movement of the centralized point.
+     * @param {AnchorPoint} anchorPoint - The anchor point being dragged.
+     * @param {L.Marker} anchorVisual - The visual marker of the anchor point.
+     */
+    #moveAllPointsWithCentralizedPoint(anchorPoint, anchorVisual)
+    {
+        // Check if a centralized point is set
+        if (!this.editor._centralizedPoint) {
+            console.warn("No centralized point set for movement.");
+            return;
+        }
+
+        // Calculate the movement offset
+        const offset = L.latLng(
+            anchorVisual.getLatLng().lat - anchorPoint.latlng.lat,
+            anchorVisual.getLatLng().lng - anchorPoint.latlng.lng
+        );
+
+        // Move all anchor points by the offset
+        this.editor._anchorPoints.forEach(anchor => {
+            const newPos = L.latLng(
+                anchor.latlng.lat + offset.lat,
+                anchor.latlng.lng + offset.lng
+            );
+            anchor.setAnchorPosition(newPos);
+        });
+
+        // If the anchor point is the centralized point, handle the anchor itself too
+        if (anchorPoint === this.editor._centralizedPoint) {
+            this.editor._centralizedPoint.setAnchorPosition(anchorVisual.getLatLng());
+        }
+    }
+
+    // #endregion
+
+
+    // #region Main Functions
+    anchorMoved(anchorPoint, anchorVisual) {
+        console.log("TranslateTool anchorMoved called");
+        // Get the list of selected anchors
+        const selectedAnchors = this.editor._selectedAnchors;
+        if (selectedAnchors.length < 1) {
+            return; // No other anchors to move with
+        }
+
+        // If the moved anchor is the centralized point or if the centralized point is selected, move all points
+        if (anchorPoint === this.editor._centralizedPoint || selectedAnchors.includes(this.editor._centralizedPoint)) {
+            this.#moveAllPointsWithCentralizedPoint(anchorPoint, anchorVisual);
+
+            return;
+        }
+
+        // If not moving the centralized point, move all selected anchors by the same delta.
+        // Calculate the movement delta
+        const delta = L.latLng(
+            anchorVisual.getLatLng().lat - anchorPoint.latlng.lat,
+            anchorVisual.getLatLng().lng - anchorPoint.latlng.lng
+        );
+
+        // Move all selected anchors by the same delta
+        selectedAnchors.forEach((anchor) => {
+            if (anchor !== anchorPoint) { // Skip the anchor that was just moved
+                const anchorCurrentPos = anchor.latlng;
+                const newAnchorPos = L.latLng(
+                    anchorCurrentPos.lat + delta.lat,
+                    anchorCurrentPos.lng + delta.lng
+                );
+                anchor.setAnchorPosition(newAnchorPos);
+            }
+        });
+
+        // Set the point we just moved
+        anchorPoint.setAnchorPosition(anchorVisual.getLatLng());
+    }
+
+    handleMoved(anchorPoint, isIncoming, handleVisual) {
+        // Move only the selected handles
+        const selectedHandles = this.editor._selectedHandles;
+        if (selectedHandles.length < 1) {
+            return; // No other handles to move with
+        }
+
+        // Move all selected handles by the same delta.
+        // Calculate the movement delta
+        const delta = L.latLng(
+            handleVisual.getLatLng().lat - (isIncoming ? anchorPoint.relIncomingHandlePos.lat + anchorPoint.latlng.lat : anchorPoint.relOutgoingHandlePos.lat + anchorPoint.latlng.lat),
+            handleVisual.getLatLng().lng - (isIncoming ? anchorPoint.relIncomingHandlePos.lng + anchorPoint.latlng.lng : anchorPoint.relOutgoingHandlePos.lng + anchorPoint.latlng.lng)
+        );
+
+        // Move all selected handles by the same delta and mirror if needed
+        const mirror = !this.editor._keyStates.isCtrlPressed;
+        selectedHandles.forEach(([anchor, handleIsIncoming]) => {
+            // Get the current handle position 
+            const relHandleCurrentPos = handleIsIncoming ? anchor.relIncomingHandlePos : anchor.relOutgoingHandlePos;
+            if (!relHandleCurrentPos) { return; } // Ensure the handle exists
+
+            // Determine if should mirror (Check if the other handle on the anchor is not selected) and mirror is enabled.
+            const shouldMirror = mirror && !(selectedHandles.find(entry => entry[0] === anchor && entry[1] !== handleIsIncoming));
+
+            // Move the handle
+            anchor.setHandlePosition(handleIsIncoming, L.latLng(
+                relHandleCurrentPos.lat + anchor.latlng.lat + delta.lat,
+                relHandleCurrentPos.lng + anchor.latlng.lng + delta.lng
+            ), shouldMirror);
+        });
+    }
+
+    anchorRightClicked(anchorPoint, event) {}
+
+    handleRightClicked(anchorPoint, isIncoming, handleVisual, event) {}
+
+    // #endregion
+}
+
+/**
+ * Map Region Editor Rotate tool (Rotate Tool)
+ */
+class MapRegionEditorRotateTool extends MapRegionEditorTool {
+    constructor(editor) {
+        super(editor); // Initialize parent class
+
+        // Rotation State
+        this._pivotAnchorPoint = this.editor._centralizedPoint; // The anchor point used as the pivot for rotation
+        
+        this._lastAnchorMoved = null; // The last anchor point that was moved (used to calculate distance from pivot)
+        this._pivotDistance = 0; // The distance from the pivot to the last moved anchor point
+        this._originalAngle = 0; // The original angle of the moved anchor relative to pivot
+        this._originalAnchorPositions = new Map(); // Store original positions of all anchors for rotation
+        this._originalPivotPosition = null; // Store the pivot's position at the start of rotation
+        this._isDragActive = false; // Track if we're currently in a drag operation
+        this._gridLineTargets = []; // Store the target anchors for grid lines
+    }
+
+    // #region Utility Functions
+    /**
+     * Set active pivot element on the pivot/scale point visual.
+     * @param {AnchorPoint} anchorPoint 
+     */
+    #setPointActivePivot(anchorPoint)
+    {
+        // Set the anchor as active pivot and deactivate others
+        this.editor._anchorPoints.forEach(anchor => anchor.setActivePivot(false));
+        this.editor._centralizedPoint.setActivePivot(false);
+        anchorPoint.setActivePivot(true);
+    }
+
+    // #endregion
+
+
+    // #region Main Functions
+    anchorMoved(anchorPoint, anchorVisual) {
+        // If no pivot point is set, do nothing.
+        if (!this._pivotAnchorPoint) {
+            console.warn("No pivot point set for rotation, setting pivot to centralized point.");
+            this._pivotAnchorPoint = this.editor._centralizedPoint;
+        }
+
+        // Check if the lastAnchorMoved is changed or if this is a new drag operation.
+        if (this._lastAnchorMoved !== anchorPoint || !this._isDragActive) {
+            // Set the lastAnchorMoved to the current anchorPoint.
+            this._lastAnchorMoved = anchorPoint;
+            this._isDragActive = true;
+
+            // Save the pivot's original position at the start of rotation
+            this._originalPivotPosition = {
+                lat: this._pivotAnchorPoint.latlng.lat,
+                lng: this._pivotAnchorPoint.latlng.lng
+            };
+
+            // Determine which anchors to rotate based on selection
+            const anchorsToRotate = this.editor._selectedAnchors.includes(this.editor._centralizedPoint) ? 
+                this.editor._anchorPoints : this.editor._selectedAnchors;
+
+            // Determine grid line targets: if centralized point is being rotated alone, only show line to it
+            let gridLineTargets;
+            if (anchorsToRotate.length === 1 && anchorsToRotate.includes(this.editor._centralizedPoint)) {
+                // Only rotating centralized point - draw line just to centralized point
+                gridLineTargets = [this.editor._centralizedPoint];
+            } else {
+                // Rotating multiple points or regular anchors - draw lines to all being rotated
+                gridLineTargets = anchorsToRotate;
+            }
+
+            // Store grid line targets for updating during drag
+            this._gridLineTargets = gridLineTargets;
+
+            // Show ghost anchor at original pivot position with grid lines
+            this.editor.showGhostAnchor(
+                L.latLng(this._originalPivotPosition.lat, this._originalPivotPosition.lng), 
+                'pivot',
+                gridLineTargets
+            );
+
+            // Store original positions of anchors to rotate
+            this._originalAnchorPositions.clear();
+            anchorsToRotate.forEach(anchor => {
+                this._originalAnchorPositions.set(anchor, {
+                    lat: anchor.latlng.lat,
+                    lng: anchor.latlng.lng
+                });
+            });
+
+            // Store the original angle of the moved anchor relative to the fixed pivot position
+            const originalVector = L.latLng(
+                anchorPoint.latlng.lat - this._originalPivotPosition.lat,
+                anchorPoint.latlng.lng - this._originalPivotPosition.lng
+            );
+            this._originalAngle = Math.atan2(originalVector.lat, originalVector.lng);
+            this._pivotDistance = L.latLng(this._originalPivotPosition.lat, this._originalPivotPosition.lng).distanceTo(anchorPoint.latlng);
+        }
+
+        // Calculate the new angle of the dragged anchor relative to the fixed pivot position
+        const newVector = L.latLng(
+            anchorVisual.getLatLng().lat - this._originalPivotPosition.lat,
+            anchorVisual.getLatLng().lng - this._originalPivotPosition.lng
+        );
+        const newAngle = Math.atan2(newVector.lat, newVector.lng);
+
+        // Calculate the total rotation angle from the original position
+        const totalRotationAngle = newAngle - this._originalAngle;
+
+        // Convert pivot distance from meters to degrees for lat/lng calculation
+        const distanceInDegrees = this._pivotDistance / 111320; // Approximate conversion
+
+        // Constrain the moved anchor to maintain its distance from the fixed pivot position
+        const constrainedPos = L.latLng(
+            this._originalPivotPosition.lat + distanceInDegrees * Math.sin(newAngle),
+            this._originalPivotPosition.lng + distanceInDegrees * Math.cos(newAngle)
+        );
+        anchorPoint.setAnchorPosition(constrainedPos);
+
+        // Rotate all other anchors (selected or all, depending on centralized point selection) around the pivot from their original positions
+        const anchorsToRotate = this.editor._selectedAnchors.includes(this.editor._centralizedPoint) ? 
+            this.editor._anchorPoints : this.editor._selectedAnchors;
+
+        anchorsToRotate.forEach(anchor => {
+            if (anchor !== anchorPoint) { // Skip the anchor that was just moved
+                const originalPos = this._originalAnchorPositions.get(anchor);
+                if (!originalPos) return;
+
+                // Get original position relative to the fixed pivot position
+                const originalVector = L.latLng(
+                    originalPos.lat - this._originalPivotPosition.lat,
+                    originalPos.lng - this._originalPivotPosition.lng
+                );
+                const originalAngle = Math.atan2(originalVector.lat, originalVector.lng);
+                const distance = Math.sqrt(originalVector.lat * originalVector.lat + originalVector.lng * originalVector.lng);
+
+                // Apply total rotation to this anchor from its original position around the fixed pivot
+                const rotatedAngle = originalAngle + totalRotationAngle;
+                const newPos = L.latLng(
+                    this._originalPivotPosition.lat + distance * Math.sin(rotatedAngle),
+                    this._originalPivotPosition.lng + distance * Math.cos(rotatedAngle)
+                );
+                anchor.setAnchorPosition(newPos);
+            }
+        });
+
+        // Update ghost anchor grid lines with new positions
+        if (this._gridLineTargets && this._gridLineTargets.length > 0) {
+            this.editor.updateGhostGridLines(this._gridLineTargets, 'pivot');
+        }
+    }
+
+    handleMoved(anchorPoint, isIncoming, handleVisual) { 
+        // Set the handle visual back to it's previous position.
+        const previousRelHandlePos = isIncoming ? anchorPoint.relIncomingHandlePos : anchorPoint.relOutgoingHandlePos;
+        const previousAbsHandlePos = L.latLng(
+            previousRelHandlePos.lat + anchorPoint.latlng.lat,
+            previousRelHandlePos.lng + anchorPoint.latlng.lng
+        );
+        handleVisual.setLatLng(previousAbsHandlePos);
+    }
+
+    anchorRightClicked(anchorPoint) 
+    { 
+        // Set the pivot point to this anchor
+        this._pivotAnchorPoint = anchorPoint;
+
+        // Use centralized system to set pivot anchor status
+        this.editor.setPivotAnchor(anchorPoint);
+        
+        // Reset the last anchor moved so next drag will be treated as a new rotation
+        this._lastAnchorMoved = null;
+    }
+
+    handleRightClicked(anchorPoint, isIncoming, handleVisual) {}
+    // #endregion
+}
+
+/**
+ * Map Region Editor Scale tool (Scale Tool)
+ */
+class MapRegionEditorScaleTool extends MapRegionEditorTool {
+    constructor(editor) {
+        super(editor); // Initialize parent class
+
+        // Scaling State
+        this._scaleAnchorPoint = null; // The anchor point used as the reference for scaling
+        this._lastAnchorMoved = null; // The last anchor point that was moved (used to track when new drag starts)
+        this._originalAnchorPositions = new Map(); // Store original positions of all anchors for scaling
+        this._originalScaleAnchorPosition = null; // Store the scale anchor's position at the start of scaling
+        this._originalDistance = 0; // Store the original distance from scale anchor to the dragged anchor
+        this._anchorsToScale = []; // Store which anchors should be scaled for this operation
+        this._originalCentralizedPosition = null; // Store original centralized position for centralized scaling
+    }
+
+    // #region Utility Functions
+    /**
+     * Scales all anchors relative to the scale point when centralized point is moved.
+     * @param {AnchorPoint} anchorPoint - The centralized anchor point being dragged.
+     * @param {L.Marker} anchorVisual - The visual marker of the centralized anchor point.
+     */
+    #scaleByCentralizedPoint(anchorPoint, anchorVisual) 
+    {
+        // Initialize scaling state if this is a new drag operation for centralized point
+        if (this._lastAnchorMoved !== anchorPoint) {
+            this._lastAnchorMoved = anchorPoint;
+            
+            // Store the original position of the centralized point
+            this._originalCentralizedPosition = {
+                lat: anchorPoint.latlng.lat,
+                lng: anchorPoint.latlng.lng
+            };
+            
+            // Store original positions of all anchor points (excluding centralized point)
+            this._originalAnchorPositions.clear();
+            this.editor._anchorPoints.forEach(anchor => {
+                this._originalAnchorPositions.set(anchor, {
+                    lat: anchor.latlng.lat,
+                    lng: anchor.latlng.lng
+                });
+            });
+            
+            // Store the fixed scale anchor position (the pivot point for scaling)
+            this._originalScaleAnchorPosition = {
+                lat: this._scaleAnchorPoint.latlng.lat,
+                lng: this._scaleAnchorPoint.latlng.lng
+            };
+            
+            console.log("Initialized centralized point scaling relative to scale point");
+        }
+        
+        // Calculate movement vector of centralized point from its original position
+        const centralizedMovement = L.latLng(
+            anchorVisual.getLatLng().lat - this._originalCentralizedPosition.lat,
+            anchorVisual.getLatLng().lng - this._originalCentralizedPosition.lng
+        );
+        
+        // Calculate original vector from scale point to original centralized position
+        const originalCentralizedVector = L.latLng(
+            this._originalCentralizedPosition.lat - this._originalScaleAnchorPosition.lat,
+            this._originalCentralizedPosition.lng - this._originalScaleAnchorPosition.lng
+        );
+        
+        // Calculate new vector from scale point to current centralized position
+        const newCentralizedVector = L.latLng(
+            anchorVisual.getLatLng().lat - this._originalScaleAnchorPosition.lat,
+            anchorVisual.getLatLng().lng - this._originalScaleAnchorPosition.lng
+        );
+        
+        // Calculate scale factors based on the ratio of new to original vectors
+        const scaleFactorLat = originalCentralizedVector.lat !== 0 ? newCentralizedVector.lat / originalCentralizedVector.lat : 1;
+        const scaleFactorLng = originalCentralizedVector.lng !== 0 ? newCentralizedVector.lng / originalCentralizedVector.lng : 1;
+        
+        // Move the centralized point to its new position
+        anchorPoint.setAnchorPosition(anchorVisual.getLatLng());
+        
+        // Scale all other anchor points relative to the scale point using the same scale factors
+        this.editor._anchorPoints.forEach(anchor => {
+            if (anchor !== anchorPoint) { // Skip the centralized point itself
+                const originalPos = this._originalAnchorPositions.get(anchor);
+                if (!originalPos) return;
+                
+                // Calculate vector from scale point to original anchor position
+                const originalAnchorVector = L.latLng(
+                    originalPos.lat - this._originalScaleAnchorPosition.lat,
+                    originalPos.lng - this._originalScaleAnchorPosition.lng
+                );
+                
+                // Scale the vector using the same scale factors as the centralized point
+                const scaledAnchorVector = L.latLng(
+                    originalAnchorVector.lat * scaleFactorLat,
+                    originalAnchorVector.lng * scaleFactorLng
+                );
+                
+                // Set new position relative to the scale point
+                const newPos = L.latLng(
+                    this._originalScaleAnchorPosition.lat + scaledAnchorVector.lat,
+                    this._originalScaleAnchorPosition.lng + scaledAnchorVector.lng
+                );
+                anchor.setAnchorPosition(newPos);
+            }
+        });
+    }
+
+    /**
+     * Set active pivot element on the pivot/scale point visual.
+     * @param {AnchorPoint} anchorPoint 
+     */
+    #setPointActivePivot(anchorPoint)
+    {
+        anchorPoint.setActivePivot(true);
+    }
+
+    // #endregion
+
+    // #region Main Functions
+    anchorMoved(anchorPoint, anchorVisual) 
+    {
+        // If no scale anchor point is set, set it to the centralized point.
+        if (!this._scaleAnchorPoint) {
+            this._scaleAnchorPoint = this.editor._centralizedPoint;
+            console.log("Set scale reference point:", this._scaleAnchorPoint);
+        }
+
+        // Special handling when moving the centralized point - scale all other anchors relative to scale point
+        if (anchorPoint === this.editor._centralizedPoint) {
+            this.#scaleByCentralizedPoint(anchorPoint, anchorVisual);
+            return;
+        }
+
+        // Helper function to check if selection has actually changed
+        const hasSelectionChanged = () => {
+            const currentSelection = this.editor._selectedAnchors.includes(this.editor._centralizedPoint) ? 
+                this.editor._anchorPoints : this.editor._selectedAnchors;
+            
+            // Check if the arrays have different lengths
+            if (this._anchorsToScale.length !== currentSelection.length) return true;
+            
+            // Check if they contain the same anchors
+            return !this._anchorsToScale.every(anchor => currentSelection.includes(anchor));
+        };
+
+        // Check if the lastAnchorMoved is changed or if we need to initialize for the first drag.
+        if (this._lastAnchorMoved !== anchorPoint || this._anchorsToScale.length === 0 || hasSelectionChanged()) {
+            // Set the lastAnchorMoved to the current anchorPoint.
+            this._lastAnchorMoved = anchorPoint;
+
+            // Save the scale anchor's original position at the start of scaling
+            this._originalScaleAnchorPosition = {
+                lat: this._scaleAnchorPoint.latlng.lat,
+                lng: this._scaleAnchorPoint.latlng.lng
+            };
+
+            // Determine which anchors to scale based on Ctrl key and selection
+            if (this.editor._keyStates.isCtrlPressed) {
+                // Ctrl held: Scale all anchor points
+                this._anchorsToScale = this.editor._anchorPoints.slice(); // Use slice() to create a copy
+            } else {
+                // Normal mode: Scale based on selection
+                this._anchorsToScale = this.editor._selectedAnchors.includes(this.editor._centralizedPoint) ? 
+                    this.editor._anchorPoints.slice() : this.editor._selectedAnchors.slice(); // Use slice() to create a copy
+            }
+
+            // Store original positions of anchors to scale
+            this._originalAnchorPositions.clear();
+            this._anchorsToScale.forEach(anchor => {
+                this._originalAnchorPositions.set(anchor, {
+                    lat: anchor.latlng.lat,
+                    lng: anchor.latlng.lng
+                });
+            });
+
+            // Store the original distance from scale anchor to the dragged anchor
+            this._originalDistance = L.latLng(this._originalScaleAnchorPosition.lat, this._originalScaleAnchorPosition.lng).distanceTo(anchorPoint.latlng);
+        }
+
+        // Calculate the scaling factor based on the movement of the anchor point relative to the fixed scale anchor point.
+        const newDistance = L.latLng(this._originalScaleAnchorPosition.lat, this._originalScaleAnchorPosition.lng).distanceTo(anchorVisual.getLatLng());
+
+        // Prevent division by zero
+        if (this._originalDistance === 0) {
+            console.warn("Original distance is zero, cannot scale.");
+            // Prevent anchor movement
+            anchorVisual.setLatLng(anchorPoint.latlng);
+            return;
+        }
+
+        // Calculate the new position vector from scale anchor to the dragged anchor
+        const newVector = L.latLng(
+            anchorVisual.getLatLng().lat - this._originalScaleAnchorPosition.lat,
+            anchorVisual.getLatLng().lng - this._originalScaleAnchorPosition.lng
+        );
+
+        // Calculate the original position vector from scale anchor to the dragged anchor
+        const originalDraggedPos = this._originalAnchorPositions.get(anchorPoint);
+        const originalVector = L.latLng(
+            originalDraggedPos.lat - this._originalScaleAnchorPosition.lat,
+            originalDraggedPos.lng - this._originalScaleAnchorPosition.lng
+        );
+
+        // Calculate scale factors for each axis (this allows for negative scaling when crossing origin)
+        const scaleFactorLat = originalVector.lat !== 0 ? newVector.lat / originalVector.lat : 1;
+        const scaleFactorLng = originalVector.lng !== 0 ? newVector.lng / originalVector.lng : 1;
+
+        // Allow the dragged anchor to move freely without constraining it to scale
+        anchorPoint.setAnchorPosition(anchorVisual.getLatLng());
+
+        // Determine which anchors to scale based on current Ctrl key state (dynamic)
+        let currentAnchorsToScale;
+        if (this.editor._keyStates.isCtrlPressed) {
+            // Ctrl held: Scale all anchor points
+            currentAnchorsToScale = this.editor._anchorPoints;
+        } else {
+            // Normal mode: Use the originally determined selection
+            currentAnchorsToScale = this._anchorsToScale;
+        }
+
+        // Ensure we have original positions for all anchors that might be scaled
+        this.editor._anchorPoints.forEach(anchor => {
+            if (!this._originalAnchorPositions.has(anchor)) {
+                // If we don't have the original position stored, store the current position
+                // This can happen when switching to Ctrl mode mid-drag
+                this._originalAnchorPositions.set(anchor, {
+                    lat: anchor.latlng.lat,
+                    lng: anchor.latlng.lng
+                });
+            }
+        });
+
+        // Scale the appropriate anchors
+        currentAnchorsToScale.forEach(anchor => {
+            if (anchor !== anchorPoint) { // Skip the anchor that was just moved
+                const originalPos = this._originalAnchorPositions.get(anchor);
+                if (!originalPos) return;
+
+                // Calculate the vector from the fixed scale anchor position to the original anchor position
+                const vector = L.latLng(
+                    originalPos.lat - this._originalScaleAnchorPosition.lat,
+                    originalPos.lng - this._originalScaleAnchorPosition.lng
+                );
+                
+                // Scale the vector using separate scale factors for lat/lng (allows crossing origin)
+                const scaledPos = L.latLng(
+                    this._originalScaleAnchorPosition.lat + vector.lat * scaleFactorLat,
+                    this._originalScaleAnchorPosition.lng + vector.lng * scaleFactorLng
+                );
+                anchor.setAnchorPosition(scaledPos);
+            }
+        });
+    }
+
+    // Prevent Direct Handle Manipulation
+    handleMoved(anchorPoint, isIncoming, handleVisual) { 
+        // Set the handle visual back to it's previous position.
+        const previousRelHandlePos = isIncoming ? anchorPoint.relIncomingHandlePos : anchorPoint.relOutgoingHandlePos;
+        const previousAbsHandlePos = L.latLng(
+            previousRelHandlePos.lat + anchorPoint.latlng.lat,
+            previousRelHandlePos.lng + anchorPoint.latlng.lng
+        );
+        handleVisual.setLatLng(previousAbsHandlePos);
+    }
+
+    anchorRightClicked(anchorPoint, event) {
+        // Set the scale anchor point to this anchor
+        this._scaleAnchorPoint = anchorPoint;
+
+        // Use centralized system to set scale anchor status
+        this.editor.setScaleAnchor(anchorPoint);
+        
+        // Reset the last anchor moved so next drag will be treated as a new scaling operation
+        this._lastAnchorMoved = null;
+    }
+    handleRightClicked(anchorPoint, isIncoming, handleVisual, event) {}
+    // #endregion
+
+}
+
+/**
+ * Map Region Editor Add Anchor tool (Add Anchor Tool)
+ */
+class MapRegionEditorAddAnchorTool extends MapRegionEditorTool {
+    constructor(editor) {
+        super(editor); // Initialize parent class
+    }
+
+    // #region Utility Functions
+
+    // #endregion
+
+    // #region Main Functions
+    mapClicked(latlng)
+    {
+        // Add a new anchor point at the clicked location and put in inbetween the two closest anchors.
+        this.editor.createAnchorPoint(latlng, null, null, true, true, true);
+    }
+
+    anchorMoved(anchorPoint, anchorVisual) {}
+    handleMoved(anchorPoint, isIncoming, handleVisual) {}
+    anchorRightClicked(anchorPoint, event) {}
+    handleRightClicked(anchorPoint, isIncoming, handleVisual, event) {}
+
+    // #endregion
+}
+
+// #endregion

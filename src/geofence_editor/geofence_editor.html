@@ -648,14 +648,31 @@
         </section>
     </main>
     
-    <!-- Load compiled Map class (non-module) -->
+    <!-- Load compiled TypeScript classes (non-module, in dependency order) -->
+    <!-- 1. Base map -->
     <script src="./compiled_js/interactable_map/map.js"></script>
+    
+    <!-- 2. Anchor point (needed by editor) -->
+    <script src="./compiled_js/interactable_map/anchor_point.js"></script>
+    
+    <!-- 3. Region classes (needed by editor) -->
+    <script src="./compiled_js/interactable_map/region.js"></script>
+    
+    <!-- 4. Editor tools (needed by main editor) -->
+    <script src="./compiled_js/interactable_map/map_region_editor_tools.js"></script>
+    
+    <!-- 5. Main editor (uses all above) -->
+    <script src="./compiled_js/interactable_map/map_region_editor.js"></script>
     
     <script>
         // Initialize map after DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
             const mapInstance = new InteractiveMap();
             console.log('Map initialized successfully');
+            
+            // Initialize the region editor
+            const regionEditor = new MapRegionEditor();
+            console.log('MapRegionEditor initialized successfully');
             
             // Update map coordinates and zoom info
             const mapCoordsEl = document.getElementById('map-coords');

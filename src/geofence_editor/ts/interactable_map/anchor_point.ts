@@ -20,7 +20,7 @@ class AnchorPoint {
     private static SELECTED_HANDLE_CLASS = 'selected-handle';
     private static ACTIVE_PIVOT_CLASS = 'pivot-rot-scale-anchor';
 
-    private anchorPosition: L.LatLng | null;
+    private anchorPosition: L.LatLng;
     private relativeIncomingHandlePosition: L.LatLng | null;
     private relativeOutgoingHandlePosition: L.LatLng | null;
 
@@ -47,8 +47,8 @@ class AnchorPoint {
      */
     constructor(
         anchorPosition: L.LatLng, 
-        relativeIncomingHandlePosition: L.LatLng, 
-        relativeOutgoingHandlePosition: L.LatLng,
+        relativeIncomingHandlePosition: L.LatLng | null, 
+        relativeOutgoingHandlePosition: L.LatLng | null,
         interactionHandlers: any
     ) {
         // Set initial positions
@@ -292,7 +292,6 @@ class AnchorPoint {
         this.interactionHandlers = null;
 
         // Clear data
-        this.anchorPosition = null;
         this.relativeIncomingHandlePosition = null;
         this.relativeOutgoingHandlePosition = null;
     }
@@ -636,16 +635,18 @@ class AnchorPoint {
      * Set whether this anchor is an active pivot point.
      * @param isActivePivot - True if active pivot, false if not.
      */
-    public setActivePviot(isActivePivot: boolean) {
+    public setActivePivot(isActivePivot: boolean) {
         this.isActivePivot = isActivePivot;
         this.updateAnchorVisual();
     }
     // #endregion
 
     // #region Getters 
-    get AnchorPosition(): L.LatLng | null { return this.anchorPosition; }
-    get RelativeIncomingHandlePosition(): L.LatLng | null { return this.relativeIncomingHandlePosition; }
-    get RelativeOutgoingHandlePosition(): L.LatLng | null { return this.relativeOutgoingHandlePosition; }
-    get MainVisual(): L.Marker | null { return this.mainVisual; }
+    get GetAnchorPosition(): L.LatLng { return this.anchorPosition; }
+    get GetRelativeIncomingHandlePosition(): L.LatLng | null { return this.relativeIncomingHandlePosition; }
+    get GetRelativeOutgoingHandlePosition(): L.LatLng | null { return this.relativeOutgoingHandlePosition; }
+    get GetMainVisual(): L.Marker | null { return this.mainVisual; }
+    get GetIncomingHandleVisual(): L.Marker | null { return this.incomingHandleVisual; }
+    get GetOutgoingHandleVisual(): L.Marker | null { return this.outgoingHandleVisual; }
     // #endregion
 }
