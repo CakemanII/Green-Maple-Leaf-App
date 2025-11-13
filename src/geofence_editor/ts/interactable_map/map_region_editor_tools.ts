@@ -123,7 +123,6 @@ class MapRegionEditorTranslateTool extends MapRegionEditorTool {
             anchorVisual.getLatLng().lat - anchorPoint.GetAnchorPosition.lat,
             anchorVisual.getLatLng().lng - anchorPoint.GetAnchorPosition.lng
         );
-        console.log(delta);
 
         // Move all selected anchors by the same delta
         selectedAnchors.forEach((anchor) => {
@@ -489,14 +488,26 @@ class MapRegionEditorScaleTool extends MapRegionEditorTool {
     // #region Main Functions
     public override onAnchorDrag(anchorPoint: AnchorPoint) 
     {
-        // If no scale anchor point is set, set it to the centralized point.
+        // Get the current scale anchor from the manager (it's set when the tool is activated or via right-click)
+        this.scaleAnchorPoint = MapRegionAnchorManager.INSTANCE.getCurrentScaleAnchor();
+        
+        // If no scale anchor point is set, set it to the centralized point as fallback
         if (!this.scaleAnchorPoint) {
             this.scaleAnchorPoint = MapRegionAnchorManager.INSTANCE.CentralizedPoint;
-            console.log("Set scale reference point:", this.scaleAnchorPoint);
+            MapRegionAnchorManager.INSTANCE.setScaleAnchor(this.scaleAnchorPoint!);
+            console.log("Set scale reference point to centralized:", this.scaleAnchorPoint);
         }
 
         if (anchorPoint.GetMainVisual === null) { console.log("No visual found"); return; }
         const anchorVisual: L.Marker = anchorPoint.GetMainVisual!;
+
+        // Prevent dragging the scale anchor itself (unless it's the centralized point being used for special scaling)
+        if (anchorPoint === this.scaleAnchorPoint && anchorPoint !== MapRegionAnchorManager.INSTANCE.CentralizedPoint) {
+            // Reset the scale anchor to its original position - it should not move
+            anchorVisual.setLatLng(anchorPoint.GetAnchorPosition);
+            console.log("Cannot drag the scale anchor point - it must remain fixed");
+            return;
+        }
 
         // Special handling when moving the centralized point - scale all other anchors relative to scale point
         if (anchorPoint === MapRegionAnchorManager.INSTANCE.CentralizedPoint) {

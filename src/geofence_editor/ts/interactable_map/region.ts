@@ -468,40 +468,53 @@ class MapCircleRegion extends MapRegion
         const center = this.frontendShapePointData[0].anchorPos;
         const radiusPoint = this.frontendShapePointData[1].anchorPos;
         
-        // Calculate the radius from the center to the radius point
-        const RADIUS = center.distanceTo(radiusPoint);
+        // Calculate radius in degrees for both lat and lng
+        const radiusLat = Math.abs(radiusPoint.lat - center.lat);
+        const radiusLng = Math.abs(radiusPoint.lng - center.lng);
         
-        // Convert radius from meters to degrees (approximate)
-        const radiusInDegrees = RADIUS / 111320; // 1 degree ≈ 111,320 meters at equator
+        // Compensate for longitude compression at different latitudes
+        // At the equator, 1 degree lng = 1 degree lat, but this ratio changes with latitude
+        const latRadians = center.lat * Math.PI / 180;
+        const cosLat = Math.cos(latRadians);
+        
+        // Convert longitude difference to equivalent latitude difference
+        const radiusLngCorrected = radiusLng * cosLat;
+        
+        // Calculate the true radius using corrected longitude
+        const radiusInDegrees = Math.sqrt(radiusLat * radiusLat + radiusLngCorrected * radiusLngCorrected);
+        
+        // Calculate longitude radius (accounts for latitude compression)
+        const radiusLngDegrees = radiusInDegrees / cosLat;
         
         // Bézier control handle distance for perfect circle (magic number: 0.551915024494)
-        const handleDistance = radiusInDegrees * 0.551915024494;
+        const handleDistanceLat = radiusInDegrees * 0.551915024494;
+        const handleDistanceLng = radiusLngDegrees * 0.551915024494;
 
         // Create 4 points around the circle (0°, 90°, 180°, 270°)
         const points: BackendAnchorData = [
             // Right point (0°)
             {
-                anchorPos: L.latLng(center.lat, center.lng + radiusInDegrees),
-                relIncomingHandlePos: L.latLng(-handleDistance, 0),
-                relOutgoingHandlePos: L.latLng(handleDistance, 0)
+                anchorPos: L.latLng(center.lat, center.lng + radiusLngDegrees),
+                relIncomingHandlePos: L.latLng(-handleDistanceLat, 0),
+                relOutgoingHandlePos: L.latLng(handleDistanceLat, 0)
             },
             // Top point (90°)
             {
                 anchorPos: L.latLng(center.lat + radiusInDegrees, center.lng),
-                relIncomingHandlePos: L.latLng(0, handleDistance),
-                relOutgoingHandlePos: L.latLng(0, -handleDistance)
+                relIncomingHandlePos: L.latLng(0, handleDistanceLng),
+                relOutgoingHandlePos: L.latLng(0, -handleDistanceLng)
             },
             // Left point (180°)
             {
-                anchorPos: L.latLng(center.lat, center.lng - radiusInDegrees),
-                relIncomingHandlePos: L.latLng(handleDistance, 0),
-                relOutgoingHandlePos: L.latLng(-handleDistance, 0)
+                anchorPos: L.latLng(center.lat, center.lng - radiusLngDegrees),
+                relIncomingHandlePos: L.latLng(handleDistanceLat, 0),
+                relOutgoingHandlePos: L.latLng(-handleDistanceLat, 0)
             },
             // Bottom point (270°)
             {
                 anchorPos: L.latLng(center.lat - radiusInDegrees, center.lng),
-                relIncomingHandlePos: L.latLng(0, -handleDistance),
-                relOutgoingHandlePos: L.latLng(0, handleDistance)
+                relIncomingHandlePos: L.latLng(0, -handleDistanceLng),
+                relOutgoingHandlePos: L.latLng(0, handleDistanceLng)
             }
         ];
 

@@ -94,6 +94,12 @@ class AnchorPoint {
         AnchorPoint.basicDragEvents(this.mainVisual);
 
         // Add event handlers for specialized interactions
+        this.mainVisual.on('dragstart', (e) => {
+            if (this.interactionHandlers && this.interactionHandlers.onAnchorDragStart) {
+                this.interactionHandlers.onAnchorDragStart(this, e);
+            }
+        });
+
         this.mainVisual.on('drag', (e) => {
             if (this.interactionHandlers && this.interactionHandlers.onAnchorDrag) {
                 this.interactionHandlers.onAnchorDrag(this, e);

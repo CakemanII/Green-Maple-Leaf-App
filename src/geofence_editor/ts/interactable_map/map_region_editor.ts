@@ -3,19 +3,19 @@
 class Visuals {
     // Custom Icons for Map Markers
     public static readonly ANCHOR_CONTROL_HANDLE_ICON = L.icon({
-        iconUrl: './assets/assets/map_line_handle_icon.png',
+        iconUrl: './assets/icons/map_line_handle_icon.png',
         iconSize: [20, 20], // adjust as needed
         iconAnchor: [10, 10], // point of the icon which will correspond to marker's location
     });
 
     public static readonly ANCHOR_ICON = L.icon({
-        iconUrl: './assets/assets/map_line_handle_icon.png',
+        iconUrl: './assets/icons/map_line_handle_icon.png',
         iconSize: [32, 32], // adjust as needed
         iconAnchor: [16, 16], // point of the icon which will correspond to marker's location
     });
 
     public static readonly ROCKET_ICON = L.icon({
-        iconUrl: './assets/assets/map_line_handle_icon.png',
+        iconUrl: './assets/icons/map_line_handle_icon.png',
         iconSize: [32, 32],
         iconAnchor: [16, 32],
         popupAnchor: [0, -32]
@@ -60,6 +60,34 @@ class MapRegionEditor
 
     // #region Event Callbacks for Sub-managers
     /**
+     * Called when an anchor drag starts
+     */
+    onAnchorDragStart(anchorPoint: AnchorPoint) {
+        const ctrlPressed = MapRegionEditorKeyStates.INSTANCE.isCtrlPressedDown;
+        const isCurrentlySelected = MapRegionAnchorManager.INSTANCE.SelectedAnchors.has(anchorPoint);
+
+        if (!ctrlPressed) {
+            // No ctrl held: Clear all selections and select only this anchor
+            MapRegionAnchorManager.INSTANCE.SelectedAnchors.forEach(anchor => {
+                anchor.setMainSelected(false);
+            });
+            MapRegionAnchorManager.INSTANCE.SelectedAnchors.clear();
+
+            // Select the dragged anchor
+            MapRegionAnchorManager.INSTANCE.SelectedAnchors.add(anchorPoint);
+            anchorPoint.setMainSelected(true);
+        } else {
+            // Ctrl is held
+            if (!isCurrentlySelected) {
+                // Anchor is not selected: Add it to selection
+                MapRegionAnchorManager.INSTANCE.SelectedAnchors.add(anchorPoint);
+                anchorPoint.setMainSelected(true);
+            }
+            // If already selected with ctrl held, keep it selected
+        }
+    }
+
+    /**
      * Called when an anchor is being dragged
      */
     onAnchorDrag(anchorPoint: AnchorPoint) {
@@ -86,18 +114,21 @@ class MapRegionEditor
         if (this.activeTool) {
             this.activeTool!.onHandleDrag(anchorPoint, isIncoming);
         }
+
         MapRegionRegionManager.INSTANCE.updateActiveRegionFrontend();
+
+
     }
 
     /**
      * Called when an anchor is clicked
      */
     onAnchorClick(anchorPoint: AnchorPoint) {
-        const shiftPressed = MapRegionEditorKeyStates.INSTANCE.isShiftPressedDown;
+        const ctrlPressed = MapRegionEditorKeyStates.INSTANCE.isCtrlPressedDown;
         const isCurrentlySelected = MapRegionAnchorManager.INSTANCE.SelectedAnchors.has(anchorPoint);
 
-        if (!shiftPressed) {
-            // No shift held: Clear all selections and select only this anchor
+        if (!ctrlPressed) {
+            // No ctrl held: Clear all selections and select only this anchor
             // First, deselect all previously selected anchors
             MapRegionAnchorManager.INSTANCE.SelectedAnchors.forEach(anchor => {
                 anchor.setMainSelected(false);
@@ -108,13 +139,16 @@ class MapRegionEditor
             MapRegionAnchorManager.INSTANCE.SelectedAnchors.add(anchorPoint);
             anchorPoint.setMainSelected(true);
         } else {
-            // Shift is held
-            if (!isCurrentlySelected) {
+            // Ctrl is held - toggle selection
+            if (isCurrentlySelected) {
+                // Anchor is already selected: Deselect it
+                MapRegionAnchorManager.INSTANCE.SelectedAnchors.delete(anchorPoint);
+                anchorPoint.setMainSelected(false);
+            } else {
                 // Anchor is not selected: Add it to selection
                 MapRegionAnchorManager.INSTANCE.SelectedAnchors.add(anchorPoint);
                 anchorPoint.setMainSelected(true);
             }
-            // If anchor is already selected with shift held, keep it selected (do nothing)
         }
 
         // Trigger the tool
@@ -607,6 +641,7 @@ class MapRegionAnchorManager
             relIncomingHandlePos,
             relOutgoingHandlePos,
             {
+                onAnchorDragStart: (a: AnchorPoint) => { MapRegionEditor.INSTANCE.onAnchorDragStart(a); },
                 onAnchorDrag: (a: AnchorPoint) => { MapRegionEditor.INSTANCE.onAnchorDrag(a); },
                 onAnchorDragEnd: (a: AnchorPoint) => { MapRegionEditor.INSTANCE.onAnchorDragEnd(a); },
                 onHandleDrag: (a: AnchorPoint, b: boolean) => { MapRegionEditor.INSTANCE.onHandleDrag(a, b); },
@@ -684,7 +719,7 @@ class MapRegionAnchorManager
     /**
      * Calculates and sets the centralized point based on current anchor points.
      */
-    calculateCentralizedPoint() {
+    public calculateCentralizedPoint() {
         if (this.activeAnchorPoints.length === 0) {
             this.centralizedPoint = null;
             return;
@@ -707,14 +742,21 @@ class MapRegionAnchorManager
         const centerLatLng = L.latLng(centerLat, centerLng);
 
         // Create centralized point anchor
-        this.centralizedPoint = this.createAnchorPoint(
-            centerLatLng,
-            null,
-            null,
-            false, // Don't update region
-            false, // Don't add to anchor points array
-            false  // Don't insert between closest anchors
-        );
+        if (!this.centralizedPoint)
+        {
+            this.centralizedPoint = this.createAnchorPoint(
+                centerLatLng,
+                null,
+                null,
+                false, // Don't update region
+                false, // Don't add to anchor points array
+                false  // Don't insert between closest anchors
+            );
+        }
+        else
+        {
+            this.centralizedPoint.setAnchorPosition(centerLatLng);
+        }
 
         console.log('Calculated centralized point:', this.centralizedPoint);
     }
@@ -916,6 +958,9 @@ class MapRegionRegionManager
             
             // Update the region visual
             this.activeEditingRegion!.update();
+
+            // Update the centralized point
+            MapRegionAnchorManager.INSTANCE.calculateCentralizedPoint();
         }
     }
 

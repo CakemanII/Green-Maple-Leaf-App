@@ -721,6 +721,22 @@
                     label: 'Test Rectangle 1'
                 }
             };
+
+            const testRegion2 = {
+                type: 'circle',
+                data: {
+                    center: { lat: HOME_LATITUDE, lng: HOME_LONGITUDE },
+                    radius: 15.0  // Radius in degrees
+                },
+                style: {
+                    color: "#9999FF",  // Blue color
+                    opacity: 0.5,
+                    restricted: false,
+                    label: 'Test Circle 1'
+                }
+            };
+
+            
             
             MapRegionRegionManager.INSTANCE.loadRegion(testRegion1.type, testRegion1.data, testRegion1.style);
             MapRegionRegionManager.INSTANCE.setActiveEditingRegion(0);
