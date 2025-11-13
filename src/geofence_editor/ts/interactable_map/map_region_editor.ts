@@ -3,19 +3,19 @@
 class Visuals {
     // Custom Icons for Map Markers
     public static readonly ANCHOR_CONTROL_HANDLE_ICON = L.icon({
-        iconUrl: './icons/map_line_handle_icon.png',
+        iconUrl: './assets/assets/map_line_handle_icon.png',
         iconSize: [20, 20], // adjust as needed
         iconAnchor: [10, 10], // point of the icon which will correspond to marker's location
     });
 
     public static readonly ANCHOR_ICON = L.icon({
-        iconUrl: './icons/map_line_handle_icon.png',
+        iconUrl: './assets/assets/map_line_handle_icon.png',
         iconSize: [32, 32], // adjust as needed
         iconAnchor: [16, 16], // point of the icon which will correspond to marker's location
     });
 
     public static readonly ROCKET_ICON = L.icon({
-        iconUrl: './icons/map_rocket_icon.png',
+        iconUrl: './assets/assets/map_line_handle_icon.png',
         iconSize: [32, 32],
         iconAnchor: [16, 32],
         popupAnchor: [0, -32]
@@ -93,6 +93,7 @@ class MapRegionEditor
      * Called when an anchor is clicked
      */
     onAnchorClick(anchorPoint: AnchorPoint) {
+        // Trigger the tool
         if (this.activeTool) {
             this.activeTool.onAnchorClick(anchorPoint);
         }
@@ -795,7 +796,7 @@ class MapRegionRegionManager
 
         // Apply style options
         const defaultStyle: RegionStyleParameters = {
-            color: { r: 0, g: 122, b: 255 },
+            color: "#3388ff",
             opacity: 0.3,
             restricted: false,
             label: `${regionType.charAt(0).toUpperCase() + regionType.slice(1)} Region`
@@ -900,6 +901,97 @@ class MapRegionRegionManager
             region.update();
         }
     }
+
+    public setActiveEditingRegion(regionIndex: number)
+    {
+        if (this.regions[regionIndex] === this.activeEditingRegion) {
+            return; // No change
+        }
+
+        // Clear current active region's anchor points
+        MapRegionAnchorManager.INSTANCE.clearAnchors();
+
+        // Set the active editing region
+        this.activeEditingRegion = this.regions[regionIndex];
+
+        // Load the active region's anchor points into the anchor manager
+        this.loadRegionAnchorsIntoEditor(this.activeEditingRegion);
+    }
+
+    // #region Region Management Functions
+    /**
+     * Loads a region into the editor for editing.
+     * @param {MapRegion} region - The region to load into the editor
+     * @returns {boolean} True if the region was successfully loaded for editing
+     */
+    loadRegionAnchorsIntoEditor(region: MapRegion) {
+        if (!region) {
+            console.error('Cannot load null/undefined region into editor');
+            return false;
+        }
+
+        // Set this region as the active editing region
+        this.activeEditingRegion = region;
+
+        // Clear existing anchor points in the editor
+        MapRegionAnchorManager.INSTANCE.clearAnchors();
+
+        // Load the region's frontend shape point data into the editor's anchor points
+        if (region.FrontendShapePointData && region.FrontendShapePointData.length > 0) {
+            region.FrontendShapePointData.forEach(pointData => {
+                MapRegionAnchorManager.INSTANCE.createAnchorPoint(
+                    pointData.anchorPos,
+                    pointData.relIncomingHandlePos,
+                    pointData.relOutgoingHandlePos,
+                    false, // Don't update region yet
+                    true,  // Add to anchor points array
+                    false  // Don't insert between closest anchors
+                );
+            });
+
+            // Calculate and set the centralized point
+            MapRegionAnchorManager.INSTANCE.calculateCentralizedPoint();
+            
+            // Update anchor interactivity now that we have a tool
+            MapRegionAnchorManager.INSTANCE.updateAllAnchorInteractivity();
+
+            // Update the region to reflect any changes
+            if (this.activeEditingRegion) {
+                this.activeEditingRegion.update();
+            }
+
+            //console.log('Loaded region into editor for editing:', region);
+            return true;
+        } else {
+            console.warn('Region has no frontend shape point data to load');
+            return false;
+        }
+    }
+
+        /**
+     * Stops editing the current region and clears the editor.
+     * @returns {boolean} True if editing was successfully stopped
+     */
+    stopEditingRegion() {
+        if (this.activeEditingRegion) {
+            // Save any changes before stopping
+            // this.saveRegionFromEditor();
+            
+            // Clear the active editing region
+            this.activeEditingRegion = null;
+
+            // Clear the editor's anchor points
+            MapRegionAnchorManager.INSTANCE.clearAnchors();
+            
+            // Switch back to creation UI mode
+            // MapRegionEditor.INSTANCE.showCreationUI();
+
+            //console.log('Stopped editing region');
+            return true;
+        }
+        return false;
+    }
+    // #endregion
 }
 
 /**

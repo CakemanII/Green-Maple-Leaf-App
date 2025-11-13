@@ -1,17 +1,17 @@
 /// <reference types="leaflet" />
 
 /**
- * Anchor Point Object for Interactable Map
+ * Anchor Point Object for Interactable Map!
  */
 class AnchorPoint {
     private static MAIN_VISUAL: L.Icon = L.icon({
-        iconUrl: './icons/map_line_handle_icon.png',
+        iconUrl: 'assets/icons/map_line_handle_icon.png',
         iconSize: [32, 32], // adjust as needed
         iconAnchor: [16, 16], // point of the icon which will correspond to marker's location
     }); 
 
     private static CONTROL_HANDLE_VISUAL = L.icon({
-        iconUrl: './icons/map_line_handle_icon.png',
+        iconUrl: 'assets/icons/map_line_handle_icon.png',
         iconSize: [20, 20], // adjust as needed
         iconAnchor: [10, 10], // point of the icon which will correspond to marker's location
     });

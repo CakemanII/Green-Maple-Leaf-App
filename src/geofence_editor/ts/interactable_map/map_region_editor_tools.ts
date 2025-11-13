@@ -114,7 +114,6 @@ class MapRegionEditorTranslateTool extends MapRegionEditorTool {
         // If the moved anchor is the centralized point or if the centralized point is selected, move all points
         if (anchorPoint === MapRegionAnchorManager.INSTANCE.CentralizedPoint || selectedAnchors.has(MapRegionAnchorManager.INSTANCE.CentralizedPoint!)) {
             this.moveAllPointsWithCentralizedPoint(anchorPoint, anchorVisual);
-
             return;
         }
 
@@ -124,6 +123,7 @@ class MapRegionEditorTranslateTool extends MapRegionEditorTool {
             anchorVisual.getLatLng().lat - anchorPoint.GetAnchorPosition.lat,
             anchorVisual.getLatLng().lng - anchorPoint.GetAnchorPosition.lng
         );
+        console.log(delta);
 
         // Move all selected anchors by the same delta
         selectedAnchors.forEach((anchor) => {

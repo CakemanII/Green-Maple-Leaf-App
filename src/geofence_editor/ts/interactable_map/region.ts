@@ -1,9 +1,8 @@
 /// <reference types="leaflet" />
+/// <reference types="leaflet-curve" />
 
-// Declare L.curve method from leaflet.curve plugin
+// Declare L.StripePattern from leaflet-stripe-pattern plugin
 declare namespace L {
-    function curve(path: any[], options?: any): any;
-    
     class StripePattern extends L.Layer {
         constructor(options: any);
         addTo(map: L.Map): this;
@@ -24,7 +23,7 @@ type FrontendAnchorData = Array<{
 }>;
 
 type RegionStyleParameters = {
-    color?: object;
+    color?: string;
     opacity?: number;
     restricted?: boolean;
     label?: string;
@@ -52,13 +51,14 @@ abstract class MapRegion
     // This can directly or indirectly effect the backend anchor data.
     // Example Element: [LatLng: anchorLatLng, relIncomingHandle: relativeControlHandle1LatLng, relOutgoingHandle: relativeControlHandle2LatLng]
     protected frontendShapePointData: FrontendAnchorData;
+    public get FrontendShapePointData() : FrontendAnchorData { return this.frontendShapePointData; }
 
     // Region Style Parameters
     private restricted: boolean; // Restricted status
     private label: string; // Region label
 
-    private color: object; // RGB color
-    private invalid_shape_color: object; // RGB color for invalid shapes
+    private color: string; // RGB color
+    private invalid_shape_color: string; // RGB color for invalid shapes
     private opacity: number; // Opacity level
     private isVisible: boolean; // Visibility status
 
@@ -80,8 +80,8 @@ abstract class MapRegion
 
         this.restricted = false;
         this.label = "";
-        this.color = { r: 0, g: 0, b: 255 }; // Default blue color
-        this.invalid_shape_color = { r: 255, g: 0, b: 0 }; // Default red color
+        this.color = "#3388ff"; // Default blue color
+        this.invalid_shape_color = "FF0000"; // Default red color
         this.opacity = 0.5;
         this.isVisible = true;
 
@@ -187,10 +187,8 @@ abstract class MapRegion
 
         // Calculate Parameters
         this.selfIntercepting = false;
-        if (this.shapeAreaActive && this.backendAnchorData.length < 3) {
-            // If there are less than 2 anchors, do not display the shape fill.
-            this.shapeAreaActive = false;
-        }
+        // If there are less than 2 anchors, do not display the shape fill.
+        this.shapeAreaActive = this.backendAnchorData.length > 2;
 
         // Update the shape if it exists
         const isClosed = this.shapeAreaActive; // Close the path when shape area is active
@@ -260,7 +258,7 @@ abstract class MapRegion
      * Configure stripes for black regions.
      * @param {string} color - The color of the stripes, if null it will use the region color.
      */
-    private setStripes(color: object | null = null)
+    private setStripes(color: string | null = null)
     { 
         // Remove existing stripes if they exist
         if (this.stripes) {
@@ -308,7 +306,7 @@ abstract class MapRegion
         // Update color parameter
         if (params.color !== undefined) {
             if (typeof params.color !== 'string') {
-                console.warn("Invalid color parameter [Not changing]:", params.color);
+                console.warn("Invalid color parameter [not changing]:", params.color);
             }
             else {
                 this.color = params.color;
