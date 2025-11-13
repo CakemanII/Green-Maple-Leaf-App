@@ -93,6 +93,30 @@ class MapRegionEditor
      * Called when an anchor is clicked
      */
     onAnchorClick(anchorPoint: AnchorPoint) {
+        const shiftPressed = MapRegionEditorKeyStates.INSTANCE.isShiftPressedDown;
+        const isCurrentlySelected = MapRegionAnchorManager.INSTANCE.SelectedAnchors.has(anchorPoint);
+
+        if (!shiftPressed) {
+            // No shift held: Clear all selections and select only this anchor
+            // First, deselect all previously selected anchors
+            MapRegionAnchorManager.INSTANCE.SelectedAnchors.forEach(anchor => {
+                anchor.setMainSelected(false);
+            });
+            MapRegionAnchorManager.INSTANCE.SelectedAnchors.clear();
+
+            // Select the clicked anchor
+            MapRegionAnchorManager.INSTANCE.SelectedAnchors.add(anchorPoint);
+            anchorPoint.setMainSelected(true);
+        } else {
+            // Shift is held
+            if (!isCurrentlySelected) {
+                // Anchor is not selected: Add it to selection
+                MapRegionAnchorManager.INSTANCE.SelectedAnchors.add(anchorPoint);
+                anchorPoint.setMainSelected(true);
+            }
+            // If anchor is already selected with shift held, keep it selected (do nothing)
+        }
+
         // Trigger the tool
         if (this.activeTool) {
             this.activeTool.onAnchorClick(anchorPoint);

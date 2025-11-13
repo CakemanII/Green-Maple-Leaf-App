@@ -448,6 +448,33 @@
         .leaflet-control-zoom a:hover {
             background-color: #262626 !important;
         }
+
+        /* Selected anchor glow effect */
+        .selected-anchor {
+            filter: drop-shadow(0 0 8px rgba(107, 163, 255, 0.8)) 
+                    drop-shadow(0 0 16px rgba(107, 163, 255, 0.6)) 
+                    drop-shadow(0 0 24px rgba(107, 163, 255, 0.4)) !important;
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                filter: drop-shadow(0 0 8px rgba(107, 163, 255, 0.8)) 
+                        drop-shadow(0 0 16px rgba(107, 163, 255, 0.6)) 
+                        drop-shadow(0 0 24px rgba(107, 163, 255, 0.4));
+            }
+            50% {
+                filter: drop-shadow(0 0 12px rgba(107, 163, 255, 1)) 
+                        drop-shadow(0 0 20px rgba(107, 163, 255, 0.8)) 
+                        drop-shadow(0 0 32px rgba(107, 163, 255, 0.6));
+            }
+        }
+
+        /* Selected handle glow effect */
+        .selected-handle {
+            filter: drop-shadow(0 0 6px rgba(255, 187, 51, 0.8)) 
+                    drop-shadow(0 0 12px rgba(255, 187, 51, 0.6)) !important;
+        }
     </style>
 </head>
 <body>
