@@ -189,7 +189,6 @@ class MapRegionEditorTranslateTool extends MapRegionEditorTool {
  * Map Region Editor Rotate tool (Rotate Tool)
  */
 class MapRegionEditorRotateTool extends MapRegionEditorTool {
-    private pivotAnchorPoint: AnchorPoint | null; // The anchor point used as the pivot for rotation
     
     private lastAnchorMoved: AnchorPoint | null; // The last anchor point that was moved (used to calculate distance from pivot)
     private pivotDistance: number; // The distance from the pivot to the last moved anchor point
@@ -202,9 +201,6 @@ class MapRegionEditorRotateTool extends MapRegionEditorTool {
 
     constructor() {
         super(); // Initialize parent class
-
-        // Rotation State
-        this.pivotAnchorPoint = MapRegionAnchorManager.INSTANCE.CentralizedPoint; // The anchor point used as the pivot for rotation
         
         this.lastAnchorMoved = null; 
         this.pivotDistance = 0; 
@@ -233,10 +229,12 @@ class MapRegionEditorRotateTool extends MapRegionEditorTool {
 
     // #region Main Functions
     public override onAnchorDrag(anchorPoint: AnchorPoint) {
+        let pivotAnchorPoint: AnchorPoint | null = MapRegionAnchorManager.INSTANCE.getCurrentPivotAnchor();
+
         // If no pivot point is set, do nothing.
-        if (!this.pivotAnchorPoint) {
+        if (!pivotAnchorPoint) {
             console.warn("No pivot point set for rotation, setting pivot to centralized point.");
-            this.pivotAnchorPoint = MapRegionAnchorManager.INSTANCE.CentralizedPoint;
+            pivotAnchorPoint = MapRegionAnchorManager.INSTANCE.CentralizedPoint;
         }
 
         if (anchorPoint.GetMainVisual === null) { console.log("No visual found"); return; }
@@ -248,10 +246,12 @@ class MapRegionEditorRotateTool extends MapRegionEditorTool {
             this.lastAnchorMoved = anchorPoint;
             this.isDragActive = true;
 
+            let pivotAnchorPoint: AnchorPoint | null = MapRegionAnchorManager.INSTANCE.getCurrentPivotAnchor();
+
             // Save the pivot's original position at the start of rotation
             this.originalPivotPosition = new L.LatLng(
-                this.pivotAnchorPoint!.GetAnchorPosition.lat,
-                this.pivotAnchorPoint!.GetAnchorPosition.lng
+                pivotAnchorPoint!.GetAnchorPosition.lat,
+                pivotAnchorPoint!.GetAnchorPosition.lng
             );
 
             // Determine which anchors to rotate based on selection
@@ -293,7 +293,8 @@ class MapRegionEditorRotateTool extends MapRegionEditorTool {
                 anchorPoint.GetAnchorPosition.lng - this.originalPivotPosition.lng
             );
             this.originalAngle = Math.atan2(originalVector.lat, originalVector.lng);
-            this.pivotDistance = L.latLng(this.originalPivotPosition.lat, this.originalPivotPosition.lng).distanceTo(anchorPoint.GetAnchorPosition);
+            // Store distance in degrees (lat/lng space) to avoid conversion errors
+            this.pivotDistance = Math.sqrt(originalVector.lat * originalVector.lat + originalVector.lng * originalVector.lng);
         }
 
         // Calculate the new angle of the dragged anchor relative to the fixed pivot position
@@ -306,13 +307,10 @@ class MapRegionEditorRotateTool extends MapRegionEditorTool {
         // Calculate the total rotation angle from the original position
         const totalRotationAngle = newAngle - this.originalAngle;
 
-        // Convert pivot distance from meters to degrees for lat/lng calculation
-        const distanceInDegrees = this.pivotDistance / 111320; // Approximate conversion
-
-        // Constrain the moved anchor to maintain its distance from the fixed pivot position
+        // Constrain the moved anchor to maintain its distance from the fixed pivot position (in lat/lng degrees)
         const constrainedPos = L.latLng(
-            this.originalPivotPosition!.lat + distanceInDegrees * Math.sin(newAngle),
-            this.originalPivotPosition!.lng + distanceInDegrees * Math.cos(newAngle)
+            this.originalPivotPosition!.lat + this.pivotDistance * Math.sin(newAngle),
+            this.originalPivotPosition!.lng + this.pivotDistance * Math.cos(newAngle)
         );
         anchorPoint.setAnchorPosition(constrainedPos);
 
@@ -349,6 +347,15 @@ class MapRegionEditorRotateTool extends MapRegionEditorTool {
         }
     }
 
+    public override onAnchorDragEnd(anchorPoint: AnchorPoint) {
+        // Hide ghost anchor and grid lines when rotation ends
+        MapRegionAnchorManager.INSTANCE.hideGhostAnchor();
+        
+        // Reset drag state
+        this.isDragActive = false;
+        this.lastAnchorMoved = null;
+    }
+
     public override onHandleDrag(anchorPoint: AnchorPoint, isIncoming: boolean) { 
         // Set the handle visual back to it's previous position.
         const previousRelHandlePos: L.LatLng = isIncoming ? anchorPoint.GetRelativeIncomingHandlePosition! : anchorPoint.GetRelativeOutgoingHandlePosition!;
@@ -362,9 +369,6 @@ class MapRegionEditorRotateTool extends MapRegionEditorTool {
 
     public override onAnchorRightClick(anchorPoint: AnchorPoint) 
     { 
-        // Set the pivot point to this anchor
-        this.pivotAnchorPoint = anchorPoint;
-
         // Use centralized system to set pivot anchor status
         MapRegionAnchorManager.INSTANCE.setPivotAnchor(anchorPoint);
         
@@ -379,7 +383,6 @@ class MapRegionEditorRotateTool extends MapRegionEditorTool {
  * Map Region Editor Scale tool (Scale Tool)
  */
 class MapRegionEditorScaleTool extends MapRegionEditorTool {
-    private scaleAnchorPoint: AnchorPoint | null; // The anchor point used as the reference for scaling
     private lastAnchorMoved: AnchorPoint | null; // The last anchor point that was moved (used to track when new drag starts)
     private originalAnchorPositions = new Map(); // Store original positions of all anchors for scaling
     private originalScaleAnchorPosition: L.LatLng | null; // Store the scale anchor's position at the start of scaling
@@ -391,7 +394,6 @@ class MapRegionEditorScaleTool extends MapRegionEditorTool {
         super(); // Initialize parent class
 
         // Scaling State
-        this.scaleAnchorPoint = null; // The anchor point used as the reference for scaling
         this.lastAnchorMoved = null; // The last anchor point that was moved (used to track when new drag starts)
         this.originalAnchorPositions = new Map(); // Store original positions of all anchors for scaling
         this.originalScaleAnchorPosition = null; // Store the scale anchor's position at the start of scaling
@@ -426,11 +428,13 @@ class MapRegionEditorScaleTool extends MapRegionEditorTool {
                     lng: anchor.GetAnchorPosition.lng
                 });
             });
+
+            let scaleAnchorPoint: AnchorPoint | null = MapRegionAnchorManager.INSTANCE.getCurrentScaleAnchor();
             
             // Store the fixed scale anchor position (the pivot point for scaling)
             this.originalScaleAnchorPosition = new L.LatLng(
-                this.scaleAnchorPoint!.GetAnchorPosition.lat,
-                this.scaleAnchorPoint!.GetAnchorPosition.lng
+                scaleAnchorPoint!.GetAnchorPosition.lat,
+                scaleAnchorPoint!.GetAnchorPosition.lng
             );
             
             console.log("Initialized centralized point scaling relative to scale point");
@@ -489,20 +493,20 @@ class MapRegionEditorScaleTool extends MapRegionEditorTool {
     public override onAnchorDrag(anchorPoint: AnchorPoint) 
     {
         // Get the current scale anchor from the manager (it's set when the tool is activated or via right-click)
-        this.scaleAnchorPoint = MapRegionAnchorManager.INSTANCE.getCurrentScaleAnchor();
+        let scaleAnchorPoint: AnchorPoint | null = MapRegionAnchorManager.INSTANCE.getCurrentScaleAnchor();
         
         // If no scale anchor point is set, set it to the centralized point as fallback
-        if (!this.scaleAnchorPoint) {
-            this.scaleAnchorPoint = MapRegionAnchorManager.INSTANCE.CentralizedPoint;
-            MapRegionAnchorManager.INSTANCE.setScaleAnchor(this.scaleAnchorPoint!);
-            console.log("Set scale reference point to centralized:", this.scaleAnchorPoint);
+        if (!scaleAnchorPoint) {
+            scaleAnchorPoint = MapRegionAnchorManager.INSTANCE.CentralizedPoint;
+            MapRegionAnchorManager.INSTANCE.setScaleAnchor(scaleAnchorPoint!);
+            console.log("Set scale reference point to centralized:", scaleAnchorPoint);
         }
 
         if (anchorPoint.GetMainVisual === null) { console.log("No visual found"); return; }
         const anchorVisual: L.Marker = anchorPoint.GetMainVisual!;
 
         // Prevent dragging the scale anchor itself (unless it's the centralized point being used for special scaling)
-        if (anchorPoint === this.scaleAnchorPoint && anchorPoint !== MapRegionAnchorManager.INSTANCE.CentralizedPoint) {
+        if (anchorPoint === scaleAnchorPoint && anchorPoint !== MapRegionAnchorManager.INSTANCE.CentralizedPoint) {
             // Reset the scale anchor to its original position - it should not move
             anchorVisual.setLatLng(anchorPoint.GetAnchorPosition);
             console.log("Cannot drag the scale anchor point - it must remain fixed");
@@ -511,6 +515,7 @@ class MapRegionEditorScaleTool extends MapRegionEditorTool {
 
         // Special handling when moving the centralized point - scale all other anchors relative to scale point
         if (anchorPoint === MapRegionAnchorManager.INSTANCE.CentralizedPoint) {
+            console.log("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
             this.scaleByCentralizedPoint(anchorPoint, anchorVisual);
             return;
         }
@@ -534,13 +539,13 @@ class MapRegionEditorScaleTool extends MapRegionEditorTool {
 
             // Save the scale anchor's original position at the start of scaling
             this.originalScaleAnchorPosition = new L.LatLng(
-                this.scaleAnchorPoint!.GetAnchorPosition.lat,
-                this.scaleAnchorPoint!.GetAnchorPosition.lng
+                scaleAnchorPoint!.GetAnchorPosition.lat,
+                scaleAnchorPoint!.GetAnchorPosition.lng
             );
 
             // Determine which anchors to scale based on Ctrl key and selection
-            if (MapRegionEditorKeyStates.INSTANCE.isCtrlPressedDown) {
-                // Ctrl held: Scale all anchor points
+            if (MapRegionEditorKeyStates.INSTANCE.isZPressedDown) {
+                // scale all anchor points
                 this.anchorsToScale = MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints.slice(); // Use slice() to create a copy
             } else {
                 // Normal mode: Scale based on selection
@@ -591,7 +596,7 @@ class MapRegionEditorScaleTool extends MapRegionEditorTool {
 
         // Determine which anchors to scale based on current Ctrl key state (dynamic)
         let currentAnchorsToScale;
-        if (MapRegionEditorKeyStates.INSTANCE.isCtrlPressedDown) {
+        if (MapRegionEditorKeyStates.INSTANCE.isZPressedDown) {
             // Ctrl held: Scale all anchor points
             currentAnchorsToScale = MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints;
         } else {
@@ -645,9 +650,6 @@ class MapRegionEditorScaleTool extends MapRegionEditorTool {
     }
 
     public override onAnchorRightClick(anchorPoint: AnchorPoint, event: any) {
-        // Set the scale anchor point to this anchor
-        this.scaleAnchorPoint = anchorPoint;
-
         // Use centralized system to set scale anchor status
         MapRegionAnchorManager.INSTANCE.setScaleAnchor(anchorPoint);
         

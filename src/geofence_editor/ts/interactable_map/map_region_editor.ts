@@ -198,9 +198,9 @@ class MapRegionEditor
     private initializeToolButtons()
     {
         // Attach buttons to tools
-        const scaleBtn: Element = document.getElementById('tool-move')!;
+        const moveBtn: Element = document.getElementById('tool-move')!;
         const rotateBtn: Element = document.getElementById('tool-rotate')!;
-        const moveBtn: Element = document.getElementById('tool-scale')!;
+        const scaleBtn: Element = document.getElementById('tool-scale')!;
 
         this.attachButtonToTool(scaleBtn, 'scale');
         this.attachButtonToTool(rotateBtn, 'rotate');
@@ -223,6 +223,7 @@ class MapRegionEditor
         switch (toolName)
         {
             case 'scale':
+                console.log("ACTIVATING SCALE TOOL");
                 this.activeTool = new MapRegionEditorScaleTool();
                 // Set centralized point as default scale anchor with visual indicator
                 if (MapRegionAnchorManager.INSTANCE.CentralizedPoint) {
@@ -1079,6 +1080,8 @@ class MapRegionEditorKeyStates
     public get isAltPressedDown() { return this.altPressed; }
     private deletePressed: boolean;
     public get isDeletePressedDown() { return this.deletePressed; }
+    private zPressed: boolean;
+    public get isZPressedDown() { return this.zPressed; }
 
     constructor()
     {
@@ -1094,6 +1097,7 @@ class MapRegionEditorKeyStates
         this.shiftPressed = false;
         this.altPressed = false;
         this.deletePressed = false;
+        this.zPressed = false;
 
         // Set up keyboard event listeners
         this.initKeyboardListeners();
@@ -1110,6 +1114,8 @@ class MapRegionEditorKeyStates
                 this.altPressed = true;
             } else if (e.key === 'Delete') {
                 this.deletePressed = true;
+            } else if (e.key === 'z') {
+                this.zPressed = true;
             }
         });
         // Keyup listeners
@@ -1122,15 +1128,9 @@ class MapRegionEditorKeyStates
                 this.altPressed = false;
             } else if (e.key === 'Delete') {
                 this.deletePressed = false;
+            } else if (e.key === 'z') {
+                this.zPressed = false;
             }
         });
     }
-
-    // #region Key State Getters
-    get ctrlPressedDown() { return this.ctrlPressed; }
-    get shiftPressedDown() { return this.shiftPressed; }
-    get altPressedDown() { return this.altPressed; }
-    get deletePressedDown() { return this.deletePressed; }
-    // #endregion
 }
-
