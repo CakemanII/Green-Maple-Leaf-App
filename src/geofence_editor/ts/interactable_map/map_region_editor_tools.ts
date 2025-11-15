@@ -2,6 +2,9 @@
 
 
 abstract class MapRegionEditorTool {
+    // Tool name
+    public abstract readonly ToolName: string;
+
     constructor() {}
     
     // #region Override Functions
@@ -58,6 +61,8 @@ abstract class MapRegionEditorTool {
  * Map Region Editor Translate tool (Move Tool)
  */
 class MapRegionEditorTranslateTool extends MapRegionEditorTool {
+    public override readonly ToolName: string = "move";
+    
     constructor() { super();}
 
     // #region Utility Functions
@@ -189,7 +194,8 @@ class MapRegionEditorTranslateTool extends MapRegionEditorTool {
  * Map Region Editor Rotate tool (Rotate Tool)
  */
 class MapRegionEditorRotateTool extends MapRegionEditorTool {
-    
+    public override readonly ToolName: string = "rotate";
+
     private lastAnchorMoved: AnchorPoint | null; // The last anchor point that was moved (used to calculate distance from pivot)
     private pivotDistance: number; // The distance from the pivot to the last moved anchor point
     private originalAngle: number; // The original angle of the moved anchor relative to pivot
@@ -383,6 +389,8 @@ class MapRegionEditorRotateTool extends MapRegionEditorTool {
  * Map Region Editor Scale tool (Scale Tool)
  */
 class MapRegionEditorScaleTool extends MapRegionEditorTool {
+    public override readonly ToolName: string = "scale";
+    
     private lastAnchorMoved: AnchorPoint | null; // The last anchor point that was moved (used to track when new drag starts)
     private originalAnchorPositions = new Map(); // Store original positions of all anchors for scaling
     private originalScaleAnchorPosition: L.LatLng | null; // Store the scale anchor's position at the start of scaling
@@ -553,6 +561,13 @@ class MapRegionEditorScaleTool extends MapRegionEditorTool {
                     MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints.slice() : Array.from(MapRegionAnchorManager.INSTANCE.SelectedAnchors);
             }
 
+            // Show ghost anchor at the scale anchor position with grid lines to anchors being scaled
+            MapRegionAnchorManager.INSTANCE.showGhostAnchor(
+                L.latLng(this.originalScaleAnchorPosition.lat, this.originalScaleAnchorPosition.lng),
+                'scale',
+                this.anchorsToScale
+            );
+
             // Store original positions of anchors to scale
             this.originalAnchorPositions.clear();
             this.anchorsToScale.forEach(anchor => {
@@ -636,6 +651,17 @@ class MapRegionEditorScaleTool extends MapRegionEditorTool {
                 anchor.setAnchorPosition(scaledPos);
             }
         });
+
+        // Update ghost anchor grid lines with the current set of anchors being scaled
+        MapRegionAnchorManager.INSTANCE.updateGhostGridLines(currentAnchorsToScale, 'scale');
+    }
+
+    public override onAnchorDragEnd(anchorPoint: AnchorPoint) {
+        // Hide ghost anchor and grid lines when scaling ends
+        MapRegionAnchorManager.INSTANCE.hideGhostAnchor();
+        
+        // Reset drag state
+        this.lastAnchorMoved = null;
     }
 
     // Prevent Direct Handle Manipulation
@@ -665,6 +691,8 @@ class MapRegionEditorScaleTool extends MapRegionEditorTool {
  * Map Region Editor Add Anchor tool (Add Anchor Tool)
  */
 class MapRegionEditorAddAnchorTool extends MapRegionEditorTool {
+    public override readonly ToolName: string = "add-anchor";
+    
     constructor() { super(); }
 
     // #region Utility Functions

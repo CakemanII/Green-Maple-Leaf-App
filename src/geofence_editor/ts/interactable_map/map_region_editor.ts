@@ -31,6 +31,7 @@ class MapRegionEditor
     public static get INSTANCE(): MapRegionEditor { return MapRegionEditor.instance; }
 
     private activeTool: MapRegionEditorTool | null = null;
+    public get ActiveTool(): MapRegionEditorTool | null { return this.activeTool; }
 
     constructor()
     {
@@ -48,8 +49,8 @@ class MapRegionEditor
         new MapRegionAnchorManager();
         new MapRegionRegionManager();
 
-        // Initialize tool buttons
-        this.initializeToolButtons();
+        // Initialize UI
+        new MapEditorUI();
 
         // Setup the tool state
         this.setActiveTool('move');
@@ -195,18 +196,6 @@ class MapRegionEditor
     }
 
     // #region Tools
-    private initializeToolButtons()
-    {
-        // Attach buttons to tools
-        const moveBtn: Element = document.getElementById('tool-move')!;
-        const rotateBtn: Element = document.getElementById('tool-rotate')!;
-        const scaleBtn: Element = document.getElementById('tool-scale')!;
-
-        this.attachButtonToTool(scaleBtn, 'scale');
-        this.attachButtonToTool(rotateBtn, 'rotate');
-        this.attachButtonToTool(moveBtn, 'move');
-    }
-
     /**
      * Sets the active tool based on the provided tool name.
      * @param {String} toolName - Name of the tool to activate ('scale', 'rotate', 'move').
@@ -220,10 +209,9 @@ class MapRegionEditor
         this.activeTool = null;
 
         // Create the new tool based on the name
-        switch (toolName)
+        switch (toolName.toLowerCase())
         {
             case 'scale':
-                console.log("ACTIVATING SCALE TOOL");
                 this.activeTool = new MapRegionEditorScaleTool();
                 // Set centralized point as default scale anchor with visual indicator
                 if (MapRegionAnchorManager.INSTANCE.CentralizedPoint) {
@@ -249,15 +237,9 @@ class MapRegionEditor
         // Update anchor interactivity when tool changes
         MapRegionAnchorManager.INSTANCE.updateAllAnchorInteractivity();
         
-        console.log(`Set active tool to: ${toolName}`);
-    }
-
-    // Buttons
-    private attachButtonToTool(buttonElement: Element, toolName: string)
-    {
-        buttonElement.addEventListener('click', () => {
-            this.setActiveTool(toolName);
-        });
+        // Update the UI to reflect the active tool
+        MapEditorUI.INSTANCE.updateActiveToolDisplay();
+        
     }
 
     /**
@@ -783,6 +765,8 @@ class MapRegionRegionManager
     public get ActiveEditingRegion(): MapRegion | null { return this.activeEditingRegion; }
     private regions: MapRegion[]; // All regions managed by the editor
 
+    private editorRegionCreator: MapRegionCreatorEditorHandler | null = null;
+
     constructor()
     {
         // Ensure singleton instance
@@ -800,65 +784,37 @@ class MapRegionRegionManager
     // #region Region Loading Functions
     /**
      * Loads different types of regions and appends them to _regions array.
-     * @param {string} regionType - Type of region ('rectangle', 'circle', 'custom')
-     * @param {object} regionData - Configuration data for the region
-     * @param {object} styleOptions - Style options for the region (optional)
+     * @param {RegionData} regionData - Data defining the region to load
+     * @param {boolean} pushToRegionsArray - Whether to add the loaded region to the regions array
      */
-    loadRegion(regionType: string, regionData: any | null = null, styleOptions: RegionStyleParameters) {
+    loadRegion(regionData: RegionData, pushToRegionsArray: boolean = true) : MapRegion | null {
         let newRegion: MapRegion;
-        let frontendData: FrontendAnchorData | null;
+
+        // Get frontend data and style options
+        const frontendData: FrontendAnchorData = regionData.FrontEndData
+        const stylePreferences: RegionStyleParameters = {
+            color: regionData.Style.FillColor,
+            opacity: regionData.Style.FillOpacity,
+            restricted: regionData.General.IsRestricted,
+            label: regionData.General.Name
+        };
 
         // Create region based on type
-        switch (regionType.toLowerCase()) {
+        switch (regionData.RegionType) {
             // Rectangle
-            case 'rectangle':
-                frontendData = regionData && regionData.points ? 
-                    ( regionData.points.map((point: any) => ({
-                        anchorPos: L.latLng(point.lat, point.lng),
-                        relIncomingHandlePos: point.relIncomingHandle || null,
-                        relOutgoingHandlePos: point.relOutgoingHandle || null})) ) : null;
+            case RegionType.Rectangle:
                 newRegion = new MapRectangleRegion(frontendData);
                 break;
             
             // Circle
-            case 'circle':
-                frontendData = regionData && regionData.points ?
-                [
-                        {
-                            anchorPos: L.latLng(regionData.center.lat, regionData.center.lng),
-                            relIncomingHandlePos: null,
-                            relOutgoingHandlePos: null
-                        },
-                        {
-                            anchorPos: L.latLng(regionData.center.lat, regionData.center.lng + regionData.radius),
-                            relIncomingHandlePos: null,
-                            relOutgoingHandlePos: null
-                        }
-                ] : null;
-
+            case RegionType.Circle:
                 newRegion = new MapCircleRegion(frontendData);
                 break;
             
-            // Custom
-            case 'custom':
-                // Custom region with user-defined points
-                if (!regionData || !regionData.points || regionData.points.length < 3) {
-                    console.error('Custom region requires at least 3 points');
-                    return null;
-                }
-
-                frontendData = regionData.points.map((point: any) => ({
-                    anchorPos: L.latLng(point.lat, point.lng),
-                    relIncomingHandlePos: point.relIncomingHandle || null,
-                    relOutgoingHandlePos: point.relOutgoingHandle || null
-                }));
-
-                newRegion = new MapRectangleRegion(frontendData); // Use base rectangle class for custom shapes
+            // Custom Freeform
+            case RegionType.Freeform:
+                newRegion = new MapFreeformRegion(frontendData); // Use base rectangle class for custom shapes
                 break;
-
-            default:
-                console.error(`Unknown region type: ${regionType}`);
-                return null;
         }
 
         // Apply style options
@@ -866,14 +822,20 @@ class MapRegionRegionManager
             color: "#3388ff",
             opacity: 0.3,
             restricted: false,
-            label: `${regionType.charAt(0).toUpperCase() + regionType.slice(1)} Region`
+            label: regionData.General.Name
         };
 
-        const finalStyle: RegionStyleParameters = { ...defaultStyle, ...styleOptions };
+        const finalStyle: RegionStyleParameters = { ...defaultStyle, ...stylePreferences };
         newRegion.updateStyleParameters(finalStyle);
 
         // Add region to the regions array
-        this.regions.push(newRegion);
+        if (pushToRegionsArray)
+            this.regions.push(newRegion);
+
+        // Update the editor UI
+        MapEditorUI.INSTANCE.updateMapLayersList();
+        
+        return newRegion;
     }
 
     /**
@@ -883,15 +845,14 @@ class MapRegionRegionManager
     loadMultipleRegions(regionsConfig: Array<any>) {
         const loadedRegions: MapRegion[] = [];
         
-        regionsConfig.forEach((config, index) => {
-            const { type, data, style } = config;
-            const region = this.loadRegion(type, data, style);
+        regionsConfig.forEach((regionData: RegionData, index) => {
+            const region = this.loadRegion(regionData);
             
             if (region) {
                 loadedRegions.push(region);
                 //console.log(`Loaded region ${index + 1}/${regionsConfig.length}`);
             } else {
-                console.error(`Failed to load region ${index + 1}:`, config);
+                console.error(`Failed to load region ${index + 1}:`, regionData);
             }
         });
 
@@ -904,8 +865,8 @@ class MapRegionRegionManager
      */
     loadRegionFromJSON(jsonData: string) {
         try {
-            const config = JSON.parse(jsonData);
-            return this.loadRegion(config.type, config.data, config.style);
+            const regionData = JSON.parse(jsonData);
+            return this.loadRegion(regionData);
         } catch (error) {
             console.error('Error parsing JSON region data:', error);
             return null;
@@ -1038,7 +999,7 @@ class MapRegionRegionManager
         }
     }
 
-        /**
+    /**
      * Stops editing the current region and clears the editor.
      * @returns {boolean} True if editing was successfully stopped
      */
@@ -1062,6 +1023,367 @@ class MapRegionRegionManager
         return false;
     }
     // #endregion
+
+    // #region Create Region From Editor
+    public startCreatingRegionFromEditor(regionType: RegionType)
+    {
+        if (this.IsEditingRegion && false) { // disabled for now
+            console.warn('Cannot start creating a new region while editing an existing region. Stop editing first.');
+            return;
+        }
+
+        if (this.IsCreatingRegionFromEditor) {
+            console.warn('Already creating a region. Finish or cancel the current creation first.');
+            return;
+        }
+
+        this.editorRegionCreator = new MapRegionCreatorEditorHandler(regionType);
+        console.log('Started creating new region of type:', regionType);
+    }
+
+    /**
+     * Finalizes the creation of a new region from the editor.
+     * @param {MapRegionCreatorEditorHandler} mapRegionCreatorEditorHandler - The region creator handler (for security)
+     */
+    public finishedCreatingRegionFromEditor(mapRegionCreatorEditorHandler: MapRegionCreatorEditorHandler)
+    {
+        if (this.editorRegionCreator !== mapRegionCreatorEditorHandler) {
+            console.error('Mismatched region creator handler. Cannot finalize creation.');
+            return;
+        }
+
+        // Remove the region creator handler
+        this.editorRegionCreator = null;
+    }
+
+    // #endregion
+
+    // #region State Getters
+    public get IsCreatingRegionFromEditor(): boolean { return this.editorRegionCreator !== null; }
+    public get IsEditingRegion(): boolean { return this.activeEditingRegion !== null; }
+
+    // #endregion
+}
+
+/**
+ * Class to handle creating regions from the map region editor.
+ * Instanitated when user starts creating a new region.
+ * Removed when region creation is complete or cancelled.
+ */
+class MapRegionCreatorEditorHandler
+{
+    private regionType: RegionType; // Type of region being created
+
+    private placedDataPoints: L.LatLng[]; // Points already placed by the user
+
+    private temporaryRegionDataPoints: FrontendAnchorData; // Points defining the region shape (includes the ghost point)
+    private temporaryRegion: MapRegion | null; // Temporary region being created
+
+    private mouseGhostAnchorVisual: L.Marker | null; // Ghost anchor for visual feedback during region creation
+    private placedGhostAnchorVisuals: L.Marker[]; // Ghost anchors for placed points
+
+    private creationComplete: boolean = false;
+
+    constructor(regionType: RegionType)
+    {
+        this.regionType = regionType;
+
+        this.placedDataPoints = [];
+
+        this.temporaryRegionDataPoints = [];
+        this.placedGhostAnchorVisuals = [];
+        this.mouseGhostAnchorVisual = null;
+        this.temporaryRegion = null;
+
+        this.mouseGhostAnchorVisual = null;
+
+        // Create Mouse Anchor Visual
+        this.createMouseGhostAnchor();
+
+        // Initialize mouse click listener to add points
+        this.initializeMouseListeners();
+    }
+
+    /**
+     * Initialize mouse click add anchor point listener.
+     */
+    private initializeMouseListeners()
+    {
+        // Add click listener to add points to region
+        InteractiveMap.mapInstance.on('click', (e: L.LeafletMouseEvent) => {
+            if (this.creationComplete) return; // Ignore when creation is complete
+            this.addPointToPlaced(e.latlng);
+        });
+
+        // Add mouse move listener to update position and shape
+        InteractiveMap.mapInstance.on('mousemove', (e: L.LeafletMouseEvent) => {
+            if (this.creationComplete) return; // Ignore when creation is complete
+            if (this.mouseGhostAnchorVisual) {
+                // Update ghost anchor position & in the region data points
+                this.mouseGhostAnchorVisual.setLatLng(e.latlng);
+                this.updateRegionShapePoints(e.latlng);
+
+                // Update temporary region 
+                this.updateRegionShapeVisual();
+            }
+        });
+    }
+
+    /**
+     * Create a ghost anchor point at a position
+     */
+    private createGhostAnchor(latlng: L.LatLng) : L.Marker
+    {
+        // Create ghost anchor marker
+        const ghostAnchorVisual: L.Marker = L.marker(latlng, {
+            icon: Visuals.ANCHOR_ICON,
+            interactive: false, // Make it non-interactive
+            keyboard: false,
+            riseOnHover: false,
+            zIndexOffset: -1000 // Place behind other markers
+        }).addTo(InteractiveMap.mapInstance);
+        
+        // Add ghost styling based on type
+        const element = ghostAnchorVisual.getElement();
+        if (element) {
+            element.classList.add('ghost-anchor');
+            element.classList.add('ghost-creation-anchor');
+        }
+
+        return ghostAnchorVisual;
+    }
+
+    /**
+     * Creates a ghost anchor that will follow the mouse cursor during region creation.
+     */
+    private createMouseGhostAnchor()
+    {
+        if (this.mouseGhostAnchorVisual)
+        {
+            console.warn("Mouse ghost anchor already exists!");
+            return; // Already exists
+        }
+
+        // Create ghost anchor marker
+        this.mouseGhostAnchorVisual = this.createGhostAnchor(L.latLng(0, 0));
+
+        console.log("Mouse ghost anchor created for region creation.");
+    }
+    
+    /**
+     * Removes the mouse ghost anchor from the map.
+     */
+    private cleanup()
+    {
+        // Remove mouse ghost anchor
+        if (this.mouseGhostAnchorVisual)
+        {
+            InteractiveMap.mapInstance.removeLayer(this.mouseGhostAnchorVisual);
+            this.mouseGhostAnchorVisual = null;
+            console.log("Mouse ghost anchor removed.");
+        }
+
+        // Remove placed ghost anchors
+        this.placedGhostAnchorVisuals.forEach(ghost => {
+            InteractiveMap.mapInstance.removeLayer(ghost);
+        });
+        this.placedGhostAnchorVisuals = [];
+        console.log("Placed ghost anchors removed.");
+
+        // Remove the temporary region
+        if (this.temporaryRegion)
+        {
+            this.temporaryRegion.removeRegion();
+            this.temporaryRegion = null;
+            console.log("Temporary region removed.");
+        }
+    }
+
+    /**
+     * When mouse clicks, adds a new point to the region being created.
+     */
+    private addPointToPlaced(latlng: L.LatLng)
+    {
+        // Add the point to placed data points
+        this.placedDataPoints.push(latlng);
+
+        // Create a ghost anchor for the placed point
+        const placedGhost = this.createGhostAnchor(latlng);
+        this.placedGhostAnchorVisuals.push(placedGhost);
+
+        // Update shape points
+        this.updateRegionShapePoints(latlng);
+
+        // Check if completion is complete
+        if (this.isCreationComplete()) {
+            console.log("Region creation complete with points:", this.placedDataPoints);
+            // Finalize the region creation
+            this.finalizeRegionCreation();
+        }
+    }
+
+    /**
+     * Updates the region shape points for the temporary region based on mouse position.
+     */
+    private updateRegionShapePoints(mouseLatlng: L.LatLng)
+    {
+        if (this.placedDataPoints.length === 0) {
+            return; // No points to update shape from
+        }
+
+        switch (this.regionType) {
+            case RegionType.Rectangle:
+                // Get the first point and the current mouse position to define the rectangle
+                const firstPoint: L.LatLng = this.placedDataPoints[0];
+                const horizontalPoint: L.LatLng = mouseLatlng;
+
+                const rectanglePoints: L.LatLng[] = [
+                    firstPoint,
+                    L.latLng(firstPoint.lat, horizontalPoint.lng),
+                    horizontalPoint,
+                    L.latLng(horizontalPoint.lat, firstPoint.lng)
+                ];
+
+                this.temporaryRegionDataPoints = rectanglePoints.map(point => ({
+                    anchorPos: point,
+                    relIncomingHandlePos: null,
+                    relOutgoingHandlePos: null
+                }));
+                break;
+
+            case RegionType.Circle:
+                // Get the center point and the current mouse position to define the circle
+                const centerPoint: L.LatLng = this.placedDataPoints[0];
+                const radiusPoint: L.LatLng = mouseLatlng;
+                
+                this.temporaryRegionDataPoints = [
+                    {
+                        anchorPos: centerPoint,
+                        relIncomingHandlePos: null,
+                        relOutgoingHandlePos: null
+                    },
+                    {
+                        anchorPos: radiusPoint,
+                        relIncomingHandlePos: null,
+                        relOutgoingHandlePos: null
+                    }
+                ];
+                break;
+
+            case RegionType.Freeform:
+                this.temporaryRegionDataPoints = this.placedDataPoints.map(point => ({
+                    anchorPos: point,
+                    relIncomingHandlePos: null,
+                    relOutgoingHandlePos: null
+                }));
+                break;
+            default:
+                console.error(`Unknown region type: ${this.regionType}`);
+                return;
+        }
+    }
+
+    /**
+     * Update the shape visual when mouse moves.
+     */
+    private updateRegionShapeVisual()
+    {
+        // Check if we have enough points to create a shape
+        if (this.temporaryRegionDataPoints.length < 1) {
+            return;
+        }
+
+        // Create new region data object
+        const tempRegionData: RegionData = {
+            General: {
+                Name: "",
+                IsVisible: true,
+                IsRestricted: false,
+            },
+
+            Style: {
+                FillColor: "#ff7800",
+                FillOpacity: 0.5,
+                BorderColor: "#ff7800",
+                BorderOpacity: 0.8,
+            },
+
+            RegionType: this.regionType,
+            FrontEndData: this.temporaryRegionDataPoints
+        }
+
+        // Create or update temporary region
+        if (!this.temporaryRegion) {
+            this.temporaryRegion = MapRegionRegionManager.INSTANCE.loadRegion(tempRegionData, false);
+        } else {
+            this.temporaryRegion.setFrontendAnchorPositions(this.temporaryRegionDataPoints);
+            this.temporaryRegion.update();
+        }
+    }
+
+    /**
+     * Returns true if the region creation has finished 
+     */
+    public isCreationComplete(): boolean
+    {
+        switch (this.regionType) {
+            case RegionType.Rectangle:
+                return this.placedDataPoints.length >= 2;
+            case RegionType.Circle:
+                return this.placedDataPoints.length >= 2;
+            case RegionType.Freeform:
+                return this.placedDataPoints.length >= 1;
+            default:
+                console.error(`Unknown region type: ${this.regionType}`);
+                return false;
+        }
+    }
+
+    /**
+     * Finalizes the region creation and adds it to the region manager.
+     */
+    private finalizeRegionCreation()
+    {
+        if (!this.isCreationComplete()) {
+            console.warn("Cannot finalize region creation. Not enough points placed.");
+            return;
+        }
+
+        // Mark creation as complete
+        this.creationComplete = true;
+
+        // Cleanup temporary visuals and data
+        this.cleanup();
+
+        // Create region data object for final region
+        const regionData: RegionData = {
+            General: {
+                Name: "",
+                IsVisible: true,
+                IsRestricted: false,
+            },
+
+            Style: {
+                FillColor: "#ff7800",
+                FillOpacity: 0.5,
+                BorderColor: "#ff7800",
+                BorderOpacity: 0.8,
+            },
+
+            RegionType: this.regionType,
+            FrontEndData: this.temporaryRegionDataPoints
+        }
+
+        // Load the new region into the region manager using loadRegion
+        MapRegionRegionManager.INSTANCE.loadRegion(regionData);
+
+        MapRegionRegionManager.INSTANCE.setActiveEditingRegion(
+            MapRegionRegionManager.INSTANCE.getAllRegions().length - 1
+        );
+
+        // Call back to region manager to indicate creation is complete
+        MapRegionRegionManager.INSTANCE.finishedCreatingRegionFromEditor(this);
+    }
 }
 
 /**

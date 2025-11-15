@@ -30,6 +30,34 @@ type RegionStyleParameters = {
 };
 
 /**
+ * Region types used throughout the editor.
+ */
+enum RegionType {
+    Rectangle,
+    Circle,
+    Freeform
+}
+
+type RegionData = {
+    General: {
+        Name: string;
+        IsVisible: boolean;
+        IsRestricted: boolean;
+    };
+
+    Style: {
+        FillColor: string;
+        FillOpacity: number;
+        BorderColor: string;
+        BorderOpacity: number;
+    }
+
+    RegionType: RegionType;
+    FrontEndData: FrontendAnchorData;
+    DerivedBackendData?: BackendAnchorData;
+}
+
+/**
  * Base class for map regions.
  */
 abstract class MapRegion 
@@ -399,7 +427,7 @@ class MapFreeformRegion extends MapRegion
 {
     constructor(frontendShapePointData: FrontendAnchorData | null) { super(frontendShapePointData); }
 
-    protected override translateToBackendData() : void {
+    protected override translateToBackendData() : void { // (1 to 1 conversion)
         // Copy all points to backend anchor data with correct property names
         this.backendAnchorData = this.frontendShapePointData.map(point => ({
             anchorPos: point.anchorPos,

@@ -146,6 +146,15 @@
         .tool-button:hover {
             background-color: #1a1a1a;
         }
+
+        .tool-button.active-tool {
+            background-color: #2a4a6a;
+            border: 2px solid #6ba3ff;
+        }
+
+        .tool-button.active-tool:hover {
+            background-color: #325a7a;
+        }
         
         .tool-button i {
             font-size: 18px;
@@ -153,17 +162,20 @@
         }
         
         /* Move tool - scale up on hover */
-        #tool-move:hover i {
+        #btn-tool-move:hover i,
+        #btn-tool-move.active-tool:hover i {
             transform: scale(1.3);
         }
         
         /* Scale tool - scale up on hover */
-        #tool-scale:hover i {
+        #btn-tool-scale:hover i,
+        #btn-tool-scale.active-tool:hover i {
             transform: scale(1.3);
         }
         
         /* Rotate tool - rotate on hover */
-        #tool-rotate:hover i {
+        #btn-tool-rotate:hover i,
+        #btn-tool-rotate.active-tool:hover i {
             animation: quickRotate 0.5s ease;
         }
         
@@ -316,9 +328,21 @@
             background-color: #50c878;
             color: white;
         }
+
+        .layer-action-btn.eye.hidden {
+            background-color: #757575;
+        }
+
+        .layer-action-btn.eye.hidden i::before {
+            content: "\f070"; /* fa-eye-slash */
+        }
         
         .layer-action-btn.eye:hover i {
             animation: eyeBlink 0.3s ease;
+        }
+
+        .layer-action-btn.eye.hidden:hover i {
+            animation: none;
         }
         
         .layer-action-btn.settings {
@@ -539,15 +563,15 @@
                         <i class="fas fa-plus-circle"></i>
                         <span>CREATE REGIONS</span>
                     </div>
-                    <button class="region-button rectangle">
+                    <button class="region-button rectangle" id="btn-create-rectangle-region">
                         <i class="far fa-square"></i>
                         <span>Rectangle</span>
                     </button>
-                    <button class="region-button circle">
+                    <button class="region-button circle" id="btn-create-circle-region">
                         <i class="far fa-circle"></i>
                         <span>Circle</span>
                     </button>
-                    <button class="region-button freeform">
+                    <button class="region-button freeform" id="btn-create-freeform-region">
                         <i class="fas fa-draw-polygon"></i>
                         <span>Free Form</span>
                     </button>
@@ -562,20 +586,20 @@
                         <span>REGION TOOLS</span>
                     </div>
                     <div class="tool-buttons">
-                        <button class="tool-button" id="tool-move">
+                        <button class="tool-button" id="btn-tool-move">
                             <i class="fas fa-arrows-alt"></i>
                             <span>Move</span>
                         </button>
-                        <button class="tool-button" id="tool-scale">
+                        <button class="tool-button" id="btn-tool-scale">
                             <i class="fas fa-expand-alt"></i>
                             <span>Scale</span>
                         </button>
-                        <button class="tool-button" id="tool-rotate">
+                        <button class="tool-button" id="btn-tool-rotate">
                             <i class="fas fa-sync-alt"></i>
                             <span>Rotate</span>
                         </button>
                     </div>
-                    <button class="toggle-button" id="toggle-anchors">
+                    <button class="toggle-button" id="btn-tool-add-anchor">
                         <i class="fas fa-anchor"></i>
                         <span>Add Anchors</span>
                     </button>
@@ -590,115 +614,8 @@
                         <span>MAP LAYERS</span>
                     </div>
                     <div id="layers-container">
-                    <div class="layer-item">
-                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
-                        <div class="layer-content">
-                            <div class="layer-name">Test Rectangle 1</div>
-                            <div class="layer-actions">
-                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
-                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
-                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </div>
+                        <!-- Layers will be dynamically added here -->
                     </div>
-                    <div class="layer-item">
-                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
-                        <div class="layer-content">
-                            <div class="layer-name">Test Circle 2</div>
-                            <div class="layer-actions">
-                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
-                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
-                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="layer-item">
-                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
-                        <div class="layer-content">
-                            <div class="layer-name">Landing Zone Alpha</div>
-                            <div class="layer-actions">
-                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
-                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
-                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="layer-item">
-                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
-                        <div class="layer-content">
-                            <div class="layer-name">No Fly Zone North</div>
-                            <div class="layer-actions">
-                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
-                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
-                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="layer-item">
-                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
-                        <div class="layer-content">
-                            <div class="layer-name">Patrol Route 1</div>
-                            <div class="layer-actions">
-                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
-                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
-                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="layer-item">
-                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
-                        <div class="layer-content">
-                            <div class="layer-name">Restricted Area West</div>
-                            <div class="layer-actions">
-                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
-                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
-                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="layer-item">
-                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
-                        <div class="layer-content">
-                            <div class="layer-name">Safety Perimeter</div>
-                            <div class="layer-actions">
-                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
-                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
-                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="layer-item">
-                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
-                        <div class="layer-content">
-                            <div class="layer-name">Mission Area Beta</div>
-                            <div class="layer-actions">
-                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
-                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
-                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="layer-item">
-                        <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
-                        <div class="layer-content">
-                            <div class="layer-name">Search Grid 3</div>
-                            <div class="layer-actions">
-                                <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
-                                <button class="layer-action-btn settings" title="Settings"><i class="fas fa-cog"></i></button>
-                                <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
                 </div>
             </div>
         </section>
@@ -737,6 +654,10 @@
     
     <!-- 5. Main editor (uses all above) -->
     <script src="./compiled_js/interactable_map/map_region_editor.js"></script>
+
+    <!-- 6. Editor UI  -->
+    <script src="./compiled_js/editor_ui/editior_ui.js"></script>
+     
     
     <script>
         // Initialize map after DOM is loaded
@@ -747,81 +668,13 @@
             // Initialize the region editor
             const regionEditor = new MapRegionEditor();
             console.log('MapRegionEditor initialized successfully');
-            
-            // Add test region after editor is initialized
-            const HOME_LATITUDE = 13.090179;
-            const HOME_LONGITUDE = -30.536698;
-            const testRegion1 = {
-                type: 'rectangle',
-                data: {
-                    points: [
-                        { lat: HOME_LATITUDE + 21.1, lng: HOME_LONGITUDE - 21.1 },
-                        { lat: HOME_LATITUDE + 21.1, lng: HOME_LONGITUDE + 21.1 },
-                        { lat: HOME_LATITUDE - 21.1, lng: HOME_LONGITUDE + 21.1 },
-                        { lat: HOME_LATITUDE - 21.1, lng: HOME_LONGITUDE - 21.1 }
-                    ]
-                },
-                style: {
-                    color: "#9999FF",  // Blue color as RGB object
-                    opacity: 0.5,
-                    restricted: false,
-                    label: 'Test Rectangle 1'
-                }
-            };
-
-            const testRegion2 = {
-                type: 'circle',
-                data: {
-                    center: { lat: HOME_LATITUDE, lng: HOME_LONGITUDE },
-                    radius: 15.0  // Radius in degrees
-                },
-                style: {
-                    color: "#9999FF",  // Blue color
-                    opacity: 0.5,
-                    restricted: false,
-                    label: 'Test Circle 1'
-                }
-            };
-
-            
-            
-            MapRegionRegionManager.INSTANCE.loadRegion(testRegion1.type, testRegion1.data, testRegion1.style);
-            MapRegionRegionManager.INSTANCE.setActiveEditingRegion(0);
-
-            // Update map coordinates and zoom info
-            const mapCoordsEl = document.getElementById('map-coords');
-            const mapZoomEl = document.getElementById('map-zoom');
-            const map = InteractiveMap.mapInstance;
-            
-            // Update on mouse move
-            map.on('mousemove', function(e) {
-                const lat = e.latlng.lat.toFixed(6);
-                const lng = e.latlng.lng.toFixed(6);
-                mapCoordsEl.textContent = `Lat: ${lat}, Lng: ${lng}`;
-            });
-            
-            // Update on zoom
-            function updateZoom() {
-                mapZoomEl.textContent = `Zoom: ${map.getZoom()}`;
-            }
-            map.on('zoom', updateZoom);
-            updateZoom();
-            
-            // Add event listeners for region buttons
+                       
+            /*// Add event listeners for region buttons
             document.querySelectorAll('.region-button').forEach(button => {
                 button.addEventListener('click', function() {
                     const mode = this.querySelector('span').textContent;
                     document.getElementById('map-mode').textContent = mode;
                     console.log('Creating region:', mode);
-                });
-            });
-            
-            // Add event listeners for tool buttons
-            document.querySelectorAll('.tool-button').forEach(button => {
-                button.addEventListener('click', function() {
-                    const tool = this.querySelector('span').textContent;
-                    document.getElementById('map-mode').textContent = tool;
-                    console.log('Tool selected:', tool);
                 });
             });
             
@@ -841,7 +694,7 @@
                     const layerName = this.closest('.layer-item').querySelector('.layer-name').textContent;
                     console.log(`Action: ${action} on layer: ${layerName}`);
                 });
-            });
+            });*/
         });
     </script>
 </body>
