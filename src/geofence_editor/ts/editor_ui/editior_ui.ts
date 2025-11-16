@@ -16,6 +16,8 @@ class MapEditorUI {
     private static readonly scaleToolButtonID: string = "btn-tool-scale";
     private static readonly rotateToolButtonID: string = "btn-tool-rotate";
     private static readonly addAnchorButtonID: string = "btn-tool-add-anchor";
+    private static readonly addHandlesButtonID: string = "btn-tool-add-handles";
+    private static readonly convertToFreeformButtonID: string = "btn-convert-to-freeform";
     private static readonly stopEditingButtonID: string = "btn-stop-editing";
     private static readonly deleteRegionButtonID: string = "btn-delete-region";
 
@@ -40,6 +42,8 @@ class MapEditorUI {
     private rotateToolButton!: HTMLButtonElement;
 
     private addAnchorButton!: HTMLButtonElement;
+    private addHandlesButton!: HTMLButtonElement;
+    private convertToFreeformButton!: HTMLButtonElement;
     private stopEditingButton!: HTMLButtonElement;
     private deleteRegionButton!: HTMLButtonElement;
 
@@ -86,8 +90,10 @@ class MapEditorUI {
         // Initialize footer
         this.initalizeFooter();
 
-        // Hide add anchor button initially
+        // Hide add anchor, add handles, and convert to freeform buttons initially
         this.addAnchorButton.style.display = 'none';
+        this.addHandlesButton.style.display = 'none';
+        this.convertToFreeformButton.style.display = 'none';
 
         // Setup Initial UI sidebar visibiliy
         this.setCreateRegionSidebarVisibility(true);
@@ -102,6 +108,8 @@ class MapEditorUI {
         this.scaleToolButton = document.getElementById(MapEditorUI.scaleToolButtonID) as HTMLButtonElement;
         this.rotateToolButton = document.getElementById(MapEditorUI.rotateToolButtonID) as HTMLButtonElement;
         this.addAnchorButton = document.getElementById(MapEditorUI.addAnchorButtonID) as HTMLButtonElement;
+        this.addHandlesButton = document.getElementById(MapEditorUI.addHandlesButtonID) as HTMLButtonElement;
+        this.convertToFreeformButton = document.getElementById(MapEditorUI.convertToFreeformButtonID) as HTMLButtonElement;
         this.stopEditingButton = document.getElementById(MapEditorUI.stopEditingButtonID) as HTMLButtonElement;
         this.deleteRegionButton = document.getElementById(MapEditorUI.deleteRegionButtonID) as HTMLButtonElement;
 
@@ -139,6 +147,23 @@ class MapEditorUI {
             MapRegionEditor.INSTANCE.setActiveAddAnchorTool(!MapRegionEditor.INSTANCE.IsAddAnchorToolActive);
         });
 
+        // Add Handles Button
+        this.addHandlesButton.addEventListener('click', () => {
+            const tool = new MapRegionEditorAddHandlesTool();
+            tool.execute();
+            tool.removeTool();
+        });
+
+        // Convert to Freeform Button
+        this.convertToFreeformButton.addEventListener('click', () => {
+            const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
+            if (activeRegion) {
+                const convertTool = new MapRegionEditorConvertToFreeformTool(activeRegion.GetSetUUID);
+                convertTool.execute();
+                convertTool.removeTool();
+            }
+        });
+
         // Stop Editing Button
         this.stopEditingButton.addEventListener('click', () => {
             MapRegionRegionManager.INSTANCE.stopEditingRegion();
@@ -149,15 +174,9 @@ class MapEditorUI {
         this.deleteRegionButton.addEventListener('click', () => {
             const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
             if (activeRegion) {
-                const regionName = activeRegion.RegionData.General.Name;
-                MapEditorUIConfirmDialog.show(
-                    'Delete Region',
-                    `Are you sure you want to delete "<b>${regionName}</b>"? This action cannot be undone.`,
-                    () => {
-                        // Confirmed - delete the region
-                        MapRegionRegionManager.INSTANCE.deleteRegion(activeRegion.GetSetUUID);
-                    }
-                );
+                const deleteTool = new MapRegionEditorDeleteTool(activeRegion.GetSetUUID);
+                deleteTool.execute();
+                deleteTool.removeTool();
             }
         });
     }
@@ -268,11 +287,13 @@ class MapEditorUI {
         });
 
         // Highlight the active PRIMARY tool button
-        const toolButtonMap: { [key in ToolType]: HTMLButtonElement } = {
+        const toolButtonMap: { [key in ToolType]?: HTMLButtonElement } = {
             [ToolType.Move]: this.moveToolButton,
             [ToolType.Rotate]: this.rotateToolButton,
             [ToolType.Scale]: this.scaleToolButton,
-            [ToolType.AddAnchor]: this.addAnchorButton
+            [ToolType.AddAnchor]: this.addAnchorButton,
+            [ToolType.Delete]: this.deleteRegionButton,
+            [ToolType.ConvertToFreeform]: this.convertToFreeformButton
         };
 
         const activeButton = toolButtonMap[activeToolType];
@@ -322,7 +343,7 @@ class MapEditorUI {
         this.setRegionEditInfoSidebarVisibility(isActivelyEditing ? true : false);
 
         // Update Add Anchor button state
-        this.updateAddAnchorButtonState();
+        this.updateRegionDependentButtons();
 
         // Update info panel
         if (isActivelyEditing) {
@@ -332,15 +353,17 @@ class MapEditorUI {
     }
 
     /**
-     * Updates the Add Anchor button state based on the active editing region.
+     * Updates button displays the are dependent on the active region type.
      */
-    private updateAddAnchorButtonState(): void {
+    private updateRegionDependentButtons(): void {
         // Hide if active region is not freeform
         const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
         if (!activeRegion || activeRegion.regionType !== RegionType.Freeform) {
             this.addAnchorButton.style.display = 'none';
+            this.addHandlesButton.style.display = 'none';
         } else {
             this.addAnchorButton.style.display = 'inline-block';
+            this.addHandlesButton.style.display = 'inline-block';
         }
 
         // Update Add Anchor button state
@@ -348,6 +371,16 @@ class MapEditorUI {
             this.addAnchorButton.classList.add('active-tool');
         } else {
             this.addAnchorButton.classList.remove('active-tool');
+        }
+
+        // Update Convert to Freeform button visibility
+        // Show only for rectangle and circle regions
+        if (!activeRegion) {
+            this.convertToFreeformButton.style.display = 'none';
+        } else if (activeRegion.regionType === RegionType.Rectangle || activeRegion.regionType === RegionType.Circle) {
+            this.convertToFreeformButton.style.display = 'inline-block';
+        } else {
+            this.convertToFreeformButton.style.display = 'none';
         }
     }
 }
@@ -833,8 +866,9 @@ class MapEditorUIRegionInfoManager {
             if (!regionData) { return; }
 
             const value = parseFloat(this.regionInfoFillOpacityField.value);
-            if (!isNaN(value) && value >= 0 && value <= 1) {
-                regionData.Style.FillOpacity = value;
+            if (!isNaN(value)) {
+                const valueClamped = Math.max(0, Math.min(1, value));
+                regionData.Style.FillOpacity = valueClamped;
             }
 
             this.updateRegionDataInManager(regionData);
@@ -848,8 +882,9 @@ class MapEditorUIRegionInfoManager {
             if (!regionData) { return; }
 
             const value = parseFloat(this.regionInfoBorderOpacityField.value);
-            if (!isNaN(value) && value >= 0 && value <= 1) {
-                regionData.Style.BorderOpacity = value;
+            if (!isNaN(value)) {
+                const valueClamped = Math.max(0, Math.min(1, value));
+                regionData.Style.BorderOpacity = valueClamped;
             }
 
             this.updateRegionDataInManager(regionData);
@@ -877,6 +912,7 @@ class MapEditorUIRegionInfoManager {
                     originalColor,
                     (selectedColor) => {
                         // On confirm
+                        if (!this.isValidHexColor(selectedColor)) return;
                         const newRegionData: RegionData = activeRegion.RegionData;
                         newRegionData.Style.FillColor = selectedColor;
 
@@ -885,6 +921,7 @@ class MapEditorUIRegionInfoManager {
                     e,
                     (color) => {
                         // On change (real-time update)
+                        if (!this.isValidHexColor(color)) return;
                         const newRegionData: RegionData = activeRegion.RegionData;
                         newRegionData.Style.FillColor = color;
 
@@ -933,6 +970,13 @@ class MapEditorUIRegionInfoManager {
                 );
             }
         });
+    }
+
+    /**
+     * Validates hex color format.
+     */
+    private isValidHexColor(hex: string): boolean {
+        return /^#[0-9A-Fa-f]{6}$/.test(hex);
     }
 
     /**
@@ -1046,17 +1090,9 @@ class MapEditorUILayer {
         });
 
         this.deleteRegionButton.addEventListener('click', () => {
-            const regionData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(this.UUID);
-            const regionName = regionData ? regionData.General.Name : 'this region';
-            MapEditorUIConfirmDialog.show(
-                'Delete Region',
-                `Are you sure you want to delete "<b>${regionName}</b>"? This action cannot be undone.`,
-                () => {
-                    // Confirmed - delete the region
-                    MapRegionRegionManager.INSTANCE.deleteRegion(this.UUID);
-                    MapEditorUI.INSTANCE.updateMapLayersList();
-                }
-            );
+            const deleteTool = new MapRegionEditorDeleteTool(this.UUID);
+            deleteTool.execute();
+            deleteTool.removeTool();
         });
     }
 
@@ -1082,8 +1118,9 @@ class MapEditorUIConfirmDialog {
      * @param title - Dialog title
      * @param message - Dialog message
      * @param onConfirm - Callback when user confirms
+     * @param confirmButtonColor - Optional color for the confirm button (default: red '#dc3545')
      */
-    public static show(title: string, message: string, onConfirm: () => void): void {
+    public static show(title: string, message: string, onConfirm: () => void, confirmButtonColor: string = '#dc3545'): void {
         // Create overlay
         const overlay = document.createElement('div');
         overlay.style.cssText = `
@@ -1157,9 +1194,13 @@ class MapEditorUIConfirmDialog {
         // Create Yes button
         const yesButton = document.createElement('button');
         yesButton.textContent = 'Yes';
+        
+        // Calculate hover color (slightly darker than base color)
+        const hoverColor = this.darkenColor(confirmButtonColor, 10);
+        
         yesButton.style.cssText = `
             padding: 8px 20px;
-            background-color: #dc3545;
+            background-color: ${confirmButtonColor};
             color: white;
             border: none;
             border-radius: 4px;
@@ -1167,8 +1208,8 @@ class MapEditorUIConfirmDialog {
             font-size: 14px;
             font-weight: 500;
         `;
-        yesButton.onmouseover = () => { yesButton.style.backgroundColor = '#c82333'; };
-        yesButton.onmouseout = () => { yesButton.style.backgroundColor = '#dc3545'; };
+        yesButton.onmouseover = () => { yesButton.style.backgroundColor = hoverColor; };
+        yesButton.onmouseout = () => { yesButton.style.backgroundColor = confirmButtonColor; };
 
         // Assemble dialog
         buttonContainer.appendChild(noButton);
@@ -1205,5 +1246,35 @@ class MapEditorUIConfirmDialog {
 
         // Add to DOM
         document.body.appendChild(overlay);
+    }
+
+    /**
+     * Darkens a hex color by a given percentage
+     * @param color - Hex color string (e.g., '#dc3545')
+     * @param percent - Percentage to darken (0-100)
+     * @returns Darkened hex color
+     */
+    private static darkenColor(color: string, percent: number): string {
+        // Remove # if present
+        const hex = color.replace('#', '');
+        
+        // Parse RGB
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        
+        // Darken
+        const factor = (100 - percent) / 100;
+        const newR = Math.round(r * factor);
+        const newG = Math.round(g * factor);
+        const newB = Math.round(b * factor);
+        
+        // Convert back to hex
+        const toHex = (n: number) => {
+            const hex = n.toString(16);
+            return hex.length === 1 ? '0' + hex : hex;
+        };
+        
+        return `#${toHex(newR)}${toHex(newG)}${toHex(newB)}`;
     }
 }

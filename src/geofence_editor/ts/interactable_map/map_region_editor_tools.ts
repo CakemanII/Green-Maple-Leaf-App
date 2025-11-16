@@ -5,7 +5,10 @@ enum ToolType
     Move,
     Rotate,
     Scale,
-    AddAnchor
+    AddAnchor,
+    Delete,
+    ConvertToFreeform,
+    AddHandles
 }
 
 abstract class MapRegionEditorTool {
@@ -111,8 +114,6 @@ class MapRegionEditorTranslateTool extends MapRegionEditorTool {
 
     // #region Main Functions
     public override onAnchorDrag(anchorPoint: AnchorPoint) {
-        console.log("TranslateTool anchorMoved called");
-
         // Get the list of selected anchors
         const selectedAnchors = MapRegionAnchorManager.INSTANCE.SelectedAnchors;
         if (selectedAnchors.size < 1) {
@@ -699,6 +700,8 @@ class MapRegionEditorScaleTool extends MapRegionEditorTool {
 class MapRegionEditorAddAnchorTool extends MapRegionEditorTool {    
     public override readonly ToolType: ToolType = ToolType.AddAnchor;
 
+    private readonly anchorHandleDistance = 1.5; // Distance for new anchor handles 
+
     private removed: boolean = false;
 
     constructor() { 
@@ -726,13 +729,346 @@ class MapRegionEditorAddAnchorTool extends MapRegionEditorTool {
         if (MapRegionEditor.INSTANCE.JustFinishedDragging) {
             return;
         }
+
+        // Check if there's an active editing region
+        if (!MapRegionRegionManager.INSTANCE.ActiveEditingRegion) {
+            console.warn("Cannot add anchor - no active editing region.");
+            return;
+        }
+
+        // Check if the active region is a freeform region
+        if (MapRegionRegionManager.INSTANCE.ActiveEditingRegion.regionType !== RegionType.Freeform) {
+            console.warn("Cannot add anchor - active region is not freeform.");
+            return;
+        }
         
-        // Add a new anchor point at the clicked location and put in inbetween the two closest anchors.
-        MapRegionAnchorManager.INSTANCE.createAnchorPoint(clickPosition, null, null, true, true, true);
+        // Calculate handle positions to maintain curve shape
+        let incomingHandle: L.LatLng | null = null;
+        let outgoingHandle: L.LatLng | null = null;
+        
+        const activeAnchors = MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints;
+        
+        if (activeAnchors.length >= 2) {
+            // Find the closest segment to determine where we're inserting
+            const segmentInfo = MapRegionAnchorManager.INSTANCE.findClosestSegment(clickPosition);
+            
+            if (segmentInfo) {
+                // The segment gives us the exact previous and next anchors in path order
+                const prevAnchor = activeAnchors[segmentInfo.startIndex];
+                const nextAnchor = activeAnchors[segmentInfo.endIndex];
+                
+                // Calculate vectors from click position to each neighboring anchor
+                const toPrevAnchor = L.latLng(
+                    prevAnchor.GetAnchorPosition.lat - clickPosition.lat,
+                    prevAnchor.GetAnchorPosition.lng - clickPosition.lng
+                );
+                const toNextAnchor = L.latLng(
+                    nextAnchor.GetAnchorPosition.lat - clickPosition.lat,
+                    nextAnchor.GetAnchorPosition.lng - clickPosition.lng
+                );
+                
+                // Calculate distances
+                const distToPrev = Math.sqrt(toPrevAnchor.lat * toPrevAnchor.lat + toPrevAnchor.lng * toPrevAnchor.lng);
+                const distToNext = Math.sqrt(toNextAnchor.lat * toNextAnchor.lat + toNextAnchor.lng * toNextAnchor.lng);
+                
+                if (distToPrev > 0 && distToNext > 0) {
+                    // Get the outgoing handle of prevAnchor if it exists
+                    const prevOutgoingHandle = prevAnchor.GetRelativeOutgoingHandlePosition;
+                    // Get the incoming handle of nextAnchor if it exists
+                    const nextIncomingHandle = nextAnchor.GetRelativeIncomingHandlePosition;
+                    
+                    // Calculate handle length based on distance to neighbors
+                    const incomingHandleLength = Math.min(distToPrev * 0.3, this.anchorHandleDistance);
+                    const outgoingHandleLength = Math.min(distToNext * 0.3, this.anchorHandleDistance);
+                    
+                    // If prevAnchor has an outgoing handle, mirror its direction for our incoming handle
+                    if (prevOutgoingHandle) {
+                        // The incoming handle should point in a similar direction as prevAnchor's outgoing handle
+                        const normLat = toPrevAnchor.lat / distToPrev;
+                        const normLng = toPrevAnchor.lng / distToPrev;
+                        incomingHandle = L.latLng(normLat * incomingHandleLength, normLng * incomingHandleLength);
+                    } else {
+                        // Default: point toward prevAnchor
+                        const normLat = toPrevAnchor.lat / distToPrev;
+                        const normLng = toPrevAnchor.lng / distToPrev;
+                        incomingHandle = L.latLng(normLat * incomingHandleLength, normLng * incomingHandleLength);
+                    }
+                    
+                    // If nextAnchor has an incoming handle, mirror its direction for our outgoing handle
+                    if (nextIncomingHandle) {
+                        // The outgoing handle should point in a similar direction as nextAnchor's incoming handle
+                        const normLat = toNextAnchor.lat / distToNext;
+                        const normLng = toNextAnchor.lng / distToNext;
+                        outgoingHandle = L.latLng(normLat * outgoingHandleLength, normLng * outgoingHandleLength);
+                    } else {
+                        // Default: point toward nextAnchor
+                        const normLat = toNextAnchor.lat / distToNext;
+                        const normLng = toNextAnchor.lng / distToNext;
+                        outgoingHandle = L.latLng(normLat * outgoingHandleLength, normLng * outgoingHandleLength);
+                    }
+                }
+            }
+        }
+        
+        // If we couldn't calculate handles (less than 2 anchors), use default small handles
+        if (!incomingHandle && !outgoingHandle) {
+            incomingHandle = L.latLng(-this.anchorHandleDistance, 0);
+            outgoingHandle = L.latLng(this.anchorHandleDistance, 0);
+        }
+        
+        // Add a new anchor point at the clicked location with calculated handles
+        MapRegionAnchorManager.INSTANCE.createAnchorPoint(clickPosition, incomingHandle, outgoingHandle, true, true, true);
     }
 
     public removeTool()
     { this.removed = true; }
 
     // #endregion
+}
+
+/**
+ * Add Handles Tool - Adds missing handles to selected anchors
+ */
+class MapRegionEditorAddHandlesTool extends MapRegionEditorTool {
+    public override readonly ToolType: ToolType = ToolType.AddHandles;
+
+    public execute() {
+        const selectedAnchors = MapRegionAnchorManager.INSTANCE.SelectedAnchors;
+        const activeAnchors = MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints;
+
+        // Check if there are any selected anchors
+        if (selectedAnchors.size === 0) {
+            console.warn("No anchors selected. Please select anchors to add handles to.");
+            return;
+        }
+
+        // Check if active region is freeform
+        const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
+        if (!activeRegion || activeRegion.regionType !== RegionType.Freeform) {
+            console.warn("Cannot add handles - active region is not freeform.");
+            return;
+        }
+
+        let handlesAdded = 0;
+
+        // Process each selected anchor
+        selectedAnchors.forEach(anchor => {
+            // Find the anchor's position in the path
+            const anchorIndex = activeAnchors.indexOf(anchor);
+            if (anchorIndex === -1) {
+                console.warn("Selected anchor not found in active anchors.");
+                return;
+            }
+
+            const hasIncoming = anchor.GetRelativeIncomingHandlePosition !== null;
+            const hasOutgoing = anchor.GetRelativeOutgoingHandlePosition !== null;
+
+            // Skip if anchor already has both handles
+            if (hasIncoming && hasOutgoing) {
+                return;
+            }
+
+            // Calculate neighboring anchors in the path (for closed loop)
+            const prevIndex = (anchorIndex - 1 + activeAnchors.length) % activeAnchors.length;
+            const nextIndex = (anchorIndex + 1) % activeAnchors.length;
+            const prevAnchor = activeAnchors[prevIndex];
+            const nextAnchor = activeAnchors[nextIndex];
+
+            const anchorPos = anchor.GetAnchorPosition;
+            const handleDistance = 1.5; // Default handle length
+
+            // Add incoming handle if missing
+            if (!hasIncoming) {
+                // Calculate direction to previous anchor
+                const toPrev = L.latLng(
+                    prevAnchor.GetAnchorPosition.lat - anchorPos.lat,
+                    prevAnchor.GetAnchorPosition.lng - anchorPos.lng
+                );
+                const distToPrev = Math.sqrt(toPrev.lat * toPrev.lat + toPrev.lng * toPrev.lng);
+
+                if (distToPrev > 0) {
+                    // Create handle pointing toward previous anchor
+                    const handleLength = Math.min(distToPrev * 0.3, handleDistance);
+                    const incomingHandle = L.latLng(
+                        (toPrev.lat / distToPrev) * handleLength,
+                        (toPrev.lng / distToPrev) * handleLength
+                    );
+
+                    // Set the handle using the anchor's method
+                    // We need to set the relative position directly
+                    (anchor as any).relativeIncomingHandlePosition = incomingHandle;
+                    (anchor as any).createHandleVisual(true);
+                    handlesAdded++;
+                }
+            }
+
+            // Add outgoing handle if missing
+            if (!hasOutgoing) {
+                // Calculate direction to next anchor
+                const toNext = L.latLng(
+                    nextAnchor.GetAnchorPosition.lat - anchorPos.lat,
+                    nextAnchor.GetAnchorPosition.lng - anchorPos.lng
+                );
+                const distToNext = Math.sqrt(toNext.lat * toNext.lat + toNext.lng * toNext.lng);
+
+                if (distToNext > 0) {
+                    // Create handle pointing toward next anchor
+                    const handleLength = Math.min(distToNext * 0.3, handleDistance);
+                    const outgoingHandle = L.latLng(
+                        (toNext.lat / distToNext) * handleLength,
+                        (toNext.lng / distToNext) * handleLength
+                    );
+
+                    // Set the handle using the anchor's method
+                    // We need to set the relative position directly
+                    (anchor as any).relativeOutgoingHandlePosition = outgoingHandle;
+                    (anchor as any).createHandleVisual(false);
+                    handlesAdded++;
+                }
+            }
+        });
+
+        if (handlesAdded > 0) {
+            console.log(`Added ${handlesAdded} handle(s) to selected anchors.`);
+            // Update the region to reflect changes
+            MapRegionRegionManager.INSTANCE.ActiveEditingRegion?.update();
+        } else {
+            console.log("No handles were added. Selected anchors may already have all handles.");
+        }
+    }
+
+    public removeTool() {}
+}
+
+/**
+ * Delete Region Tool - Handles region deletion with confirmation
+ */
+class MapRegionEditorDeleteTool extends MapRegionEditorTool {    
+    public override readonly ToolType: ToolType = ToolType.Delete;
+
+    private removed: boolean = false;
+    private targetUUID: string;
+
+    constructor(regionUUID: string) { 
+        super(); 
+        this.targetUUID = regionUUID;
+    }
+
+    /**
+     * Execute the delete operation
+     */
+    public execute(): void {
+        if (this.removed) return;
+
+        const regionData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(this.targetUUID);
+        const regionName = regionData ? regionData.General.Name : 'this region';
+        
+        MapEditorUIConfirmDialog.show(
+            'Delete Region',
+            `Are you sure you want to delete "<b>${regionName}</b>"? This action cannot be undone.`,
+            () => {
+                // Confirmed - delete the region
+                MapRegionRegionManager.INSTANCE.deleteRegion(this.targetUUID);
+            },
+            '#dc3545' // Red color for delete
+        );
+    }
+
+    public removeTool(): void {
+        this.removed = true;
+    }
+}
+
+/**
+ * Convert to Freeform Tool - Converts Rectangle/Circle regions to Freeform
+ */
+class MapRegionEditorConvertToFreeformTool extends MapRegionEditorTool {    
+    public override readonly ToolType: ToolType = ToolType.ConvertToFreeform;
+
+    private removed: boolean = false;
+
+    private targetUUID: string;
+
+    constructor(regionUUID: string) 
+    { 
+       super(); 
+       this.targetUUID = regionUUID;  
+    }
+
+    /**
+     * Execute the conversion operation
+     */
+    public execute(): void {
+        if (this.removed) return;
+
+        const regionData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(this.targetUUID);
+        if (!regionData) {
+            throw new Error(`Region data not found for UUID: ${this.targetUUID}`);
+        }
+        const currentType = regionData.RegionType;
+
+        // Only allow conversion from Rectangle or Circle to Freeform
+        if (currentType !== RegionType.Rectangle && currentType !== RegionType.Circle) {
+            console.warn(`Cannot convert ${RegionType[currentType]} region to freeform. Only Rectangle and Circle regions can be converted.`);
+            return;
+        }
+
+        const regionName = regionData.General.Name;
+        const regionTypeName = RegionType[currentType];
+
+        MapEditorUIConfirmDialog.show(
+            'Convert to Freeform',
+            `Are you sure you want to convert "<b>${regionName}</b>" from ${regionTypeName} to Freeform? This action cannot be undone.`,
+            () => {
+                // Confirmed - proceed with conversion
+                this.performConversion();
+            },
+            '#6ba3ff' // Blue color for convert
+        );
+    }
+
+    /**
+     * Performs the actual conversion after confirmation
+     */
+    private performConversion(): void {
+        const regionData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(this.targetUUID);
+        if (!regionData) {
+            console.error(`Region data not found for UUID: ${this.targetUUID}`);
+            return;
+        }
+
+        console.log(`Converting ${RegionType[regionData.RegionType]} region to Freeform...`);
+
+        // Get the backend anchor point data and convert to frontend format.
+        const backendAnchorData = regionData.DerivedBackendData;
+        const frontendAnchorData: FrontendAnchorData = backendAnchorData as FrontendAnchorData;
+    
+        // Remove the old region first - find and remove from regions array
+        const oldRegion = MapRegionRegionManager.INSTANCE.getRegionByUUID(this.targetUUID);
+        if (oldRegion) {
+            // Fully remove all visual elements from the old region
+            MapRegionRegionManager.INSTANCE.deleteRegion(this.targetUUID);
+            console.log("Old region removed.");
+        }
+
+        // Stop editing the current region (after removing it)
+        MapRegionRegionManager.INSTANCE.stopEditingRegion();
+
+        // Update the region type and frontend data
+        regionData.RegionType = RegionType.Freeform;
+        regionData.FrontEndData = frontendAnchorData;
+
+        // Update the region data in the data manager
+        MapRegionDataManager.INSTANCE.appendRegionData(regionData);
+        MapRegionRegionManager.INSTANCE.loadRegion(this.targetUUID);
+
+        // Start editing the new freeform region
+        MapRegionRegionManager.INSTANCE.setActiveEditingRegion(this.targetUUID);
+
+        console.log("Region successfully converted to Freeform.");
+    }
+
+    public removeTool(): void {
+        this.removed = true;
+    }
 }

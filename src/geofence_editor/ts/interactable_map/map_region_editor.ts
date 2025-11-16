@@ -626,6 +626,91 @@ class MapRegionAnchorManager
     }
 
     /**
+     * Finds the closest path segment to a given position in a closed path.
+     * @param {L.LatLng} latlng - The position to find the closest segment to.
+     * @returns {Object} Object containing the indices of the segment's start and end anchors.
+     */
+    findClosestSegment(latlng: L.LatLng): { startIndex: number, endIndex: number, distance: number } {
+        if (this.activeAnchorPoints.length < 2) {
+            return { startIndex: 0, endIndex: 0, distance: Infinity };
+        }
+
+        let closestStartIndex = 0;
+        let closestEndIndex = 1;
+        let closestDistance = Infinity;
+
+        // Iterate through all segments in the closed path
+        for (let i = 0; i < this.activeAnchorPoints.length; i++) {
+            const nextIndex = (i + 1) % this.activeAnchorPoints.length;
+            
+            const start = this.activeAnchorPoints[i].GetAnchorPosition;
+            const end = this.activeAnchorPoints[nextIndex].GetAnchorPosition;
+
+            // Calculate distance from point to line segment
+            const distance = this.pointToSegmentDistance(latlng, start, end);
+
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestStartIndex = i;
+                closestEndIndex = nextIndex;
+            }
+        }
+
+        return {
+            startIndex: closestStartIndex,
+            endIndex: closestEndIndex,
+            distance: closestDistance
+        };
+    }
+
+    /**
+     * Calculates the distance from a point to a line segment.
+     * @param {L.LatLng} point - The point.
+     * @param {L.LatLng} segmentStart - Start of the line segment.
+     * @param {L.LatLng} segmentEnd - End of the line segment.
+     * @returns {number} Distance from point to segment.
+     */
+    private pointToSegmentDistance(point: L.LatLng, segmentStart: L.LatLng, segmentEnd: L.LatLng): number {
+        const x = point.lng;
+        const y = point.lat;
+        const x1 = segmentStart.lng;
+        const y1 = segmentStart.lat;
+        const x2 = segmentEnd.lng;
+        const y2 = segmentEnd.lat;
+
+        const A = x - x1;
+        const B = y - y1;
+        const C = x2 - x1;
+        const D = y2 - y1;
+
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+        let param = -1;
+
+        if (lenSq !== 0) {
+            param = dot / lenSq;
+        }
+
+        let xx, yy;
+
+        if (param < 0) {
+            xx = x1;
+            yy = y1;
+        } else if (param > 1) {
+            xx = x2;
+            yy = y2;
+        } else {
+            xx = x1 + param * C;
+            yy = y1 + param * D;
+        }
+
+        const dx = x - xx;
+        const dy = y - yy;
+
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    /**
      * Creates a new anchor point and optionally adds it to the anchor points array.
      * @param {L.LatLng} latlng - The position of the new anchor point.
      * @param {L.LatLng} relIncomingHandlePos - Relative incoming handle position.
@@ -654,35 +739,23 @@ class MapRegionAnchorManager
 
         if (pushToAnchorPoints) {
             if (insertBetweenClosests && this.activeAnchorPoints.length >= 2) {
-                // Find the two closest anchors and insert between them
-                console.log("Inserting anchor between closest anchors");
-                const closestInfo = this.findTwoClosestAnchors(latlng);
+                // Find the closest segment and insert between its anchors
+                console.log("Inserting anchor in closest segment");
+                const segmentInfo = this.findClosestSegment(latlng);
                 
-                // Determine the correct insertion index
-                // Check if the two closest anchors are adjacent in the array
-                const minIndex = Math.min(closestInfo.firstIndex, closestInfo.secondIndex);
-                const maxIndex = Math.max(closestInfo.firstIndex, closestInfo.secondIndex);
-                
-                // Check if they're adjacent or if they wrap around (first and last in a closed loop)
-                const areAdjacent = (maxIndex - minIndex === 1);
-                const wrapAround = (minIndex === 0 && maxIndex === this.activeAnchorPoints.length - 1);
-                
+                // Insert after the start anchor of the segment
+                // If endIndex is 0 (wrapping), insert at the end of the array
                 let insertIndex: number;
-                if (areAdjacent) {
-                    // Insert after the lower index (between the two adjacent anchors)
-                    insertIndex = maxIndex;
-                } else if (wrapAround) {
-                    // Insert at the end (which connects back to the beginning)
+                if (segmentInfo.endIndex === 0) {
+                    // Wrapping case: segment from last anchor to first anchor
                     insertIndex = this.activeAnchorPoints.length;
                 } else {
-                    // Not adjacent - this shouldn't happen in a well-formed closed region
-                    // Default to inserting after the higher index
-                    console.warn("Closest anchors are not adjacent. This may indicate an issue with region structure.");
-                    insertIndex = maxIndex;
+                    // Normal case: insert after the start anchor
+                    insertIndex = segmentInfo.endIndex;
                 }
                 
                 this.activeAnchorPoints.splice(insertIndex, 0, newAnchor);
-                console.log(`Inserted anchor at index ${insertIndex} between anchors ${minIndex} and ${maxIndex}`);
+                console.log(`Inserted anchor at index ${insertIndex} in segment ${segmentInfo.startIndex}->${segmentInfo.endIndex}`);
             } else {
                 // Simply push to the end
                 this.activeAnchorPoints.push(newAnchor);
@@ -783,8 +856,6 @@ class MapRegionAnchorManager
         {
             this.centralizedPoint.setAnchorPosition(centerLatLng);
         }
-
-        console.log('Calculated centralized point:', this.centralizedPoint);
     }
     // #endregion
 
@@ -846,6 +917,7 @@ class MapRegionRegionManager
         } else {
             // Input is region data
             regionData = regionInput;
+            console.warn("Currently loading region from direct data input. Ensure This region IS ONLY Visual, since it cannot be editing.");
         }
 
         let newRegion: MapRegion;
@@ -1048,23 +1120,36 @@ class MapRegionRegionManager
 
     public deleteRegion(UUID: string)
     {
-        // Stop editing if this region is currently being edited
-        if (this.activeEditingRegion && this.activeEditingRegion.GetSetUUID === UUID) {
-            this.stopEditingRegion();
-        }
-
-        // Remove the region from the regions array
+        // Find the region first
         const regionIndex = this.regions.findIndex(r => r.GetSetUUID === UUID);
-        if (regionIndex !== -1) {
-            this.regions[regionIndex].removeRegion();
-            this.regions.splice(regionIndex, 1);
+        if (regionIndex === -1) {
+            console.warn(`Region with UUID ${UUID} not found for deletion.`);
+            return;
         }
 
-        // Remove the region data
+        // Stop editing if this region is currently being edited
+        // Clear the active editing region reference WITHOUT calling stopEditingRegion() to avoid update() calls
+        if (this.activeEditingRegion && this.activeEditingRegion.GetSetUUID === UUID) {
+            // Clear anchors
+            MapRegionAnchorManager.INSTANCE.clearAnchors();
+            // Clear the active editing region reference
+            this.activeEditingRegion = null;
+        }
+
+        // Remove the region's visual elements from the map
+        this.regions[regionIndex].removeRegion();
+        
+        // Remove from the regions array
+        this.regions.splice(regionIndex, 1);
+
+        // Remove the region data from the data manager
+        console.log(`Removing region data for UUID: ${UUID}`);
         MapRegionDataManager.INSTANCE.removeRegionDataByUUID(UUID);
 
+        // Update the UI
         MapEditorUI.INSTANCE.updateMapLayersList();
         MapEditorUI.INSTANCE.onActiveEditingRegionChanged();
+        
         console.log(`Deleted region with UUID: ${UUID}`);
     }
 
@@ -1195,7 +1280,6 @@ class MapRegionRegionManager
             console.error('Mismatched region creator handler. Cannot finalize creation.');
             return;
         }
-        console.log("Finalizing region creation from editor.");
         // Remove the region creator handler
         this.editorRegionCreator = null;
     }
@@ -1239,7 +1323,6 @@ class MapRegionDataManager
     public appendRegionData(regionData: RegionData)
     {
         this.regionDatas.push(regionData);
-        console.log(regionData);
     }
 
     /**
@@ -1430,8 +1513,6 @@ class MapRegionCreatorEditorHandler
 
         // Create ghost anchor marker
         this.mouseGhostAnchorVisual = this.createGhostAnchor(L.latLng(0, 0));
-
-        console.log("Mouse ghost anchor created for region creation.");
     }
     
     /**
@@ -1444,7 +1525,6 @@ class MapRegionCreatorEditorHandler
         {
             InteractiveMap.mapInstance.removeLayer(this.mouseGhostAnchorVisual);
             this.mouseGhostAnchorVisual = null;
-            console.log("Mouse ghost anchor removed.");
         }
 
         // Remove placed ghost anchors
@@ -1452,14 +1532,12 @@ class MapRegionCreatorEditorHandler
             InteractiveMap.mapInstance.removeLayer(ghost);
         });
         this.placedGhostAnchorVisuals = [];
-        console.log("Placed ghost anchors removed.");
 
         // Remove the temporary region
         if (this.temporaryRegion)
         {
             this.temporaryRegion.removeRegion();
             this.temporaryRegion = null;
-            console.log("Temporary region removed.");
         }
     }
 
@@ -1480,7 +1558,6 @@ class MapRegionCreatorEditorHandler
 
         // Check if completion is complete
         if (this.isCreationComplete()) {
-            console.log("Region creation complete with points:", this.placedDataPoints);
             // Finalize the region creation
             this.finalizeRegionCreation();
         }

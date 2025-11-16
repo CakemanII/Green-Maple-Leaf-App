@@ -131,7 +131,7 @@ class AnchorPoint {
      */
     private createHandleVisual(isIncomingHandle: boolean) {
         // Check if the relative position is null
-        if (isIncomingHandle ? this.relativeIncomingHandlePosition === null : !this.relativeOutgoingHandlePosition === null) {
+        if (isIncomingHandle ? this.relativeIncomingHandlePosition === null : this.relativeOutgoingHandlePosition === null) {
             console.warn("Position of handle is null, cannot create visual.");
             return;
         }
@@ -158,7 +158,23 @@ class AnchorPoint {
         AnchorPoint.basicDragEvents(handleVisual);
 
         // Assign specialized drag event to update position
-        handleVisual.on('drag', (e) => { 
+        handleVisual.on('drag', (e) => {
+            // Update the handle's relative position based on where it was dragged
+            const handleVisualToUpdate = isIncomingHandle ? this.incomingHandleVisual : this.outgoingHandleVisual;
+            if (handleVisualToUpdate) {
+                const newAbsolutePosition = handleVisualToUpdate.getLatLng();
+                const newRelativePosition = AnchorPoint.absToRel(this.anchorPosition!, newAbsolutePosition);
+                
+                if (isIncomingHandle) {
+                    this.relativeIncomingHandlePosition = newRelativePosition;
+                } else {
+                    this.relativeOutgoingHandlePosition = newRelativePosition;
+                }
+                
+                // Update the guide line to follow the handle
+                this.updateControlHandleGuide(isIncomingHandle);
+            }
+            
             if (this.interactionHandlers.onHandleDrag) {
                 this.interactionHandlers.onHandleDrag(this, isIncomingHandle, e);
             }
@@ -381,8 +397,12 @@ class AnchorPoint {
 
         // Calculate the absolute position of the control handle.
         const absHandlePosition: L.LatLng = AnchorPoint.relToAbs(this.anchorPosition!, handlePosition!);
-        // Update the position of the handle visual
-        this.incomingHandleVisual!.setLatLng(absHandlePosition);
+        // Update the position of the handle visual (use the correct handle based on parameter)
+        if (isIncomingHandle) {
+            this.incomingHandleVisual!.setLatLng(absHandlePosition);
+        } else {
+            this.outgoingHandleVisual!.setLatLng(absHandlePosition);
+        }
         // Update the control handle guides
         this.updateControlHandleGuide(isIncomingHandle);
 
@@ -580,6 +600,16 @@ class AnchorPoint {
         return L.latLng(
             relativeLatLng.lat + anchorPosition.lat,
             relativeLatLng.lng + anchorPosition.lng
+        );
+    }
+
+    /**
+     * Convert absolute position to relative position (offset from anchor)
+     */
+    private static absToRel(anchorPosition: L.LatLng, absoluteLatLng: L.LatLng): L.LatLng {
+        return L.latLng(
+            absoluteLatLng.lat - anchorPosition.lat,
+            absoluteLatLng.lng - anchorPosition.lng
         );
     }
 

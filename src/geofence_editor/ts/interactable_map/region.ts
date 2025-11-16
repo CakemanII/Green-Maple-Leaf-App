@@ -88,6 +88,7 @@ abstract class MapRegion
     // This can directly or indirectly effect the backend anchor data.
     // Example Element: [LatLng: anchorLatLng, relIncomingHandle: relativeControlHandle1LatLng, relOutgoingHandle: relativeControlHandle2LatLng]
     public get FrontendShapePointData() : FrontendAnchorData { return this.regionData.FrontEndData; }
+    public get BackendAnchorData() : BackendAnchorData { return this.regionData.DerivedBackendData!; }
 
     private lastStyleState: object; // Last applied style state
 
@@ -99,7 +100,6 @@ abstract class MapRegion
         this.setUUID = ""; // No UUID set
         this.regionData = {} as RegionData; // Temporary initialization placeholder for compiler
         this.updateFromUUID = typeof regionInput === 'string';
-        console.log(typeof regionInput);
         if (this.updateFromUUID) {
             this.setUUID = regionInput as string;
             this.getLatestRegionData();
@@ -185,8 +185,6 @@ abstract class MapRegion
      */
     public update()
     {
-        console.log("Updating region...");
-
         // Get latest region data if updating from UUID
         if (this.updateFromUUID)
             this.getLatestRegionData();
@@ -234,8 +232,6 @@ abstract class MapRegion
      */
     private updateShape()
     {
-        console.log("Updating shape...");
-
         // Ensure the shape exists
         if (!this.curveShape)
         {
@@ -387,6 +383,18 @@ abstract class MapRegion
         if (this.curveShape) {
             InteractiveMap.mapInstance.removeLayer(this.curveShape);
             this.curveShape = null;
+        }
+
+        // Remove stripes if they exist
+        if (this.stripes) {
+            InteractiveMap.mapInstance.removeLayer(this.stripes);
+            this.stripes = null;
+        }
+
+        // Remove fill pattern if it exists
+        if (this.fillPattern) {
+            InteractiveMap.mapInstance.removeLayer(this.fillPattern);
+            this.fillPattern = null;
         }
     }
 

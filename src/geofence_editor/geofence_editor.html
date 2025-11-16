@@ -208,14 +208,7 @@
             animation: anchorDrop 0.6s ease;
         }
 
-        /* Stop editing button - full width button with horizontal layout */
-        #btn-stop-editing {
-            width: 100%;
-            flex-direction: row;
-            gap: 8px;
-            justify-content: center;
-        }
-
+        /* Stop editing button hover animation */
         #btn-stop-editing:hover i {
             animation: stopEditingPulse 0.4s ease;
         }
@@ -232,15 +225,7 @@
             }
         }
 
-        /* Delete region button - full width button with horizontal layout */
-        #btn-delete-region {
-            width: 100%;
-            flex-direction: row;
-            gap: 8px;
-            justify-content: center;
-            margin-top: 8px;
-        }
-
+        /* Delete region button hover animation */
         #btn-delete-region:hover i {
             animation: deleteRegionShake 0.4s ease;
         }
@@ -269,6 +254,33 @@
                 transform: translateY(0);
                 opacity: 1;
             }
+        }
+
+        /* Convert to Freeform button - full width button with horizontal layout */
+        #btn-convert-to-freeform {
+            width: 100%;
+            flex-direction: row;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+
+        #btn-convert-to-freeform:hover i {
+            transform: scale(1.1);
+        }
+
+        /* Bottom tool buttons container - side by side layout */
+        .tool-buttons-bottom {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .tool-buttons-bottom .tool-button {
+            width: 100%;
+            flex-direction: column;
+            gap: 6px;
         }
         
         .toggle-button {
@@ -916,14 +928,24 @@
                         <i class="fas fa-anchor"></i>
                         <span>Add Anchors</span>
                     </button>
-                    <button class="tool-button" id="btn-stop-editing">
-                        <i class="fas fa-times-circle"></i>
-                        <span>Stop Editing</span>
+                    <button class="tool-button" id="btn-tool-add-handles">
+                        <i class="fas fa-sliders-h"></i>
+                        <span>Add Handles</span>
                     </button>
-                    <button class="tool-button" id="btn-delete-region">
-                        <i class="fas fa-trash"></i>
-                        <span>Delete</span>
+                    <button class="tool-button" id="btn-convert-to-freeform">
+                        <i class="fas fa-draw-polygon"></i>
+                        <span>Convert to Freeform</span>
                     </button>
+                    <div class="tool-buttons-bottom">
+                        <button class="tool-button" id="btn-delete-region">
+                            <i class="fas fa-trash"></i>
+                            <span>Delete</span>
+                        </button>
+                        <button class="tool-button" id="btn-stop-editing">
+                            <i class="fas fa-times-circle"></i>
+                            <span>Stop Editing</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
