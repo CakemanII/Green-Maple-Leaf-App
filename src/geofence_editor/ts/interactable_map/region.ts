@@ -80,6 +80,9 @@ abstract class MapRegion
 
     private readonly invalid_shape_color: string = "#FF0000"; // RGB color for invalid shapes
 
+    private readonly hidden_shape_opacity: number = 0.2; // Opacity for hidden shapes
+    private readonly hidden_shape_color: string = "#888888"; // Color for hidden shapes
+
     // Editable Point Data [FRONTEND USE ONLY]
     // These are the elements used for representing visual edittable points.
     // This can directly or indirectly effect the backend anchor data.
@@ -231,6 +234,8 @@ abstract class MapRegion
      */
     private updateShape()
     {
+        console.log("Updating shape...");
+
         // Ensure the shape exists
         if (!this.curveShape)
         {
@@ -258,24 +263,42 @@ abstract class MapRegion
         // Ensure the shape exists
         if (!this.curveShape) return;
 
-        // Calculate current style parameters
-        var shapeFillOpacity = this.shapeAreaActive ? this.regionData.Style.FillOpacity : 0;
-        var shapeColor = !this.selfIntercepting ? this.regionData.Style.FillColor : this.invalid_shape_color;
+        // Calculate current style parameters based on visibility
+        let shapeFillOpacity: number;
+        let shapeColor: string;
+        let fillColor: string;
+        
+        if (!this.regionData.General.IsVisible) {
+            // Use hidden shape styling
+            shapeFillOpacity = this.shapeAreaActive ? this.hidden_shape_opacity : 0;
+            shapeColor = this.hidden_shape_color;
+            fillColor = this.hidden_shape_color;
+        } else {
+            // Use normal styling
+            shapeFillOpacity = this.shapeAreaActive ? this.regionData.Style.FillOpacity : 0;
+            shapeColor = !this.selfIntercepting ? this.regionData.Style.FillColor : this.invalid_shape_color;
+            fillColor = this.regionData.Style.FillColor;
+        }
 
-        // Check if the stripes need changing
+        // Check if the stripes need changing (for both visible and hidden restricted regions)
         if (this.regionData.General.IsRestricted) {
-            this.setStripes(this.regionData.Style.FillColor);
+            // Use hidden color for stripes if region is not visible
+            const stripeColor = this.regionData.General.IsVisible 
+                ? this.regionData.Style.FillColor 
+                : this.hidden_shape_color;
+            this.setStripes(stripeColor);
         }
 
         // Create current style state for comparison (excluding circular references)
         const currentStyleState = {
             color: shapeColor,
             weight: 2,
-            opacity: 1,
+            opacity: this.regionData.General.IsVisible ? 1 : this.hidden_shape_opacity,
             fill: this.shapeAreaActive && shapeFillOpacity > 0,
-            fillColor: this.shapeAreaActive ? shapeColor : undefined,
+            fillColor: this.shapeAreaActive ? fillColor : undefined,
             fillOpacity: this.shapeAreaActive ? shapeFillOpacity : 0,
-            restrictedRegion: this.regionData.General.IsRestricted // Use boolean instead of the actual stripe object
+            restrictedRegion: this.regionData.General.IsRestricted,
+            isVisible: this.regionData.General.IsVisible
         };
 
         // Check if style has actually changed
@@ -288,23 +311,42 @@ abstract class MapRegion
             const leafletStyleOptions: any = {
                 color: shapeColor,
                 weight: 2,
-                opacity: 1,
+                opacity: this.regionData.General.IsVisible ? 1 : this.hidden_shape_opacity,
                 fill: this.shapeAreaActive && shapeFillOpacity > 0,
-                fillColor: this.shapeAreaActive ? shapeColor : undefined,
+                fillColor: this.shapeAreaActive ? fillColor : undefined,
                 fillOpacity: this.shapeAreaActive ? shapeFillOpacity : 0
             };
 
-            // Add stripe pattern if this is a restricted region
+            // Add stripe pattern if this is a restricted region (both visible and hidden)
             if (this.regionData.General.IsRestricted && this.stripes) {
                 leafletStyleOptions.fillPattern = this.stripes;
             }
 
             // Remove the old curve and create a new one with updated style
             InteractiveMap.mapInstance.removeLayer(this.curveShape);
-            this.curveShape = L.curve(this.bezierCurveData, leafletStyleOptions).addTo(InteractiveMap.mapInstance);
+            this.curveShape = L.curve(this.bezierCurveData, leafletStyleOptions);
+            
+            // Only add to map if region is visible
+            if (this.regionData.General.IsVisible) {
+                this.curveShape.addTo(InteractiveMap.mapInstance);
+            }
             
             // Store the current style state for future comparisons
             this.lastStyleState = { ...currentStyleState }; // "..." is to avoid pointer issues.
+        }
+
+        // Remove or add the shape based on visibility
+        if (this.regionData.General.IsVisible === false && MapRegionRegionManager.INSTANCE.ActiveEditingRegion !== this)
+        {
+            // Hide the shape if region is not visible
+            InteractiveMap.mapInstance.removeLayer(this.curveShape);
+        }
+        else
+        {
+            // Show the shape if it is not already on the map
+            if (!InteractiveMap.mapInstance.hasLayer(this.curveShape)) {
+                this.curveShape.addTo(InteractiveMap.mapInstance);
+            }
         }
     }
 

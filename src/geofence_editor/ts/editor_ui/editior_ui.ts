@@ -17,6 +17,7 @@ class MapEditorUI {
     private static readonly rotateToolButtonID: string = "btn-tool-rotate";
     private static readonly addAnchorButtonID: string = "btn-tool-add-anchor";
     private static readonly stopEditingButtonID: string = "btn-stop-editing";
+    private static readonly deleteRegionButtonID: string = "btn-delete-region";
 
     private static readonly regionListContainerID: string = "layers-container";
 
@@ -40,6 +41,7 @@ class MapEditorUI {
 
     private addAnchorButton!: HTMLButtonElement;
     private stopEditingButton!: HTMLButtonElement;
+    private deleteRegionButton!: HTMLButtonElement;
 
     private regionListContainer!: HTMLDivElement;
     public get RegionListContainer(): HTMLDivElement { return this.regionListContainer; }
@@ -101,6 +103,7 @@ class MapEditorUI {
         this.rotateToolButton = document.getElementById(MapEditorUI.rotateToolButtonID) as HTMLButtonElement;
         this.addAnchorButton = document.getElementById(MapEditorUI.addAnchorButtonID) as HTMLButtonElement;
         this.stopEditingButton = document.getElementById(MapEditorUI.stopEditingButtonID) as HTMLButtonElement;
+        this.deleteRegionButton = document.getElementById(MapEditorUI.deleteRegionButtonID) as HTMLButtonElement;
 
         // Primary Tool Buttons
         const primaryToolButtons = [this.moveToolButton, this.rotateToolButton, this.scaleToolButton];
@@ -140,6 +143,22 @@ class MapEditorUI {
         this.stopEditingButton.addEventListener('click', () => {
             MapRegionRegionManager.INSTANCE.stopEditingRegion();
             MapEditorUI.INSTANCE.onActiveEditingRegionChanged();
+        });
+
+        // Delete Region Button
+        this.deleteRegionButton.addEventListener('click', () => {
+            const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
+            if (activeRegion) {
+                const regionName = activeRegion.RegionData.General.Name;
+                MapEditorUIConfirmDialog.show(
+                    'Delete Region',
+                    `Are you sure you want to delete "<b>${regionName}</b>"? This action cannot be undone.`,
+                    () => {
+                        // Confirmed - delete the region
+                        MapRegionRegionManager.INSTANCE.deleteRegion(activeRegion.GetSetUUID);
+                    }
+                );
+            }
         });
     }
 
@@ -285,8 +304,10 @@ class MapEditorUI {
         // Clear existing layers
         this.regionListContainer.innerHTML = '';
 
-        // Iterate through regions and create UI layers
-        MapRegionRegionManager.INSTANCE.getAllRegions().forEach(region => { new MapEditorUILayer(region); });
+        // Iterate through regionDatas and create UI layers
+        MapRegionDataManager.INSTANCE.getAllRegionDatas().forEach(
+            (regionData: RegionData) => { new MapEditorUILayer(regionData); }
+        );
     }
 
     /**
@@ -800,7 +821,7 @@ class MapEditorUIRegionInfoManager {
             regionData = activeRegion ? activeRegion.RegionData : null;
             if (!regionData) { return; }
 
-            activeRegion.RegionData.General.IsVisible = this.regionInfoVisibilityField.value === 'visible';
+            regionData.General.IsVisible = this.regionInfoVisibilityField.value === 'visible';
             this.updateRegionDataInManager(regionData);
         });
 
@@ -839,8 +860,7 @@ class MapEditorUIRegionInfoManager {
     {
         const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
         if (activeRegion && activeRegion.GetSetUUID !== "") {
-            MapRegionDataManager.INSTANCE.setRegionDataWithUUID(activeRegion.GetSetUUID, RegionData, true);
-            this.updateRegionInfoPanel(MapRegionDataManager.INSTANCE.getRegionDataByUUID(activeRegion.GetSetUUID)!);
+            MapRegionDataManager.INSTANCE.setRegionDataWithUUID(activeRegion.GetSetUUID, RegionData, true, true);
         }
     }
 
@@ -860,10 +880,7 @@ class MapEditorUIRegionInfoManager {
                         const newRegionData: RegionData = activeRegion.RegionData;
                         newRegionData.Style.FillColor = selectedColor;
 
-                        this.regionInfoFillColorTextField.textContent = selectedColor;
-                        this.regionInfoFillColorSwatch.style.backgroundColor = selectedColor;
-
-                        MapRegionDataManager.INSTANCE.setRegionDataWithUUID(activeRegion.GetSetUUID, newRegionData, true);
+                        this.updateRegionDataInManager(newRegionData);
                     },
                     e,
                     (color) => {
@@ -871,20 +888,14 @@ class MapEditorUIRegionInfoManager {
                         const newRegionData: RegionData = activeRegion.RegionData;
                         newRegionData.Style.FillColor = color;
 
-                        this.regionInfoFillColorTextField.textContent = color;
-                        this.regionInfoFillColorSwatch.style.backgroundColor = color;
-
-                        MapRegionDataManager.INSTANCE.setRegionDataWithUUID(activeRegion.GetSetUUID, newRegionData, true);
+                        this.updateRegionDataInManager(newRegionData);
                     },
                     () => {
                         // On cancel (revert)
                         const newRegionData: RegionData = activeRegion.RegionData;
                         newRegionData.Style.FillColor = originalColor;
 
-                        this.regionInfoFillColorTextField.textContent = originalColor;
-                        this.regionInfoFillColorSwatch.style.backgroundColor = originalColor;
-
-                        MapRegionDataManager.INSTANCE.setRegionDataWithUUID(activeRegion.GetSetUUID, newRegionData, true);
+                        this.updateRegionDataInManager(newRegionData);
                     }
                 );
             }
@@ -899,25 +910,25 @@ class MapEditorUIRegionInfoManager {
                     originalColor,
                     (selectedColor) => {
                         // On confirm
-                        activeRegion.RegionData.Style.BorderColor = selectedColor;
-                        this.regionInfoBorderColorTextField.textContent = selectedColor;
-                        this.regionInfoBorderColorSwatch.style.backgroundColor = selectedColor;
-                        activeRegion.update();
+                        const newRegionData: RegionData = activeRegion.RegionData;
+                        newRegionData.Style.BorderColor = selectedColor;
+
+                        this.updateRegionDataInManager(newRegionData);
                     },
                     e,
                     (color) => {
                         // On change (real-time update)
-                        activeRegion.RegionData.Style.BorderColor = color;
-                        this.regionInfoBorderColorTextField.textContent = color;
-                        this.regionInfoBorderColorSwatch.style.backgroundColor = color;
-                        activeRegion.update();
+                        const newRegionData: RegionData = activeRegion.RegionData;
+                        newRegionData.Style.BorderColor = color;
+
+                        this.updateRegionDataInManager(newRegionData);
                     },
                     () => {
                         // On cancel (revert)
-                        activeRegion.RegionData.Style.BorderColor = originalColor;
-                        this.regionInfoBorderColorTextField.textContent = originalColor;
-                        this.regionInfoBorderColorSwatch.style.backgroundColor = originalColor;
-                        activeRegion.update();
+                        const newRegionData: RegionData = activeRegion.RegionData;
+                        newRegionData.Style.BorderColor = originalColor;
+
+                        this.updateRegionDataInManager(newRegionData);
                     }
                 );
             }
@@ -949,10 +960,11 @@ class MapEditorUIRegionInfoManager {
 }
 
 class MapEditorUILayer {
+    private UUID: string;
+
     // Local ELement ID references
     private static readonly layerEditRegionButtonID: string = "btn-layer-edit-region";
     private static readonly layerHideRegionButtonID: string = "btn-layer-toggle-visibility-region";
-    private static readonly layerConfigureRegionButtonID: string = "btn-layer-configure-region";
     private static readonly layerDeleteRegionButtonID: string = "btn-layer-delete-region";
     private static readonly layerDragHandleRegionButtonID: string = "btn-layer-drag-handle-region";
 
@@ -960,20 +972,27 @@ class MapEditorUILayer {
 
     private editRegionButton!: HTMLButtonElement;
     private hideRegionButton!: HTMLButtonElement;
-    private configureRegionButton!: HTMLButtonElement;
     private deleteRegionButton!: HTMLButtonElement;
     private dragHandleRegionButton!: HTMLButtonElement;
 
-    constructor(regionData: any) {
+    constructor(regionData: RegionData) {
+        if (!regionData) {
+            throw new Error("Invalid region data provided to MapEditorUILayer constructor.");
+        }
+        if (!regionData.UUID) {
+            throw new Error("Region data must have a valid UUID.");
+        }
+        this.UUID = regionData.UUID;
+
         // Initialize HTML elements
         this.initalizeLayer();
 
         // Set region name
         const layerNameElement = this.layer.querySelector('.layer-name') as HTMLDivElement;
-        layerNameElement.textContent = regionData.Name;
+        layerNameElement.textContent = regionData.General.Name;
 
         // Set region visibility
-        if (!regionData.IsVisible) {
+        if (!regionData.General.IsVisible) {
             this.updateVisibilityButtonState(false);
         }
     }
@@ -990,10 +1009,9 @@ class MapEditorUILayer {
             <div class="layer-content">
                 <div class="layer-name">Search Grid 3</div>
                 <div class="layer-actions">
-                    <button class="layer-action-btn edit" id="${MapEditorUILayer.layerEditRegionButtonID}" title="Edit"><i class="fas fa-pencil-alt"></i></button>
-                    <button class="layer-action-btn eye" id="${MapEditorUILayer.layerHideRegionButtonID}" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
-                    <button class="layer-action-btn settings" id="${MapEditorUILayer.layerConfigureRegionButtonID}" title="Settings"><i class="fas fa-cog"></i></button>
-                    <button class="layer-action-btn delete" id="${MapEditorUILayer.layerDeleteRegionButtonID}" title="Delete"><i class="fas fa-trash"></i></button>
+                    <button class="layer-action-btn edit" title="Edit"><i class="fas fa-pencil-alt"></i></button>
+                    <button class="layer-action-btn eye" title="Toggle Visibility"><i class="fas fa-eye"></i></button>
+                    <button class="layer-action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
         `;
@@ -1001,11 +1019,10 @@ class MapEditorUILayer {
         // Add to the region list container
         MapEditorUI.INSTANCE.RegionListContainer.appendChild(this.layer);
         
-        // Initialize button references
-        this.editRegionButton = document.getElementById(MapEditorUILayer.layerEditRegionButtonID) as HTMLButtonElement;
-        this.hideRegionButton = document.getElementById(MapEditorUILayer.layerHideRegionButtonID) as HTMLButtonElement;
-        this.configureRegionButton = document.getElementById(MapEditorUILayer.layerConfigureRegionButtonID) as HTMLButtonElement;
-        this.deleteRegionButton = document.getElementById(MapEditorUILayer.layerDeleteRegionButtonID) as HTMLButtonElement;
+        // Initialize button references using querySelector within this layer
+        this.editRegionButton = this.layer.querySelector('.layer-action-btn.edit') as HTMLButtonElement;
+        this.hideRegionButton = this.layer.querySelector('.layer-action-btn.eye') as HTMLButtonElement;
+        this.deleteRegionButton = this.layer.querySelector('.layer-action-btn.delete') as HTMLButtonElement;
 
         // Initialize button handlers
         this.assignButtonEvents();
@@ -1017,27 +1034,33 @@ class MapEditorUILayer {
     private assignButtonEvents(): void {
         // Edit Region Button
         this.editRegionButton.addEventListener('click', () => {
+            MapRegionRegionManager.INSTANCE.attemptStartEditingRegion(this.UUID);
             console.log('Edit Region button clicked');
             // Implement edit functionality here
         });
 
         this.hideRegionButton.addEventListener('click', () => {
+            MapRegionRegionManager.INSTANCE.toggleRegionVisibility(this.UUID);
             console.log('Hide Region button clicked');
             // Implement hide functionality here
         });
 
-        this.configureRegionButton.addEventListener('click', () => {
-            console.log('Configure Region button clicked');
-            // Implement configure functionality here
-        });
-
         this.deleteRegionButton.addEventListener('click', () => {
-            console.log('Delete Region button clicked');
-            // Implement delete functionality here
+            const regionData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(this.UUID);
+            const regionName = regionData ? regionData.General.Name : 'this region';
+            MapEditorUIConfirmDialog.show(
+                'Delete Region',
+                `Are you sure you want to delete "<b>${regionName}</b>"? This action cannot be undone.`,
+                () => {
+                    // Confirmed - delete the region
+                    MapRegionRegionManager.INSTANCE.deleteRegion(this.UUID);
+                    MapEditorUI.INSTANCE.updateMapLayersList();
+                }
+            );
         });
     }
 
-    // #region UI Button
+    // #region UI Update Methods
     private updateVisibilityButtonState(isVisible: boolean): void {
         if (isVisible) {
             this.hideRegionButton.innerHTML = `<i class="fas fa-eye"></i>`;
@@ -1048,4 +1071,139 @@ class MapEditorUILayer {
         }
     }
     // #endregion
+}
+
+/**
+ * Simple confirmation dialog utility class
+ */
+class MapEditorUIConfirmDialog {
+    /**
+     * Show a confirmation dialog
+     * @param title - Dialog title
+     * @param message - Dialog message
+     * @param onConfirm - Callback when user confirms
+     */
+    public static show(title: string, message: string, onConfirm: () => void): void {
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
+
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            padding: 24px;
+            min-width: 400px;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        `;
+
+        // Create title
+        const titleEl = document.createElement('h3');
+        titleEl.textContent = title;
+        titleEl.style.cssText = `
+            margin: 0 0 16px 0;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+        `;
+
+        // Create message
+        const messageEl = document.createElement('p');
+        messageEl.innerHTML = message;
+        messageEl.style.cssText = `
+            margin: 0 0 24px 0;
+            color: #cccccc;
+            font-size: 14px;
+            line-height: 1.5;
+        `;
+
+        // Create button container
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = `
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        `;
+
+        // Create No button
+        const noButton = document.createElement('button');
+        noButton.textContent = 'No';
+        noButton.style.cssText = `
+            padding: 8px 20px;
+            background-color: #3a3a3a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        `;
+        noButton.onmouseover = () => { noButton.style.backgroundColor = '#4a4a4a'; };
+        noButton.onmouseout = () => { noButton.style.backgroundColor = '#3a3a3a'; };
+
+        // Create Yes button
+        const yesButton = document.createElement('button');
+        yesButton.textContent = 'Yes';
+        yesButton.style.cssText = `
+            padding: 8px 20px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        `;
+        yesButton.onmouseover = () => { yesButton.style.backgroundColor = '#c82333'; };
+        yesButton.onmouseout = () => { yesButton.style.backgroundColor = '#dc3545'; };
+
+        // Assemble dialog
+        buttonContainer.appendChild(noButton);
+        buttonContainer.appendChild(yesButton);
+        dialog.appendChild(titleEl);
+        dialog.appendChild(messageEl);
+        dialog.appendChild(buttonContainer);
+        overlay.appendChild(dialog);
+
+        // Close function
+        const closeDialog = () => {
+            document.body.removeChild(overlay);
+            document.removeEventListener('keydown', escapeHandler);
+        };
+
+        // Event handlers
+        const escapeHandler = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                closeDialog();
+            }
+        };
+
+        noButton.addEventListener('click', closeDialog);
+        yesButton.addEventListener('click', () => {
+            closeDialog();
+            onConfirm();
+        });
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeDialog();
+            }
+        });
+        document.addEventListener('keydown', escapeHandler);
+
+        // Add to DOM
+        document.body.appendChild(overlay);
+    }
 }

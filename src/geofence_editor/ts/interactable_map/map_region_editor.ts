@@ -995,14 +995,77 @@ class MapRegionRegionManager
         // Clear current active region's anchor points
         MapRegionAnchorManager.INSTANCE.clearAnchors();
 
+        const previousRegion = this.activeEditingRegion;
+
         // Set the active editing region
         this.activeEditingRegion = region;
+
+        // Update the previous region
+        if (previousRegion)
+            previousRegion.update(); // Save any changes to previous region
 
         // Load the active region's anchor points into the anchor manager
         this.loadRegionAnchorsIntoEditor(region!);
 
         // Update the add anchor button state
         MapEditorUI.INSTANCE.onActiveEditingRegionChanged();
+    }
+
+    /**
+     * Attempts to set the active editing region by UUID, ensuring no other region is being edited.
+     */
+    public attemptStartEditingRegion(UUID: string): void
+    {
+        if (this.activeEditingRegion)
+        {
+            console.warn('Cannot change active editing region while another region is being edited. Stop editing first.');
+            return;
+        }
+
+        const region = this.getRegionByUUID(UUID);
+        if (!region) {
+            console.error(`No region found with UUID: ${UUID}`);
+            return;
+        }
+
+        this.setActiveEditingRegion(UUID);
+    }
+
+    public toggleRegionVisibility(UUID: string)
+    {
+        const regionData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(UUID);
+        if (!regionData) {
+            throw new Error(`No region found with UUID: ${UUID}`);
+        }
+
+        regionData.General.IsVisible = !regionData.General.IsVisible;
+        MapRegionDataManager.INSTANCE.setRegionDataWithUUID(UUID, regionData, true);
+        console.log(`Toggled visibility for region UUID: ${UUID} to ${regionData.General.IsVisible}`);
+        
+        // Update the UI to reflect the visibility change
+        MapEditorUI.INSTANCE.updateMapLayersList();
+    }
+
+    public deleteRegion(UUID: string)
+    {
+        // Stop editing if this region is currently being edited
+        if (this.activeEditingRegion && this.activeEditingRegion.GetSetUUID === UUID) {
+            this.stopEditingRegion();
+        }
+
+        // Remove the region from the regions array
+        const regionIndex = this.regions.findIndex(r => r.GetSetUUID === UUID);
+        if (regionIndex !== -1) {
+            this.regions[regionIndex].removeRegion();
+            this.regions.splice(regionIndex, 1);
+        }
+
+        // Remove the region data
+        MapRegionDataManager.INSTANCE.removeRegionDataByUUID(UUID);
+
+        MapEditorUI.INSTANCE.updateMapLayersList();
+        MapEditorUI.INSTANCE.onActiveEditingRegionChanged();
+        console.log(`Deleted region with UUID: ${UUID}`);
     }
 
     // #region Region Management Functions
@@ -1064,8 +1127,14 @@ class MapRegionRegionManager
             // Save any changes before stopping
             // this.saveRegionFromEditor();
             
+            const previousRegion = this.activeEditingRegion;
+
             // Clear the active editing region
             this.activeEditingRegion = null;
+
+            // Update the previous region
+            if (previousRegion)
+                previousRegion.update(); // Save any changes to previous region
 
             // Clear the editor's anchor points
             MapRegionAnchorManager.INSTANCE.clearAnchors();
@@ -1178,7 +1247,7 @@ class MapRegionDataManager
      * @param UUID - UUID of the region to update
      * @param newRegionData - New region data to set
      */
-    public setRegionDataWithUUID(UUID: string, newRegionData: RegionData, updateVisualRegion: boolean = true)
+    public setRegionDataWithUUID(UUID: string, newRegionData: RegionData, updateVisualRegion: boolean = true, updateEditorPanel: boolean = true): void
     {
         // Attempt to find the region data by UUID
         const index = this.regionDatas.findIndex(rd => rd.UUID === UUID);
@@ -1197,7 +1266,12 @@ class MapRegionDataManager
         // Optionally update the visual region as well
         if (updateVisualRegion)
         {
-            MapRegionRegionManager.INSTANCE.getRegionByUUID(UUID)?.update();
+            MapRegionRegionManager.INSTANCE.getRegionByUUID(UUID)!.update();
+            if (updateEditorPanel && MapRegionRegionManager.INSTANCE.ActiveEditingRegion?.RegionData.UUID === UUID)
+            {
+                MapEditorUIRegionInfoManager.INSTANCE.updateRegionInfoPanel(MapRegionRegionManager.INSTANCE.ActiveEditingRegion!.RegionData);
+                MapEditorUI.INSTANCE.updateMapLayersList();
+            }
         }
     }
 
@@ -1209,6 +1283,29 @@ class MapRegionDataManager
         }
         const regionData = this.regionDatas.find(rd => rd.UUID === UUID);
         return regionData || null;
+    }
+
+    public getAllRegionDatas(): RegionData[]
+    {
+        return this.regionDatas;
+    }
+
+    /**
+     * Remove region data from the regionDatas array by UUID, gone forever.
+     * @param UUID - UUID of the region data to remove
+     */
+    public removeRegionDataByUUID(UUID: string): void
+    {
+        const index = this.regionDatas.findIndex(rd => rd.UUID === UUID);
+        if (index !== -1)
+        {
+            this.regionDatas.splice(index, 1);
+            console.log(`Removed region data with UUID: ${UUID}`);
+        }
+        else
+        {
+            console.warn(`No region data found with UUID: ${UUID} to remove`);
+        }
     }
 }
 
@@ -1507,6 +1604,16 @@ class MapRegionCreatorEditorHandler
     }
 
     /**
+     * Generate a name based on region type and current length of regions.
+     */
+    private generateRegionName(): string
+    {
+        const existingRegions = MapRegionDataManager.INSTANCE.getAllRegionDatas();
+        const countOfType = existingRegions.length;
+        return `${RegionType[this.regionType]} Region ${countOfType + 1}`;
+    }
+
+    /**
      * Finalizes the region creation and adds it to the region manager.
      */
     private finalizeRegionCreation()
@@ -1525,7 +1632,7 @@ class MapRegionCreatorEditorHandler
         // Create region data object for final region
         const regionData: RegionData = {
             General: {
-                Name: "",
+                Name: this.generateRegionName(),
                 IsVisible: true,
                 IsRestricted: false,
             },
@@ -1538,6 +1645,7 @@ class MapRegionCreatorEditorHandler
             },
 
             UUID: Utils.createUUIDv4(),
+            LayerIndex: MapRegionDataManager.INSTANCE.getAllRegionDatas().length,
 
             RegionType: this.regionType,
             FrontEndData: this.temporaryRegionDataPoints

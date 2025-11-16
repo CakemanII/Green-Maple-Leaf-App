@@ -200,6 +200,7 @@
         /* Add anchor tool - full width button */
         #btn-tool-add-anchor {
             width: 100%;
+            margin-bottom: 8px;
         }
 
         #btn-tool-add-anchor:hover i,
@@ -207,9 +208,12 @@
             animation: anchorDrop 0.6s ease;
         }
 
-        /* Stop editing button - full width button */
+        /* Stop editing button - full width button with horizontal layout */
         #btn-stop-editing {
             width: 100%;
+            flex-direction: row;
+            gap: 8px;
+            justify-content: center;
         }
 
         #btn-stop-editing:hover i {
@@ -225,6 +229,31 @@
             }
             100% {
                 transform: scale(1);
+            }
+        }
+
+        /* Delete region button - full width button with horizontal layout */
+        #btn-delete-region {
+            width: 100%;
+            flex-direction: row;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 8px;
+        }
+
+        #btn-delete-region:hover i {
+            animation: deleteRegionShake 0.4s ease;
+        }
+
+        @keyframes deleteRegionShake {
+            0%, 100% {
+                transform: rotate(0deg);
+            }
+            25% {
+                transform: rotate(-5deg) scale(1.1);
+            }
+            75% {
+                transform: rotate(5deg) scale(1.1);
             }
         }
 
@@ -890,6 +919,10 @@
                     <button class="tool-button" id="btn-stop-editing">
                         <i class="fas fa-times-circle"></i>
                         <span>Stop Editing</span>
+                    </button>
+                    <button class="tool-button" id="btn-delete-region">
+                        <i class="fas fa-trash"></i>
+                        <span>Delete</span>
                     </button>
                 </div>
             </div>
