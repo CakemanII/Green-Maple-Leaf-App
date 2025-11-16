@@ -64,8 +64,12 @@ abstract class MapRegion
     private selfIntercepting: boolean;
 
     // Region Data
+    private updateFromUUID: boolean;
+    private setUUID: string;
+    public get GetSetUUID() : string { return this.setUUID; }
     protected regionData: RegionData;
-    public get RegionData() : RegionData { return this.regionData; }
+    // This reference bellow is NOT a direct reference to regionData and is NOT LINKED, this cannot be modified.
+    public get RegionData() : RegionData { return JSON.parse(JSON.stringify(this.regionData)); }
 
     // Anchor Data anchors and shape [BACKEND USE ONLY]
     // These are the true anchor points used to create the curve.
@@ -87,9 +91,20 @@ abstract class MapRegion
     private stripes: L.StripePattern | null; // Stripe pattern for restricted regions
     private fillPattern: any | null; // Fill pattern for the region
 
-    constructor(regionData: RegionData)
+    constructor(regionInput: RegionData | string)
     {
-        this.regionData = regionData;
+        this.setUUID = ""; // No UUID set
+        this.regionData = {} as RegionData; // Temporary initialization placeholder for compiler
+        this.updateFromUUID = typeof regionInput === 'string';
+        console.log(typeof regionInput);
+        if (this.updateFromUUID) {
+            this.setUUID = regionInput as string;
+            this.getLatestRegionData();
+        }
+        else
+        {
+            this.regionData = regionInput as RegionData;
+        }
 
         // Initialize properties
         this.shapeAreaActive = false;
@@ -169,6 +184,10 @@ abstract class MapRegion
     {
         console.log("Updating region...");
 
+        // Get latest region data if updating from UUID
+        if (this.updateFromUUID)
+            this.getLatestRegionData();
+
         // Recalculate backend anchor data from frontend shape point data
         this.translateToBackendData();
 
@@ -184,6 +203,27 @@ abstract class MapRegion
      */
     public setFrontendAnchorPositions(newFrontendData: FrontendAnchorData) {
         this.regionData.FrontEndData = newFrontendData;
+    }
+
+    /**
+     * Update region data from data manager.
+     */
+    private getLatestRegionData()
+    {
+        if (this.updateFromUUID) {
+            const latestData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(this.setUUID);
+            if (latestData) {
+                this.regionData = latestData;
+            }
+            else
+            {
+                console.warn(`Region data with UUID ${this.setUUID} not found. Cannot update region data.`);
+            }
+        }
+        else
+        {
+            console.warn("updateRegionData called but updateFromUUID is false. No action taken.");
+        }
     }
 
     /**
@@ -366,7 +406,7 @@ class MapFreeformRegion extends MapRegion
 {
     public override readonly regionType: RegionType = RegionType.Freeform;
 
-    constructor(regionData: RegionData) { super(regionData); }
+    constructor(regionInput: RegionData | string) { super(regionInput); }
 
     protected override translateToBackendData() : void { // (1 to 1 conversion)
         // Copy all points to backend anchor data with correct property names
@@ -389,7 +429,7 @@ class MapRectangleRegion extends MapRegion
 {  
     public override readonly regionType: RegionType = RegionType.Rectangle;
 
-    constructor(regionData: RegionData) { super(regionData); }
+    constructor(regionInput: RegionData | string) { super(regionInput); }
 
     // (0, 0) is center
     protected override GET_INTIAL_FRONTEND_CONFIGURATION() : FrontendAnchorData { 
@@ -422,7 +462,7 @@ class MapCircleRegion extends MapRegion
 {
     public override readonly regionType: RegionType = RegionType.Circle;
 
-    constructor(regionData: RegionData) { super(regionData); }
+    constructor(regionInput: RegionData | string) { super(regionInput); }
 
     protected override GET_INTIAL_FRONTEND_CONFIGURATION() : FrontendAnchorData 
     { 

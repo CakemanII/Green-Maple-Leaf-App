@@ -827,27 +827,44 @@ class MapRegionRegionManager
     // #region Region Loading Functions
     /**
      * Loads different types of regions and appends them to _regions array.
-     * @param {RegionData} regionData - Data defining the region to load
+     * @param {RegionData | string} regionInput - Data defining the region to load or UUID to get regiondata from DataManager
      * @param {boolean} pushToRegionsArray - Whether to add the loaded region to the regions array
      */
-    loadRegion(regionData: RegionData, pushToRegionsArray: boolean = true) : MapRegion | null {
+    loadRegion(regionInput: RegionData | string, pushToRegionsArray: boolean = true) : MapRegion | null {
+        // Get region data
+        const isUUIDInput = (typeof regionInput === 'string');
+        let regionData: RegionData;
+        if (isUUIDInput) {
+            // Input is a UUID - get region data from DataManager
+            console.log(`Loading region data for UUID: ${regionInput}`);
+            const fetchedData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(regionInput);
+            if (!fetchedData) {
+                console.error(`No region data found for UUID: ${regionInput}`);
+                return null;
+            }
+            regionData = fetchedData;
+        } else {
+            // Input is region data
+            regionData = regionInput;
+        }
+
         let newRegion: MapRegion;
 
         // Create region based on type
         switch (regionData.RegionType) {
             // Rectangle
             case RegionType.Rectangle:
-                newRegion = new MapRectangleRegion(regionData);
+                newRegion = new MapRectangleRegion(isUUIDInput ? (regionInput as string) : regionData);
                 break;
             
             // Circle
             case RegionType.Circle:
-                newRegion = new MapCircleRegion(regionData);
+                newRegion = new MapCircleRegion(isUUIDInput ? (regionInput as string) : regionData);
                 break;
             
             // Custom Freeform
             case RegionType.Freeform:
-                newRegion = new MapFreeformRegion(regionData); // Use base rectangle class for custom shapes
+                newRegion = new MapFreeformRegion(isUUIDInput ? (regionInput as string) : regionData); // Use base rectangle class for custom shapes
                 break;
         }
 
@@ -903,6 +920,18 @@ class MapRegionRegionManager
     getAllRegions() {
         return this.regions;
     }
+    
+    /**
+     * Get a region by its regionData UUID.
+     */
+    public getRegionByUUID(uuid: string): MapRegion | null {
+        for (const region of this.regions) {
+            if (region.RegionData.UUID === uuid) {
+                return region;
+            }
+        }
+        return null;
+    }
 
     /**
      * Removes a region from the _regions array.
@@ -956,9 +985,10 @@ class MapRegionRegionManager
         }
     }
 
-    public setActiveEditingRegion(regionIndex: number)
+    public setActiveEditingRegion(UUID: string)
     {
-        if (this.regions[regionIndex] === this.activeEditingRegion) {
+        const region = this.getRegionByUUID(UUID);
+        if (!region || region === this.activeEditingRegion) {
             return; // No change
         }
 
@@ -966,10 +996,10 @@ class MapRegionRegionManager
         MapRegionAnchorManager.INSTANCE.clearAnchors();
 
         // Set the active editing region
-        this.activeEditingRegion = this.regions[regionIndex];
+        this.activeEditingRegion = region;
 
         // Load the active region's anchor points into the anchor manager
-        this.loadRegionAnchorsIntoEditor(this.activeEditingRegion);
+        this.loadRegionAnchorsIntoEditor(region!);
 
         // Update the add anchor button state
         MapEditorUI.INSTANCE.onActiveEditingRegionChanged();
@@ -1133,6 +1163,53 @@ class MapRegionDataManager
         // Initialization primary fields
         this.regionDatas = [];
     }
+
+    /**
+     * Append a region's data to the regionDatas array.
+     */
+    public appendRegionData(regionData: RegionData)
+    {
+        this.regionDatas.push(regionData);
+        console.log(regionData);
+    }
+
+    /**
+     * Update region data in the regionDatas array by UUID.
+     * @param UUID - UUID of the region to update
+     * @param newRegionData - New region data to set
+     */
+    public setRegionDataWithUUID(UUID: string, newRegionData: RegionData, updateVisualRegion: boolean = true)
+    {
+        // Attempt to find the region data by UUID
+        const index = this.regionDatas.findIndex(rd => rd.UUID === UUID);
+        if (index !== -1)
+        {
+            // Update the region data at the found index
+            this.regionDatas[index] = newRegionData;
+        }
+        else
+        {
+            // Not found, append instead
+            console.log(`Region data with UUID: ${UUID} not found. Appending instead`);
+            this.appendRegionData(newRegionData);
+        }
+
+        // Optionally update the visual region as well
+        if (updateVisualRegion)
+        {
+            MapRegionRegionManager.INSTANCE.getRegionByUUID(UUID)?.update();
+        }
+    }
+
+    public getRegionDataByUUID(UUID: string): RegionData | null
+    {
+        if (UUID === "") {
+            console.warn("Empty UUID provided to getRegionDataByUUID");
+            return null;
+        }
+        const regionData = this.regionDatas.find(rd => rd.UUID === UUID);
+        return regionData || null;
+    }
 }
 
 /**
@@ -1211,14 +1288,12 @@ class MapRegionCreatorEditorHandler
      */
     private initializeEscapeKeyListener()
     {
-        const onKeyDown = (e: KeyboardEvent) => {
+        // Add keydown listener for escape key to cancel creation
+        MapRegionEditorKeyStates.INSTANCE.escapePressedDownListeners.push(() => {
             if (this.creationComplete) return; // Ignore when creation is complete
-            if (e.key === 'Escape') {
-                // Cleanup and cancel region creation
-                this.cancelRegionCreation();
-            }
-        };
-        document.addEventListener('keydown', onKeyDown);
+            // Cleanup and cancel region creation
+            this.cancelRegionCreation();
+        });
     }
 
     /**
@@ -1462,15 +1537,18 @@ class MapRegionCreatorEditorHandler
                 BorderOpacity: 0.8,
             },
 
+            UUID: Utils.createUUIDv4(),
+
             RegionType: this.regionType,
             FrontEndData: this.temporaryRegionDataPoints
         }
 
         // Load the new region into the region manager using loadRegion
-        MapRegionRegionManager.INSTANCE.loadRegion(regionData);
+        MapRegionDataManager.INSTANCE.appendRegionData(regionData);
+        MapRegionRegionManager.INSTANCE.loadRegion(regionData.UUID!);
 
         MapRegionRegionManager.INSTANCE.setActiveEditingRegion(
-            MapRegionRegionManager.INSTANCE.getAllRegions().length - 1
+           regionData.UUID!
         );
 
         // Update the editor UI
@@ -1506,6 +1584,8 @@ class MapRegionEditorKeyStates
 
     private ctrlPressed: boolean;
     public get isCtrlPressedDown() { return this.ctrlPressed; }
+    private escapePressed: boolean;
+    public get isEscapePressedDown() { return this.escapePressed; }
     private shiftPressed: boolean;
     public get isShiftPressedDown() { return this.shiftPressed; }
     private altPressed: boolean;
@@ -1516,6 +1596,7 @@ class MapRegionEditorKeyStates
     public get isZPressedDown() { return this.zPressed; }
 
     public ctrlPressedDownListeners: Array<() => void> = [];
+    public escapePressedDownListeners: Array<() => void> = [];
     public shiftPressedDownListeners: Array<() => void> = [];
     public altPressedDownListeners: Array<() => void> = [];
     public deletePressedDownListeners: Array<() => void> = [];
@@ -1532,6 +1613,7 @@ class MapRegionEditorKeyStates
 
         // Key state tracking initialization
         this.ctrlPressed = false;
+        this.escapePressed = false;
         this.shiftPressed = false;
         this.altPressed = false;
         this.deletePressed = false;
@@ -1548,6 +1630,9 @@ class MapRegionEditorKeyStates
                 // Notify listeners on ctrl press
                 for (const listener of this.ctrlPressedDownListeners) { listener(); }
                 this.ctrlPressed = true;
+            } else if (e.key === 'Escape') {
+                for (const listener of this.escapePressedDownListeners) { listener(); }
+                this.escapePressed = true;
             } else if (e.key === 'Shift') {
                 for (const listener of this.shiftPressedDownListeners) { listener();}
                 this.shiftPressed = true;
@@ -1566,6 +1651,8 @@ class MapRegionEditorKeyStates
         document.addEventListener('keyup', (e) => {
             if (e.key === 'Control') {
                 this.ctrlPressed = false;
+            } else if (e.key === 'Escape') {
+                this.escapePressed = false;
             } else if (e.key === 'Shift') {
                 this.shiftPressed = false;
             } else if (e.key === 'Alt') {

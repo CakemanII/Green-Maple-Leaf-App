@@ -207,6 +207,27 @@
             animation: anchorDrop 0.6s ease;
         }
 
+        /* Stop editing button - full width button */
+        #btn-stop-editing {
+            width: 100%;
+        }
+
+        #btn-stop-editing:hover i {
+            animation: stopEditingPulse 0.4s ease;
+        }
+
+        @keyframes stopEditingPulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.15);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
         @keyframes anchorDrop {
             0% {
                 transform: translateY(-4px);
@@ -600,6 +621,215 @@
             align-items: center;
             gap: 8px;
         }
+
+        .info-field-input,
+        .info-field-select {
+            font-size: 12px;
+            color: #ffffff;
+            background-color: transparent;
+            border: none;
+            padding: 4px 8px;
+            width: 100%;
+            font-weight: 400;
+            text-align: right;
+        }
+
+        .info-field-select {
+            cursor: pointer;
+            background-color: #242424;
+            color: #ffffff;
+            border: none;
+        }
+
+        .info-field-select option {
+            background-color: #2a2a2a;
+            color: #ffffff;
+        }
+
+        .info-field-input:focus,
+        .info-field-select:focus {
+            outline: none;
+        }
+
+        .info-field-input::placeholder {
+            color: #666666;
+        }
+
+        /* Remove spinner arrows from number inputs */
+        .info-field-input[type="number"]::-webkit-inner-spin-button,
+        .info-field-input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .info-field-input[type="number"] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        /* Color Picker Modal */
+        .color-picker-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            pointer-events: none;
+        }
+
+        .color-picker-modal.active {
+            display: block;
+        }
+
+        .color-picker-content {
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            gap: 0;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+        }
+
+        .color-picker-canvas {
+            width: 280px;
+            height: 280px;
+            border-radius: 4px;
+            cursor: crosshair;
+            flex-shrink: 0;
+        }
+
+        .color-picker-right {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            align-items: center;
+            justify-content: space-between;
+            height: 280px;
+        }
+
+        .color-picker-compare-box {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            flex-direction: column;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #555555;
+            flex-shrink: 0;
+            gap: 2px;
+            padding: 2px;
+            background-color: #1a1a1a;
+            margin-top: auto;
+            margin-bottom: auto;
+        }
+
+        .color-picker-previous-color,
+        .color-picker-current-color {
+            flex: 1;
+            width: 100%;
+            border-radius: 2px;
+        }
+
+        .color-picker-bottom-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .color-picker-hue-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 280px;
+            height: 20px;
+            border-radius: 10px;
+            background: linear-gradient(to right,
+                hsl(0, 100%, 50%),
+                hsl(30, 100%, 50%),
+                hsl(60, 100%, 50%),
+                hsl(90, 100%, 50%),
+                hsl(120, 100%, 50%),
+                hsl(150, 100%, 50%),
+                hsl(180, 100%, 50%),
+                hsl(210, 100%, 50%),
+                hsl(240, 100%, 50%),
+                hsl(270, 100%, 50%),
+                hsl(300, 100%, 50%),
+                hsl(330, 100%, 50%),
+                hsl(360, 100%, 50%)
+            );
+            outline: none;
+            cursor: pointer;
+            transform: rotate(270deg);
+            flex-shrink: 0;
+            margin: 0 -110px;
+        }
+
+        .color-picker-hue-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 24px;
+            border-radius: 2px;
+            background: #ffffff;
+            border: 2px solid #000000;
+            cursor: pointer;
+        }
+
+        .color-picker-hue-slider::-moz-range-thumb {
+            width: 12px;
+            height: 24px;
+            border-radius: 2px;
+            background: #ffffff;
+            border: 2px solid #000000;
+            cursor: pointer;
+        }
+
+        .color-picker-wheel {
+            width: 200px;
+            height: 200px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .color-picker-input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .color-picker-hex-input {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            border: 1px solid #555555;
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 14px;
+            width: 120px;
+            text-align: center;
+        }
+
+        .color-picker-confirm-btn {
+            background-color: #64b5f6;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .color-picker-confirm-btn:hover {
+            background-color: #42a5f5;
+        }
+
+        .info-color-swatch {
+            cursor: pointer;
+        }
+
+        .info-color-swatch:hover {
+            border-color: #888888;
+        }
     </style>
 </head>
 <body>
@@ -657,6 +887,10 @@
                         <i class="fas fa-anchor"></i>
                         <span>Add Anchors</span>
                     </button>
+                    <button class="tool-button" id="btn-stop-editing">
+                        <i class="fas fa-times-circle"></i>
+                        <span>Stop Editing</span>
+                    </button>
                 </div>
             </div>
 
@@ -670,7 +904,7 @@
                     <div id="region-info-content">
                         <div class="info-field">
                             <span class="info-field-label">Name</span>
-                            <span class="info-field-value" id="region-info-name">-</span>
+                            <input type="text" class="info-field-input" id="region-info-name" placeholder="Enter name">
                         </div>
                         <div class="info-field">
                             <span class="info-field-label">Type</span>
@@ -678,11 +912,17 @@
                         </div>
                         <div class="info-field">
                             <span class="info-field-label">Restriction</span>
-                            <span class="info-field-value" id="region-info-restriction">-</span>
+                            <select class="info-field-select" id="region-info-restriction">
+                                <option value="unrestricted">Unrestricted</option>
+                                <option value="restricted">Restricted</option>
+                            </select>
                         </div>
                         <div class="info-field">
                             <span class="info-field-label">Visibility</span>
-                            <span class="info-field-value" id="region-info-visibility">-</span>
+                            <select class="info-field-select" id="region-info-visibility">
+                                <option value="visible">Visible</option>
+                                <option value="hidden">Hidden</option>
+                            </select>
                         </div>
                         <div class="info-field">
                             <span class="info-field-label">Fill Color</span>
@@ -700,11 +940,11 @@
                         </div>
                         <div class="info-field">
                             <span class="info-field-label">Fill Opacity</span>
-                            <span class="info-field-value" id="region-info-fill-opacity">-</span>
+                            <input type="number" class="info-field-input" id="region-info-fill-opacity" min="0" max="1" step="0.1" placeholder="0-1">
                         </div>
                         <div class="info-field">
                             <span class="info-field-label">Border Opacity</span>
-                            <span class="info-field-value" id="region-info-border-opacity">-</span>
+                            <input type="number" class="info-field-input" id="region-info-border-opacity" min="0" max="1" step="0.1" placeholder="0-1">
                         </div>
                     </div>
                 </div>
@@ -801,5 +1041,16 @@
             });*/
         });
     </script>
+
+    <!-- Color Picker Modal -->
+    <div class="color-picker-modal" id="color-picker-modal">
+        <div class="color-picker-content">
+            <input type="color" class="color-picker-wheel" id="color-picker-wheel" value="#ff7800">
+            <div class="color-picker-input-container">
+                <input type="text" class="color-picker-hex-input" id="color-picker-hex-input" placeholder="#000000">
+                <button class="color-picker-confirm-btn" id="color-picker-confirm-btn">Confirm</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
