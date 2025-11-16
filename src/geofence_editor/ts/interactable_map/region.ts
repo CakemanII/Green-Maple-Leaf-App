@@ -22,13 +22,6 @@ type FrontendAnchorData = Array<{
     relOutgoingHandlePos: L.LatLng | null 
 }>;
 
-type RegionStyleParameters = {
-    color?: string;
-    opacity?: number;
-    restricted?: boolean;
-    label?: string;
-};
-
 /**
  * Region types used throughout the editor.
  */
@@ -39,6 +32,8 @@ enum RegionType {
 }
 
 type RegionData = {
+    UUID?: string;
+    LayerIndex?: number; // 0 is top, most visible layer
     General: {
         Name: string;
         IsVisible: boolean;
@@ -68,52 +63,40 @@ abstract class MapRegion
     private shapeAreaActive: boolean;
     private selfIntercepting: boolean;
 
+    // Region Data
+    protected regionData: RegionData;
+    public get RegionData() : RegionData { return this.regionData; }
+
     // Anchor Data anchors and shape [BACKEND USE ONLY]
     // These are the true anchor points used to create the curve.
     // Example Element: [LatLng: anchorLatLng, relIncomingHandle: relativeControlHandle1LatLng, relOutgoingHandle: relativeControlHandle2LatLng]
-    protected backendAnchorData: BackendAnchorData;
 
     private curveShape: any;
     private bezierCurveData: any[];
+
+    private readonly invalid_shape_color: string = "#FF0000"; // RGB color for invalid shapes
 
     // Editable Point Data [FRONTEND USE ONLY]
     // These are the elements used for representing visual edittable points.
     // This can directly or indirectly effect the backend anchor data.
     // Example Element: [LatLng: anchorLatLng, relIncomingHandle: relativeControlHandle1LatLng, relOutgoingHandle: relativeControlHandle2LatLng]
-    protected frontendShapePointData: FrontendAnchorData;
-    public get FrontendShapePointData() : FrontendAnchorData { return this.frontendShapePointData; }
-
-    // Region Style Parameters
-    private restricted: boolean; // Restricted status
-    private label: string; // Region label
-
-    private color: string; // RGB color
-    private invalid_shape_color: string; // RGB color for invalid shapes
-    private opacity: number; // Opacity level
-    private isVisible: boolean; // Visibility status
+    public get FrontendShapePointData() : FrontendAnchorData { return this.regionData.FrontEndData; }
 
     private lastStyleState: object; // Last applied style state
 
     private stripes: L.StripePattern | null; // Stripe pattern for restricted regions
     private fillPattern: any | null; // Fill pattern for the region
 
-    constructor(frontendShapePointData: FrontendAnchorData | null)
+    constructor(regionData: RegionData)
     {
+        this.regionData = regionData;
+
         // Initialize properties
         this.shapeAreaActive = false;
         this.selfIntercepting = false;
 
-        this.backendAnchorData = [];
         this.curveShape = null;
         this.bezierCurveData = [];
-        this.frontendShapePointData = frontendShapePointData ? frontendShapePointData : this.GET_INTIAL_FRONTEND_CONFIGURATION();
-
-        this.restricted = false;
-        this.label = "";
-        this.color = "#3388ff"; // Default blue color
-        this.invalid_shape_color = "FF0000"; // Default red color
-        this.opacity = 0.5;
-        this.isVisible = true;
 
         this.lastStyleState = {};
         
@@ -200,7 +183,7 @@ abstract class MapRegion
      * Set region frontend anchor positions.
      */
     public setFrontendAnchorPositions(newFrontendData: FrontendAnchorData) {
-        this.frontendShapePointData = newFrontendData;
+        this.regionData.FrontEndData = newFrontendData;
     }
 
     /**
@@ -213,16 +196,17 @@ abstract class MapRegion
         {
             this.selfIntercepting = false; this.shapeAreaActive = false;
             console.warn("Curve shape does not exist. Cannot update region.");
+            return;
         }
 
         // Calculate Parameters
         this.selfIntercepting = false;
         // If there are less than 2 anchors, do not display the shape fill.
-        this.shapeAreaActive = this.backendAnchorData.length > 2;
+        this.shapeAreaActive = this.regionData.DerivedBackendData!.length > 2;
 
         // Update the shape if it exists
         const isClosed = this.shapeAreaActive; // Close the path when shape area is active
-        this.bezierCurveData = this.anchorDataToCurve(this.backendAnchorData, isClosed);
+        this.bezierCurveData = this.anchorDataToCurve(this.regionData.DerivedBackendData!, isClosed);
         this.curveShape.setPath(this.bezierCurveData);
     }
 
@@ -235,12 +219,12 @@ abstract class MapRegion
         if (!this.curveShape) return;
 
         // Calculate current style parameters
-        var shapeFillOpacity = this.shapeAreaActive ? this.opacity : 0;
-        var shapeColor = !this.selfIntercepting ? this.color : this.invalid_shape_color;
+        var shapeFillOpacity = this.shapeAreaActive ? this.regionData.Style.FillOpacity : 0;
+        var shapeColor = !this.selfIntercepting ? this.regionData.Style.FillColor : this.invalid_shape_color;
 
         // Check if the stripes need changing
-        if (this.restricted) {
-            this.setStripes(this.color);
+        if (this.regionData.General.IsRestricted) {
+            this.setStripes(this.regionData.Style.FillColor);
         }
 
         // Create current style state for comparison (excluding circular references)
@@ -251,7 +235,7 @@ abstract class MapRegion
             fill: this.shapeAreaActive && shapeFillOpacity > 0,
             fillColor: this.shapeAreaActive ? shapeColor : undefined,
             fillOpacity: this.shapeAreaActive ? shapeFillOpacity : 0,
-            restrictedRegion: this.restricted // Use boolean instead of the actual stripe object
+            restrictedRegion: this.regionData.General.IsRestricted // Use boolean instead of the actual stripe object
         };
 
         // Check if style has actually changed
@@ -271,7 +255,7 @@ abstract class MapRegion
             };
 
             // Add stripe pattern if this is a restricted region
-            if (this.restricted && this.stripes) {
+            if (this.regionData.General.IsRestricted && this.stripes) {
                 leafletStyleOptions.fillPattern = this.stripes;
             }
 
@@ -300,8 +284,8 @@ abstract class MapRegion
         this.stripes = new L.StripePattern({
             weight: 5, // stripe width
             spaceWeight: 12, // space between stripes
-            color: color ? color : this.color, // stripe color
-            fillColor: color ? color : this.color,
+            color: color ? color : this.regionData.Style.FillColor, // stripe color
+            fillColor: color ? color : this.regionData.Style.FillColor,
             opacity: 1,
             angle: 45 // stripe angle in degrees
         });
@@ -315,8 +299,6 @@ abstract class MapRegion
     public removeRegion() 
     {
         // Remove all shape data
-        this.backendAnchorData = [];
-        this.frontendShapePointData = [];
         this.bezierCurveData = [];
 
         // Remove the shape
@@ -327,57 +309,12 @@ abstract class MapRegion
     }
 
     /**
-     * Update region style parameters and refresh the region shape if it exists.
-     * @param {Object} params - An object containing style parameters to update.
-     *                          Supported keys: color (string), opacity (number).
-     */
-    public updateStyleParameters(params: RegionStyleParameters = {}) 
-    {
-        // Update color parameter
-        if (params.color !== undefined) {
-            if (typeof params.color !== 'string') {
-                console.warn("Invalid color parameter [not changing]:", params.color);
-            }
-            else {
-                this.color = params.color;
-            }
-        }
-        // Update opacity parameter
-        if (params.opacity !== undefined) {
-            if (typeof params.opacity !== 'number' || params.opacity < 0 || params.opacity > 1) {
-                console.warn("Invalid opacity parameter (must be 0 to 1) [Not changing]:", params.opacity);
-            } else {
-                this.opacity = params.opacity;
-            }
-        }
-        // Update whiteRegion parameter
-        if (params.restricted !== undefined) {
-            if (typeof params.restricted !== 'boolean') {
-                console.warn("Invalid restrictedRegion parameter (must be boolean) [Not changing]:", params.restricted);
-            } else {
-                this.restricted = params.restricted;
-            }
-        }
-        // Update regionLabel parameter
-        if (params.label !== undefined) {
-            if (typeof params.label !== 'string') {   
-                console.warn("Invalid regionLabel parameter (must be string) [Not changing]:", params.label);
-            } else {
-                this.label = params.label;
-            }
-        }
-
-        // Update the region style
-        this.update();
-    }
-
-    /**
      * Hide the region from the map
      */
     public hide() {
-        if (this.curveShape && this.isVisible) {
+        if (this.curveShape && this.regionData.General.IsVisible) {
             InteractiveMap.mapInstance.removeLayer(this.curveShape);
-            this.isVisible = false;
+            this.regionData.General.IsVisible = false;
         }
     }
 
@@ -385,9 +322,9 @@ abstract class MapRegion
      * Show the region on the map
      */
     public show() {
-        if (this.curveShape && !this.isVisible) {
+        if (this.curveShape && !this.regionData.General.IsVisible) {
             this.curveShape.addTo(InteractiveMap.mapInstance);
-            this.isVisible = true;
+            this.regionData.General.IsVisible = true;
         }
     }
 
@@ -395,19 +332,19 @@ abstract class MapRegion
      * Toggle region visibility
      */
     public toggleVisibility() {
-        if (this.isVisible) {
+        if (this.regionData.General.IsVisible) {
             this.hide();
         } else {
             this.show();
         }
-        return this.isVisible;
+        return this.regionData.General.IsVisible;
     }
 
     /**
      * Get current visibility state
      */
     public isRegionVisible() : boolean {
-        return this.isVisible;
+        return this.regionData.General.IsVisible;
     }
 
     // #region Override Functions (That must be overrided by child class)
@@ -429,11 +366,11 @@ class MapFreeformRegion extends MapRegion
 {
     public override readonly regionType: RegionType = RegionType.Freeform;
 
-    constructor(frontendShapePointData: FrontendAnchorData | null) { super(frontendShapePointData); }
+    constructor(regionData: RegionData) { super(regionData); }
 
     protected override translateToBackendData() : void { // (1 to 1 conversion)
         // Copy all points to backend anchor data with correct property names
-        this.backendAnchorData = this.frontendShapePointData.map(point => ({
+        this.regionData.DerivedBackendData = this.regionData.FrontEndData.map(point => ({
             anchorPos: point.anchorPos,
             relIncomingHandlePos: point.relIncomingHandlePos,
             relOutgoingHandlePos: point.relOutgoingHandlePos
@@ -452,7 +389,7 @@ class MapRectangleRegion extends MapRegion
 {  
     public override readonly regionType: RegionType = RegionType.Rectangle;
 
-    constructor(frontendShapePointData: FrontendAnchorData | null) { super(frontendShapePointData); }
+    constructor(regionData: RegionData) { super(regionData); }
 
     // (0, 0) is center
     protected override GET_INTIAL_FRONTEND_CONFIGURATION() : FrontendAnchorData { 
@@ -469,11 +406,11 @@ class MapRectangleRegion extends MapRegion
      */
     protected override translateToBackendData() : void
     {
-        this.backendAnchorData = [
-            {anchorPos: this.frontendShapePointData[0].anchorPos, relIncomingHandlePos: null, relOutgoingHandlePos: null},
-            {anchorPos: this.frontendShapePointData[1].anchorPos, relIncomingHandlePos: null, relOutgoingHandlePos: null},
-            {anchorPos: this.frontendShapePointData[2].anchorPos, relIncomingHandlePos: null, relOutgoingHandlePos: null},
-            {anchorPos: this.frontendShapePointData[3].anchorPos, relIncomingHandlePos: null, relOutgoingHandlePos: null}
+        this.regionData.DerivedBackendData = [
+            {anchorPos: this.regionData.FrontEndData[0].anchorPos, relIncomingHandlePos: null, relOutgoingHandlePos: null},
+            {anchorPos: this.regionData.FrontEndData[1].anchorPos, relIncomingHandlePos: null, relOutgoingHandlePos: null},
+            {anchorPos: this.regionData.FrontEndData[2].anchorPos, relIncomingHandlePos: null, relOutgoingHandlePos: null},
+            {anchorPos: this.regionData.FrontEndData[3].anchorPos, relIncomingHandlePos: null, relOutgoingHandlePos: null}
         ]
     }
 }
@@ -485,7 +422,7 @@ class MapCircleRegion extends MapRegion
 {
     public override readonly regionType: RegionType = RegionType.Circle;
 
-    constructor(frontendShapePointData: FrontendAnchorData | null) { super(frontendShapePointData); }
+    constructor(regionData: RegionData) { super(regionData); }
 
     protected override GET_INTIAL_FRONTEND_CONFIGURATION() : FrontendAnchorData 
     { 
@@ -501,8 +438,8 @@ class MapCircleRegion extends MapRegion
     protected override translateToBackendData() : void
     {
         // Get the center point and radius point
-        const center = this.frontendShapePointData[0].anchorPos;
-        const radiusPoint = this.frontendShapePointData[1].anchorPos;
+        const center = this.regionData.FrontEndData[0].anchorPos;
+        const radiusPoint = this.regionData.FrontEndData[1].anchorPos;
         
         // Calculate radius in degrees for both lat and lng
         const radiusLat = Math.abs(radiusPoint.lat - center.lat);
@@ -554,7 +491,7 @@ class MapCircleRegion extends MapRegion
             }
         ];
 
-        this.backendAnchorData = points;
+        this.regionData.DerivedBackendData = points;
     }
 }
 

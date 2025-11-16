@@ -561,6 +561,45 @@
         .ghost-anchor {
             opacity: 0.3 !important;
         }
+
+        /* Layer Info Section */
+        .info-field {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #333333;
+        }
+
+        .info-field:last-child {
+            border-bottom: none;
+        }
+
+        .info-field-label {
+            font-size: 12px;
+            color: #888888;
+            font-weight: 500;
+        }
+
+        .info-field-value {
+            font-size: 12px;
+            color: #ffffff;
+            font-weight: 400;
+        }
+
+        .info-color-swatch {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            border: 1px solid #666666;
+            display: inline-block;
+        }
+
+        .info-field-value.with-swatch {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>
@@ -620,7 +659,57 @@
                     </button>
                 </div>
             </div>
-            
+
+            <!-- Layer Info Section -->
+            <div class="panel-section" id="sidebar-region-info-container">
+                <div class="section-content">
+                    <div class="section-header">
+                        <i class="fas fa-info-circle"></i>
+                        <span>REGION INFO</span>
+                    </div>
+                    <div id="region-info-content">
+                        <div class="info-field">
+                            <span class="info-field-label">Name</span>
+                            <span class="info-field-value" id="region-info-name">-</span>
+                        </div>
+                        <div class="info-field">
+                            <span class="info-field-label">Type</span>
+                            <span class="info-field-value" id="region-info-type">-</span>
+                        </div>
+                        <div class="info-field">
+                            <span class="info-field-label">Restriction</span>
+                            <span class="info-field-value" id="region-info-restriction">-</span>
+                        </div>
+                        <div class="info-field">
+                            <span class="info-field-label">Visibility</span>
+                            <span class="info-field-value" id="region-info-visibility">-</span>
+                        </div>
+                        <div class="info-field">
+                            <span class="info-field-label">Fill Color</span>
+                            <span class="info-field-value with-swatch" id="region-info-fill-color">
+                                <span class="info-color-swatch" id="region-info-fill-color-swatch"></span>
+                                <span id="region-info-fill-color-text">-</span>
+                            </span>
+                        </div>
+                        <div class="info-field">
+                            <span class="info-field-label">Border Color</span>
+                            <span class="info-field-value with-swatch" id="region-info-border-color">
+                                <span class="info-color-swatch" id="region-info-border-color-swatch"></span>
+                                <span id="region-info-border-color-text">-</span>
+                            </span>
+                        </div>
+                        <div class="info-field">
+                            <span class="info-field-label">Fill Opacity</span>
+                            <span class="info-field-value" id="region-info-fill-opacity">-</span>
+                        </div>
+                        <div class="info-field">
+                            <span class="info-field-label">Border Opacity</span>
+                            <span class="info-field-value" id="region-info-border-opacity">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Map Layers Section -->
             <div class="panel-section" id="sidebar-region-layers-container">
                 <div class="section-content">

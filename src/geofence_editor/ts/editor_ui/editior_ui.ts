@@ -6,6 +6,7 @@ class MapEditorUI {
     private static readonly sidebarCreateRegionContainerID: string = "sidebar-create-region-container";
     private static readonly sidebarRegionToolsContainerID: string = "sidebar-region-tools-container";
     private static readonly sidebarRegionLayersContainerID: string = "sidebar-region-layers-container";
+    private static readonly sidebarRegionEditInfoContainerID: string = "sidebar-region-info-container";
 
     private static readonly createRectangleRegionButtonID: string = "btn-create-rectangle-region";
     private static readonly createCircleRegionButtonID: string = "btn-create-circle-region"
@@ -26,6 +27,7 @@ class MapEditorUI {
     private sidebarCreateRegionContainer!: HTMLDivElement;
     private sidebarRegionToolsContainer!: HTMLDivElement
     private sidebarRegionLayersContainer!: HTMLDivElement;
+    private sidebarRegionEditInfoContainer!: HTMLDivElement;
 
     private createRectangleRegionButton!: HTMLButtonElement;
     private createCircleRegionButton!: HTMLButtonElement;
@@ -53,10 +55,14 @@ class MapEditorUI {
         }
         MapEditorUI.instance = this;
 
+        // Initialize MapEditorUIRegionInfoManager
+        new MapEditorUIRegionInfoManager();
+
         // Initialize elements        
         this.sidebarCreateRegionContainer = document.getElementById(MapEditorUI.sidebarCreateRegionContainerID) as HTMLDivElement;
         this.sidebarRegionToolsContainer = document.getElementById(MapEditorUI.sidebarRegionToolsContainerID) as HTMLDivElement;
         this.sidebarRegionLayersContainer = document.getElementById(MapEditorUI.sidebarRegionLayersContainerID) as HTMLDivElement;
+        this.sidebarRegionEditInfoContainer = document.getElementById(MapEditorUI.sidebarRegionEditInfoContainerID) as HTMLDivElement;
 
         this.createRectangleRegionButton = document.getElementById(MapEditorUI.createRectangleRegionButtonID) as HTMLButtonElement;
         this.createCircleRegionButton = document.getElementById(MapEditorUI.createCircleRegionButtonID) as HTMLButtonElement;
@@ -78,6 +84,12 @@ class MapEditorUI {
 
         // Hide add anchor button initially
         this.addAnchorButton.style.display = 'none';
+
+        // Setup Initial UI sidebar visibiliy
+        this.setCreateRegionSidebarVisibility(true);
+        this.setRegionLayersSidebarVisibility(true);
+        this.setRegionToolsSidebarVisibility(false);
+        this.setRegionEditInfoSidebarVisibility(false);
     }
 
     // #region Initialization Methods
@@ -164,7 +176,7 @@ class MapEditorUI {
         this.sidebarRegionLayersContainer.style.display = isVisible ? 'block' : 'none';
     }
     private setRegionEditInfoSidebarVisibility(isVisible: boolean): void {
-        // Implementation for region info sidebar visibility
+        this.sidebarRegionEditInfoContainer.style.display = isVisible ? 'block' : 'none';
     }
 
     // #endregion
@@ -272,7 +284,21 @@ class MapEditorUI {
      * Called when the active editing region changes.
      */
     public onActiveEditingRegionChanged(): void {
+        // Change the sidebar UI to show region editing info and tools OR hide them if no active region
+        const isActivelyEditing = MapRegionRegionManager.INSTANCE.ActiveEditingRegion !== null;
+
+        this.setCreateRegionSidebarVisibility(isActivelyEditing ? false : true);
+        this.setRegionToolsSidebarVisibility(isActivelyEditing ? true : false);
+        this.setRegionEditInfoSidebarVisibility(isActivelyEditing ? true : false);
+
+        // Update Add Anchor button state
         this.updateAddAnchorButtonState();
+
+        // Update info panel
+        if (isActivelyEditing) {
+            const regionData = MapRegionRegionManager.INSTANCE.ActiveEditingRegion!.RegionData;
+            MapEditorUIRegionInfoManager.INSTANCE.updateRegionInfoPanel(regionData);
+        }
     }
 
     /**
@@ -293,6 +319,82 @@ class MapEditorUI {
         } else {
             this.addAnchorButton.classList.remove('active-tool');
         }
+    }
+}
+
+class MapEditorUIRegionInfoManager {
+    private static instance: MapEditorUIRegionInfoManager;
+    public static get INSTANCE(): MapEditorUIRegionInfoManager { return MapEditorUIRegionInfoManager.instance; }
+
+    // Absolute Element ID references
+    private static readonly regionInfoNameFieldID: string = "region-info-name";
+    private static readonly regionInfoTypeFieldID: string = "region-info-type";
+    private static readonly regionInfoRestrictionFieldID: string = "region-info-restriction";
+    private static readonly regionInfoVisibilityFieldID: string = "region-info-visibility";
+
+    private static readonly regionInfoFillColorTextFieldID: string = "region-info-fill-color-text";
+    private static readonly regionInfoFillColorSwatchID: string = "region-info-fill-color-swatch";
+
+    private static readonly regionInfoBorderColorTextFieldID: string = "region-info-border-color-text";
+    private static readonly regionInfoBorderColorSwatchID: string = "region-info-border-color-swatch";
+
+    private static readonly regionInfoFillOpacityFieldID: string = "region-info-fill-opacity";
+    private static readonly regionInfoBorderOpacityFieldID: string = "region-info-border-opacity";
+
+    // Direct Element References (initialized in constructor)
+    private regionInfoNameField!: HTMLSpanElement
+    private regionInfoTypeField!: HTMLSpanElement
+    private regionInfoRestrictionField!: HTMLSpanElement
+    private regionInfoVisibilityField!: HTMLSpanElement;
+    private regionInfoFillColorTextField!: HTMLSpanElement;
+    private regionInfoFillColorSwatch!: HTMLSpanElement;
+    private regionInfoBorderColorTextField!: HTMLSpanElement;
+    private regionInfoBorderColorSwatch!: HTMLSpanElement;
+    private regionInfoFillOpacityField!: HTMLSpanElement;
+    private regionInfoBorderOpacityField!: HTMLSpanElement;
+
+    constructor() {
+        // Ensure singleton instance
+        if (MapEditorUIRegionInfoManager.instance) {
+            console.error("MapEditorUIRegionInfoManager instance already exists!");
+            return;
+        }
+        MapEditorUIRegionInfoManager.instance = this;
+
+        // Initialize elements
+        this.regionInfoNameField = document.getElementById(MapEditorUIRegionInfoManager.regionInfoNameFieldID) as HTMLSpanElement;
+        this.regionInfoTypeField = document.getElementById(MapEditorUIRegionInfoManager.regionInfoTypeFieldID) as HTMLSpanElement;
+        this.regionInfoRestrictionField = document.getElementById(MapEditorUIRegionInfoManager.regionInfoRestrictionFieldID) as HTMLSpanElement;
+        this.regionInfoVisibilityField = document.getElementById(MapEditorUIRegionInfoManager.regionInfoVisibilityFieldID) as HTMLSpanElement;
+        this.regionInfoFillColorTextField = document.getElementById(MapEditorUIRegionInfoManager.regionInfoFillColorTextFieldID) as HTMLSpanElement;
+        this.regionInfoFillColorSwatch = document.getElementById(MapEditorUIRegionInfoManager.regionInfoFillColorSwatchID) as HTMLSpanElement;
+        this.regionInfoBorderColorTextField = document.getElementById(MapEditorUIRegionInfoManager.regionInfoBorderColorTextFieldID) as HTMLSpanElement;
+        this.regionInfoBorderColorSwatch = document.getElementById(MapEditorUIRegionInfoManager.regionInfoBorderColorSwatchID) as HTMLSpanElement;
+        this.regionInfoFillOpacityField = document.getElementById(MapEditorUIRegionInfoManager.regionInfoFillOpacityFieldID) as HTMLSpanElement;
+        this.regionInfoBorderOpacityField = document.getElementById(MapEditorUIRegionInfoManager.regionInfoBorderOpacityFieldID) as HTMLSpanElement;
+    }
+
+    /**
+     * Updates the region information on the sidebar info panel.
+     */
+    public updateRegionInfoPanel(regionData: RegionData): void {
+        // Update text fields
+        this.regionInfoNameField.textContent = regionData.General.Name || "Unnamed";
+        this.regionInfoTypeField.textContent = RegionType[regionData.RegionType];
+        this.regionInfoRestrictionField.textContent = regionData.General.IsRestricted ? "Restricted" : "Unrestricted";
+        this.regionInfoVisibilityField.textContent = regionData.General.IsVisible ? "Visible" : "Hidden";
+
+        // Update fill color
+        this.regionInfoFillColorTextField.textContent = regionData.Style.FillColor;
+        this.regionInfoFillColorSwatch.style.backgroundColor = regionData.Style.FillColor;
+
+        // Update border color
+        this.regionInfoBorderColorTextField.textContent = regionData.Style.BorderColor;
+        this.regionInfoBorderColorSwatch.style.backgroundColor = regionData.Style.BorderColor;
+
+        // Update opacities
+        this.regionInfoFillOpacityField.textContent = regionData.Style.FillOpacity.toString();
+        this.regionInfoBorderOpacityField.textContent = regionData.Style.BorderOpacity.toString();
     }
 }
 

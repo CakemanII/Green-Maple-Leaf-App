@@ -54,6 +54,7 @@ class MapRegionEditor
         // Initialize Management Classes
         new MapRegionAnchorManager();
         new MapRegionRegionManager();
+        new MapRegionDataManager();
 
         // Initialize UI
         new MapEditorUI();
@@ -832,43 +833,23 @@ class MapRegionRegionManager
     loadRegion(regionData: RegionData, pushToRegionsArray: boolean = true) : MapRegion | null {
         let newRegion: MapRegion;
 
-        // Get frontend data and style options
-        const frontendData: FrontendAnchorData = regionData.FrontEndData
-        const stylePreferences: RegionStyleParameters = {
-            color: regionData.Style.FillColor,
-            opacity: regionData.Style.FillOpacity,
-            restricted: regionData.General.IsRestricted,
-            label: regionData.General.Name
-        };
-
         // Create region based on type
         switch (regionData.RegionType) {
             // Rectangle
             case RegionType.Rectangle:
-                newRegion = new MapRectangleRegion(frontendData);
+                newRegion = new MapRectangleRegion(regionData);
                 break;
             
             // Circle
             case RegionType.Circle:
-                newRegion = new MapCircleRegion(frontendData);
+                newRegion = new MapCircleRegion(regionData);
                 break;
             
             // Custom Freeform
             case RegionType.Freeform:
-                newRegion = new MapFreeformRegion(frontendData); // Use base rectangle class for custom shapes
+                newRegion = new MapFreeformRegion(regionData); // Use base rectangle class for custom shapes
                 break;
         }
-
-        // Apply style options
-        const defaultStyle: RegionStyleParameters = {
-            color: "#3388ff",
-            opacity: 0.3,
-            restricted: false,
-            label: regionData.General.Name
-        };
-
-        const finalStyle: RegionStyleParameters = { ...defaultStyle, ...stylePreferences };
-        newRegion.updateStyleParameters(finalStyle);
 
         // Add region to the regions array
         if (pushToRegionsArray)
@@ -1000,7 +981,7 @@ class MapRegionRegionManager
      * @param {MapRegion} region - The region to load into the editor
      * @returns {boolean} True if the region was successfully loaded for editing
      */
-    loadRegionAnchorsIntoEditor(region: MapRegion) {
+    public loadRegionAnchorsIntoEditor(region: MapRegion) {
         if (!region) {
             console.error('Cannot load null/undefined region into editor');
             return false;
@@ -1048,7 +1029,7 @@ class MapRegionRegionManager
      * Stops editing the current region and clears the editor.
      * @returns {boolean} True if editing was successfully stopped
      */
-    stopEditingRegion() {
+    public stopEditingRegion() {
         if (this.activeEditingRegion) {
             // Save any changes before stopping
             // this.saveRegionFromEditor();
@@ -1128,6 +1109,30 @@ class MapRegionRegionManager
     public get IsEditingRegion(): boolean { return this.activeEditingRegion !== null; }
 
     // #endregion
+}
+
+/**
+ * Class for managing conversions from region to region data and etc.
+ */
+class MapRegionDataManager
+{
+    private static instance: MapRegionDataManager;
+    public static get INSTANCE(): MapRegionDataManager { return MapRegionDataManager.instance; }
+
+    public regionDatas: RegionData[]; // All region data managed by the editor
+
+    constructor()
+    {
+        // Ensure singleton instance
+        if (MapRegionDataManager.instance)
+        {
+            console.error("MapRegionDataManager instance already exists!");
+        }
+        MapRegionDataManager.instance = this;
+
+        // Initialization primary fields
+        this.regionDatas = [];
+    }
 }
 
 /**
@@ -1570,6 +1575,23 @@ class MapRegionEditorKeyStates
             } else if (e.key === 'z') {
                 this.zPressed = false;
             }
+        });
+    }
+}
+
+/**
+ * Utility class with helper functions.
+ */
+class Utils 
+{
+    /**
+     * Create UUIDv4 string
+     */
+    public static createUUIDv4(): string {
+        // Generate a random UUIDv4 string
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
         });
     }
 }
