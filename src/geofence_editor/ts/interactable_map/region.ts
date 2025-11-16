@@ -62,6 +62,8 @@ type RegionData = {
  */
 abstract class MapRegion 
 {
+    public abstract readonly regionType: RegionType; 
+
     // Primary properties
     private shapeAreaActive: boolean;
     private selfIntercepting: boolean;
@@ -425,6 +427,8 @@ abstract class MapRegion
  */
 class MapFreeformRegion extends MapRegion
 {
+    public override readonly regionType: RegionType = RegionType.Freeform;
+
     constructor(frontendShapePointData: FrontendAnchorData | null) { super(frontendShapePointData); }
 
     protected override translateToBackendData() : void { // (1 to 1 conversion)
@@ -446,6 +450,8 @@ class MapFreeformRegion extends MapRegion
  */
 class MapRectangleRegion extends MapRegion
 {  
+    public override readonly regionType: RegionType = RegionType.Rectangle;
+
     constructor(frontendShapePointData: FrontendAnchorData | null) { super(frontendShapePointData); }
 
     // (0, 0) is center
@@ -477,6 +483,8 @@ class MapRectangleRegion extends MapRegion
  */ 
 class MapCircleRegion extends MapRegion
 {
+    public override readonly regionType: RegionType = RegionType.Circle;
+
     constructor(frontendShapePointData: FrontendAnchorData | null) { super(frontendShapePointData); }
 
     protected override GET_INTIAL_FRONTEND_CONFIGURATION() : FrontendAnchorData 

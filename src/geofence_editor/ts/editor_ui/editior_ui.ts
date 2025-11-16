@@ -3,6 +3,10 @@ class MapEditorUI {
     public static get INSTANCE(): MapEditorUI { return MapEditorUI.instance; }
 
     // Absolute Element ID references
+    private static readonly sidebarCreateRegionContainerID: string = "sidebar-create-region-container";
+    private static readonly sidebarRegionToolsContainerID: string = "sidebar-region-tools-container";
+    private static readonly sidebarRegionLayersContainerID: string = "sidebar-region-layers-container";
+
     private static readonly createRectangleRegionButtonID: string = "btn-create-rectangle-region";
     private static readonly createCircleRegionButtonID: string = "btn-create-circle-region"
     private static readonly createfreeformRegionButtonID: string = "btn-create-freeform-region";
@@ -19,6 +23,10 @@ class MapEditorUI {
     private static readonly mapModeFooterElementID = "map-mode";
 
     // Direct Element References (initialized in constructor)
+    private sidebarCreateRegionContainer!: HTMLDivElement;
+    private sidebarRegionToolsContainer!: HTMLDivElement
+    private sidebarRegionLayersContainer!: HTMLDivElement;
+
     private createRectangleRegionButton!: HTMLButtonElement;
     private createCircleRegionButton!: HTMLButtonElement;
     private createfreeformRegionButton!: HTMLButtonElement;
@@ -46,6 +54,10 @@ class MapEditorUI {
         MapEditorUI.instance = this;
 
         // Initialize elements        
+        this.sidebarCreateRegionContainer = document.getElementById(MapEditorUI.sidebarCreateRegionContainerID) as HTMLDivElement;
+        this.sidebarRegionToolsContainer = document.getElementById(MapEditorUI.sidebarRegionToolsContainerID) as HTMLDivElement;
+        this.sidebarRegionLayersContainer = document.getElementById(MapEditorUI.sidebarRegionLayersContainerID) as HTMLDivElement;
+
         this.createRectangleRegionButton = document.getElementById(MapEditorUI.createRectangleRegionButtonID) as HTMLButtonElement;
         this.createCircleRegionButton = document.getElementById(MapEditorUI.createCircleRegionButtonID) as HTMLButtonElement;
         this.createfreeformRegionButton = document.getElementById(MapEditorUI.createfreeformRegionButtonID) as HTMLButtonElement;
@@ -63,6 +75,9 @@ class MapEditorUI {
         this.initializeCreateRegionButtons();
         // Initialize footer
         this.initalizeFooter();
+
+        // Hide add anchor button initially
+        this.addAnchorButton.style.display = 'none';
     }
 
     // #region Initialization Methods
@@ -72,16 +87,38 @@ class MapEditorUI {
         this.rotateToolButton = document.getElementById(MapEditorUI.rotateToolButtonID) as HTMLButtonElement;
         this.addAnchorButton = document.getElementById(MapEditorUI.addAnchorButtonID) as HTMLButtonElement;
 
-        const toolButtons = [this.moveToolButton, this.rotateToolButton, this.scaleToolButton];
-        toolButtons.forEach(button => {
+        // Primary Tool Buttons
+        const primaryToolButtons = [this.moveToolButton, this.rotateToolButton, this.scaleToolButton];
+        primaryToolButtons.forEach(button => {
             if (button) {
                 button.addEventListener('click', () => {
                     const tool = button.querySelector('span')?.textContent;
                     if (tool) {
-                        MapRegionEditor.INSTANCE.setActiveTool(tool);
+                        let mapTool: ToolType;
+                        switch (tool) {
+                            case "Move":
+                                mapTool = ToolType.Move;
+                                break;
+                            case "Rotate":
+                                mapTool = ToolType.Rotate;
+                                break;
+                            case "Scale":
+                                mapTool = ToolType.Scale;
+                                break;
+                            default:
+                                console.error(`Unknown tool: ${tool}`);
+                                return;
+                        }
+
+                        MapRegionEditor.INSTANCE.setActivePrimaryTool(mapTool);
                     }
                 });
             }
+        });
+
+        // Add Anchor Button
+        this.addAnchorButton.addEventListener('click', () => {
+            MapRegionEditor.INSTANCE.setActiveAddAnchorTool(!MapRegionEditor.INSTANCE.IsAddAnchorToolActive);
         });
     }
 
@@ -102,44 +139,112 @@ class MapEditorUI {
         this.createCircleRegionButton = document.getElementById(MapEditorUI.createCircleRegionButtonID) as HTMLButtonElement;
         this.createfreeformRegionButton = document.getElementById(MapEditorUI.createfreeformRegionButtonID) as HTMLButtonElement;
 
-        this.createRectangleRegionButton.addEventListener('click', () => {
-            MapRegionRegionManager.INSTANCE.startCreatingRegionFromEditor(RegionType.Rectangle);
-        });
+        const regionButtons: Array<[HTMLButtonElement, RegionType]> = [
+            [this.createRectangleRegionButton, RegionType.Rectangle],
+            [this.createCircleRegionButton, RegionType.Circle],
+            [this.createfreeformRegionButton, RegionType.Freeform]
+        ];
 
-        this.createCircleRegionButton.addEventListener('click', () => {
-            MapRegionRegionManager.INSTANCE.startCreatingRegionFromEditor(RegionType.Circle);
-        });
-
-        this.createfreeformRegionButton.addEventListener('click', () => {
-            MapRegionRegionManager.INSTANCE.startCreatingRegionFromEditor(RegionType.Freeform);
+        regionButtons.forEach(([button, type]) => {
+            button.addEventListener('click', () => {
+                MapRegionRegionManager.INSTANCE.createRegionFromEditorTriggered(type);
+            });
         });
     }
     // #endregion
+
+    // #region Sidebar main visibility methods
+    private setCreateRegionSidebarVisibility(isVisible: boolean): void {
+        this.sidebarCreateRegionContainer.style.display = isVisible ? 'block' : 'none';
+    }
+    private setRegionToolsSidebarVisibility(isVisible: boolean): void {
+        this.sidebarRegionToolsContainer.style.display = isVisible ? 'block' : 'none';
+    }
+    private setRegionLayersSidebarVisibility(isVisible: boolean): void {
+        this.sidebarRegionLayersContainer.style.display = isVisible ? 'block' : 'none';
+    }
+    private setRegionEditInfoSidebarVisibility(isVisible: boolean): void {
+        // Implementation for region info sidebar visibility
+    }
+
+    // #endregion
+
+    /**
+     * Updates the visual selection state of the create region buttons.
+     */
+    public setCreateRegionButtonSelection(regionType: RegionType | null, isActive: boolean): void {
+        // Reset all buttons
+        const buttons = [
+            this.createRectangleRegionButton,
+            this.createCircleRegionButton,
+            this.createfreeformRegionButton
+        ];
+
+        buttons.forEach(button => {
+            button.classList.remove('active-tool');
+        });
+
+        // Stop if not active
+        if (!isActive) { return;}
+
+        // Highlight the selected button
+        if (regionType !== null) {
+            let selectedButton: HTMLButtonElement | null = null;
+            switch (regionType) {
+                case RegionType.Rectangle:
+                    selectedButton = this.createRectangleRegionButton;
+                    break;
+                case RegionType.Circle:
+                    selectedButton = this.createCircleRegionButton;
+                    break;
+                case RegionType.Freeform:
+                    selectedButton = this.createfreeformRegionButton;
+                    break;
+            }
+            // Set the selected button as active
+            if (selectedButton) {
+                selectedButton.classList.add('active-tool');
+            }
+        }
+    }
 
     /**
      * Updates the active tool display in the UI.
      */
     public updateActiveToolDisplay(): void {
         // Get the current active tool name
-        const activeToolName: string = MapRegionEditor.INSTANCE.ActiveTool ? MapRegionEditor.INSTANCE.ActiveTool.ToolName : "none";
+        const activeToolType: ToolType | null = MapRegionEditor.INSTANCE.ActivePrimaryTool ? MapRegionEditor.INSTANCE.ActivePrimaryTool.ToolType : null;
+        if (activeToolType === null || activeToolType === undefined) {
+            this.mapModeFooter.textContent = `Active Tool: None`;
+            return;
+        }
 
-        // Visually unhighlight all tool buttons
-        const toolButtons = [this.moveToolButton, this.rotateToolButton, this.scaleToolButton, this.addAnchorButton];
-        toolButtons.forEach(button => {
+        const activeToolName: string = ToolType[activeToolType].toLowerCase().replace('tool', '').trim();
+
+        // Visually unhighlight all PRIMARY tool buttons (not add anchor button)
+        const primaryToolButtons = [this.moveToolButton, this.rotateToolButton, this.scaleToolButton];
+        primaryToolButtons.forEach(button => {
             button.classList.remove('active-tool');
         });
 
-        // Highlight the active tool button
-        const toolButtonMap: { [key: string]: HTMLButtonElement } = {
-            "move": this.moveToolButton,
-            "rotate": this.rotateToolButton,
-            "scale": this.scaleToolButton,
-            "add-anchor": this.addAnchorButton
+        // Highlight the active PRIMARY tool button
+        const toolButtonMap: { [key in ToolType]: HTMLButtonElement } = {
+            [ToolType.Move]: this.moveToolButton,
+            [ToolType.Rotate]: this.rotateToolButton,
+            [ToolType.Scale]: this.scaleToolButton,
+            [ToolType.AddAnchor]: this.addAnchorButton
         };
 
-        const activeButton = toolButtonMap[activeToolName];
+        const activeButton = toolButtonMap[activeToolType];
         if (activeButton) {
             activeButton.classList.add('active-tool');
+        }
+
+        // Handle add anchor button state separately (it's independent of primary tools)
+        if (MapRegionEditor.INSTANCE.IsAddAnchorToolActive) {
+            this.addAnchorButton.classList.add('active-tool');
+        } else {
+            this.addAnchorButton.classList.remove('active-tool');
         }
 
         // Convert to title case for display
@@ -161,6 +266,33 @@ class MapEditorUI {
 
         // Iterate through regions and create UI layers
         MapRegionRegionManager.INSTANCE.getAllRegions().forEach(region => { new MapEditorUILayer(region); });
+    }
+
+    /**
+     * Called when the active editing region changes.
+     */
+    public onActiveEditingRegionChanged(): void {
+        this.updateAddAnchorButtonState();
+    }
+
+    /**
+     * Updates the Add Anchor button state based on the active editing region.
+     */
+    private updateAddAnchorButtonState(): void {
+        // Hide if active region is not freeform
+        const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
+        if (!activeRegion || activeRegion.regionType !== RegionType.Freeform) {
+            this.addAnchorButton.style.display = 'none';
+        } else {
+            this.addAnchorButton.style.display = 'inline-block';
+        }
+
+        // Update Add Anchor button state
+        if (MapRegionEditor.INSTANCE.IsAddAnchorToolActive) {
+            this.addAnchorButton.classList.add('active-tool');
+        } else {
+            this.addAnchorButton.classList.remove('active-tool');
+        }
     }
 }
 
@@ -190,7 +322,7 @@ class MapEditorUILayer {
 
         // Set region visibility
         if (!regionData.IsVisible) {
-            this.setVisibiliyButtonState(false);
+            this.updateVisibilityButtonState(false);
         }
     }
 
@@ -261,7 +393,7 @@ class MapEditorUILayer {
     }
 
     // #region UI Button
-    private setVisibiliyButtonState(isVisible: boolean): void {
+    private updateVisibilityButtonState(isVisible: boolean): void {
         if (isVisible) {
             this.hideRegionButton.innerHTML = `<i class="fas fa-eye"></i>`;
             this.hideRegionButton.title = "Hide Region";

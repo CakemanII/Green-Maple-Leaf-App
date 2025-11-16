@@ -30,8 +30,14 @@ class MapRegionEditor
     private static instance: MapRegionEditor;
     public static get INSTANCE(): MapRegionEditor { return MapRegionEditor.instance; }
 
-    private activeTool: MapRegionEditorTool | null = null;
-    public get ActiveTool(): MapRegionEditorTool | null { return this.activeTool; }
+    private activePrimaryTool: MapRegionEditorTool | null = null;
+    public get ActivePrimaryTool(): MapRegionEditorTool | null { return this.activePrimaryTool; }
+
+    private activeAddAnchorTool: MapRegionEditorAddAnchorTool | null = null;
+    public get IsAddAnchorToolActive(): boolean { return this.activeAddAnchorTool !== null; }
+
+    private justFinishedDragging: boolean = false;
+    public get JustFinishedDragging(): boolean { return this.justFinishedDragging; }
 
     constructor()
     {
@@ -53,7 +59,7 @@ class MapRegionEditor
         new MapEditorUI();
 
         // Setup the tool state
-        this.setActiveTool('move');
+        this.setActivePrimaryTool(ToolType.Move);
 
         // Start with creation UI mode
         this.showCreationUI();
@@ -92,8 +98,8 @@ class MapRegionEditor
      * Called when an anchor is being dragged
      */
     onAnchorDrag(anchorPoint: AnchorPoint) {
-        if (this.activeTool) {
-            this.activeTool!.onAnchorDrag(anchorPoint);
+        if (this.activePrimaryTool) {
+            this.activePrimaryTool!.onAnchorDrag(anchorPoint);
         }
         MapRegionRegionManager.INSTANCE.updateActiveRegionFrontend();
     }
@@ -102,18 +108,24 @@ class MapRegionEditor
      * Called when an anchor drag operation ends
      */
     onAnchorDragEnd(anchorPoint: AnchorPoint) {
-        if (this.activeTool) {
-            this.activeTool.onAnchorDragEnd(anchorPoint);
+        if (this.activePrimaryTool) {
+            this.activePrimaryTool.onAnchorDragEnd(anchorPoint);
         }
         MapRegionRegionManager.INSTANCE.updateActiveRegionFrontend();
+        
+        // Set flag to prevent click event from firing immediately after drag
+        this.justFinishedDragging = true;
+        setTimeout(() => {
+            this.justFinishedDragging = false;
+        }, 100);
     }
 
     /**
      * Called when a control handle is being dragged
      */
     onHandleDrag(anchorPoint: AnchorPoint, isIncoming: boolean) {
-        if (this.activeTool) {
-            this.activeTool!.onHandleDrag(anchorPoint, isIncoming);
+        if (this.activePrimaryTool) {
+            this.activePrimaryTool!.onHandleDrag(anchorPoint, isIncoming);
         }
 
         MapRegionRegionManager.INSTANCE.updateActiveRegionFrontend();
@@ -153,8 +165,8 @@ class MapRegionEditor
         }
 
         // Trigger the tool
-        if (this.activeTool) {
-            this.activeTool.onAnchorClick(anchorPoint);
+        if (this.activePrimaryTool) {
+            this.activePrimaryTool.onAnchorClick(anchorPoint);
         }
     }
 
@@ -162,8 +174,8 @@ class MapRegionEditor
      * Called when a control handle is clicked
      */
     onHandleClick(anchorPoint: AnchorPoint, isIncoming: boolean) {
-        if (this.activeTool) {
-            this.activeTool.onHandleClick(anchorPoint, isIncoming);
+        if (this.activePrimaryTool) {
+            this.activePrimaryTool.onHandleClick(anchorPoint, isIncoming);
         }
     }
 
@@ -171,8 +183,8 @@ class MapRegionEditor
      * Called when an anchor is right-clicked
      */
     onAnchorRightClick(anchorPoint: AnchorPoint, event: any) {
-        if (this.activeTool) {
-            this.activeTool.onAnchorRightClick(anchorPoint, event);
+        if (this.activePrimaryTool) {
+            this.activePrimaryTool.onAnchorRightClick(anchorPoint, event);
         }
     }
     // #endregion
@@ -197,40 +209,39 @@ class MapRegionEditor
 
     // #region Tools
     /**
-     * Sets the active tool based on the provided tool name.
-     * @param {String} toolName - Name of the tool to activate ('scale', 'rotate', 'move').
+     * Sets the active primary tool based on the provided tool given.
      */
-    setActiveTool(toolName: string)
+    public setActivePrimaryTool(editorToolType: ToolType)
     {
         // Clear all pivot and scale anchor statuses when switching tools
         MapRegionAnchorManager.INSTANCE.clearAllAnchorStatuses();
 
         // Delete the current tool
-        this.activeTool = null;
+        this.activePrimaryTool = null;
 
         // Create the new tool based on the name
-        switch (toolName.toLowerCase())
+        switch (editorToolType)
         {
-            case 'scale':
-                this.activeTool = new MapRegionEditorScaleTool();
+            case ToolType.Scale:
+                this.activePrimaryTool = new MapRegionEditorScaleTool();
                 // Set centralized point as default scale anchor with visual indicator
                 if (MapRegionAnchorManager.INSTANCE.CentralizedPoint) {
                     MapRegionAnchorManager.INSTANCE.setScaleAnchor(MapRegionAnchorManager.INSTANCE.CentralizedPoint);
                 }
                 break;
-            case 'rotate':
-                this.activeTool = new MapRegionEditorRotateTool();
+            case ToolType.Rotate:
+                this.activePrimaryTool = new MapRegionEditorRotateTool();
                 // Set centralized point as default pivot anchor with visual indicator
                 if (MapRegionAnchorManager.INSTANCE.CentralizedPoint) {
                     MapRegionAnchorManager.INSTANCE.setPivotAnchor(MapRegionAnchorManager.INSTANCE.CentralizedPoint);
                 }
                 break;
-            case 'move':
-                this.activeTool = new MapRegionEditorTranslateTool();
+            case ToolType.Move:
+                this.activePrimaryTool = new MapRegionEditorTranslateTool();
                 // No special centralized point status needed for move tool
                 break;
             default:
-                console.warn("Unknown tool name: " + toolName);
+                console.warn("Unknown tool name: " + editorToolType);
                 break;
         }
         
@@ -243,15 +254,21 @@ class MapRegionEditor
     }
 
     /**
-     * Legacy method for backward compatibility. Delegates to setActiveTool.
-     * @param {String} toolName - Name of the tool to activate ('scale', 'rotate', 'translate').
+     * Sets the active add anchor tool based on the provided flag.
      */
-    setTool(toolName: string) {
-        // Map 'translate' to 'move' for consistency
-        if (toolName === 'translate') {
-            toolName = 'move';
+    public setActiveAddAnchorTool(isActive: boolean)
+    {
+        if (isActive) {
+            this.activeAddAnchorTool = new MapRegionEditorAddAnchorTool();
         }
-        this.setActiveTool(toolName);
+        else
+        {
+            this.activeAddAnchorTool?.removeTool();
+            this.activeAddAnchorTool = null;
+        }
+
+        // Update the UI to reflect the add anchor tool state
+        MapEditorUI.INSTANCE.updateActiveToolDisplay();
     }
 
     // #endregion
@@ -637,9 +654,34 @@ class MapRegionAnchorManager
         if (pushToAnchorPoints) {
             if (insertBetweenClosests && this.activeAnchorPoints.length >= 2) {
                 // Find the two closest anchors and insert between them
+                console.log("Inserting anchor between closest anchors");
                 const closestInfo = this.findTwoClosestAnchors(latlng);
-                const insertIndex = Math.max(closestInfo.firstIndex, closestInfo.secondIndex);
+                
+                // Determine the correct insertion index
+                // Check if the two closest anchors are adjacent in the array
+                const minIndex = Math.min(closestInfo.firstIndex, closestInfo.secondIndex);
+                const maxIndex = Math.max(closestInfo.firstIndex, closestInfo.secondIndex);
+                
+                // Check if they're adjacent or if they wrap around (first and last in a closed loop)
+                const areAdjacent = (maxIndex - minIndex === 1);
+                const wrapAround = (minIndex === 0 && maxIndex === this.activeAnchorPoints.length - 1);
+                
+                let insertIndex: number;
+                if (areAdjacent) {
+                    // Insert after the lower index (between the two adjacent anchors)
+                    insertIndex = maxIndex;
+                } else if (wrapAround) {
+                    // Insert at the end (which connects back to the beginning)
+                    insertIndex = this.activeAnchorPoints.length;
+                } else {
+                    // Not adjacent - this shouldn't happen in a well-formed closed region
+                    // Default to inserting after the higher index
+                    console.warn("Closest anchors are not adjacent. This may indicate an issue with region structure.");
+                    insertIndex = maxIndex;
+                }
+                
                 this.activeAnchorPoints.splice(insertIndex, 0, newAnchor);
+                console.log(`Inserted anchor at index ${insertIndex} between anchors ${minIndex} and ${maxIndex}`);
             } else {
                 // Simply push to the end
                 this.activeAnchorPoints.push(newAnchor);
@@ -947,6 +989,9 @@ class MapRegionRegionManager
 
         // Load the active region's anchor points into the anchor manager
         this.loadRegionAnchorsIntoEditor(this.activeEditingRegion);
+
+        // Update the add anchor button state
+        MapEditorUI.INSTANCE.onActiveEditingRegionChanged();
     }
 
     // #region Region Management Functions
@@ -1025,18 +1070,37 @@ class MapRegionRegionManager
     // #endregion
 
     // #region Create Region From Editor
-    public startCreatingRegionFromEditor(regionType: RegionType)
+    public createRegionFromEditorTriggered(regionType: RegionType) 
     {
         if (this.IsEditingRegion && false) { // disabled for now
             console.warn('Cannot start creating a new region while editing an existing region. Stop editing first.');
             return;
         }
 
+        if (this.IsCreatingRegionFromEditor)
+        {
+            if (this.GetCreatingRegionType === regionType) {
+                // Cancel current creation
+                console.log('Cancelling current region creation of type:', regionType);
+                this.editorRegionCreator!.cancelRegionCreation();
+            }
+            else
+            {
+                console.warn('Already creating a region of type:', this.GetCreatingRegionType, '. Finish or cancel it before starting a new one of type:', regionType);
+            }
+        }
+        else
+        {
+            this.startCreatingRegionFromEditor(regionType);
+        }
+    }
+
+    private startCreatingRegionFromEditor(regionType: RegionType)
+    {
         if (this.IsCreatingRegionFromEditor) {
             console.warn('Already creating a region. Finish or cancel the current creation first.');
             return;
         }
-
         this.editorRegionCreator = new MapRegionCreatorEditorHandler(regionType);
         console.log('Started creating new region of type:', regionType);
     }
@@ -1051,7 +1115,7 @@ class MapRegionRegionManager
             console.error('Mismatched region creator handler. Cannot finalize creation.');
             return;
         }
-
+        console.log("Finalizing region creation from editor.");
         // Remove the region creator handler
         this.editorRegionCreator = null;
     }
@@ -1060,6 +1124,7 @@ class MapRegionRegionManager
 
     // #region State Getters
     public get IsCreatingRegionFromEditor(): boolean { return this.editorRegionCreator !== null; }
+    public get GetCreatingRegionType(): RegionType | null { return this.editorRegionCreator ? this.editorRegionCreator['regionType'] : null; }
     public get IsEditingRegion(): boolean { return this.activeEditingRegion !== null; }
 
     // #endregion
@@ -1073,6 +1138,7 @@ class MapRegionRegionManager
 class MapRegionCreatorEditorHandler
 {
     private regionType: RegionType; // Type of region being created
+    public get RegionType(): RegionType { return this.regionType; }
 
     private placedDataPoints: L.LatLng[]; // Points already placed by the user
 
@@ -1102,6 +1168,12 @@ class MapRegionCreatorEditorHandler
 
         // Initialize mouse click listener to add points
         this.initializeMouseListeners();
+
+        // Initialize escape key listener to cancel creation
+        this.initializeEscapeKeyListener();
+
+        // Update the region creation button UI in the Editor
+        MapEditorUI.INSTANCE.setCreateRegionButtonSelection(regionType, true);
     }
 
     /**
@@ -1127,6 +1199,21 @@ class MapRegionCreatorEditorHandler
                 this.updateRegionShapeVisual();
             }
         });
+    }
+
+    /**
+     * Initialize escape key listener to cancel region creation.
+     */
+    private initializeEscapeKeyListener()
+    {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (this.creationComplete) return; // Ignore when creation is complete
+            if (e.key === 'Escape') {
+                // Cleanup and cancel region creation
+                this.cancelRegionCreation();
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
     }
 
     /**
@@ -1381,7 +1468,25 @@ class MapRegionCreatorEditorHandler
             MapRegionRegionManager.INSTANCE.getAllRegions().length - 1
         );
 
+        // Update the editor UI
+        MapEditorUI.INSTANCE.setCreateRegionButtonSelection(this.regionType, false);
+
         // Call back to region manager to indicate creation is complete
+        MapRegionRegionManager.INSTANCE.finishedCreatingRegionFromEditor(this);
+    }
+
+    /**
+     * Cancel the region creation process.
+     */
+    public cancelRegionCreation()
+    {
+        console.log("Escape triggered");
+        this.creationComplete = true;
+        // Cleanup temporary visuals and data
+        this.cleanup();
+        // Update the editor UI
+        MapEditorUI.INSTANCE.setCreateRegionButtonSelection(this.regionType, false);
+        // Call back to region manager to indicate creation is cancelled
         MapRegionRegionManager.INSTANCE.finishedCreatingRegionFromEditor(this);
     }
 }
@@ -1404,6 +1509,12 @@ class MapRegionEditorKeyStates
     public get isDeletePressedDown() { return this.deletePressed; }
     private zPressed: boolean;
     public get isZPressedDown() { return this.zPressed; }
+
+    public ctrlPressedDownListeners: Array<() => void> = [];
+    public shiftPressedDownListeners: Array<() => void> = [];
+    public altPressedDownListeners: Array<() => void> = [];
+    public deletePressedDownListeners: Array<() => void> = [];
+    public zPressedDownListeners: Array<() => void> = [];
 
     constructor()
     {
@@ -1429,14 +1540,20 @@ class MapRegionEditorKeyStates
         // Keydown listeners
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Control') {
+                // Notify listeners on ctrl press
+                for (const listener of this.ctrlPressedDownListeners) { listener(); }
                 this.ctrlPressed = true;
             } else if (e.key === 'Shift') {
+                for (const listener of this.shiftPressedDownListeners) { listener();}
                 this.shiftPressed = true;
             } else if (e.key === 'Alt') {
+                for (const listener of this.altPressedDownListeners) { listener(); }
                 this.altPressed = true;
             } else if (e.key === 'Delete') {
+                for (const listener of this.deletePressedDownListeners) { listener(); }
                 this.deletePressed = true;
             } else if (e.key === 'z') {
+                for (const listener of this.zPressedDownListeners) { listener(); }
                 this.zPressed = true;
             }
         });

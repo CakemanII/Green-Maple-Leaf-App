@@ -114,6 +114,15 @@
         .region-button:hover {
             background-color: #1a1a1a;
         }
+
+        .region-button.active-tool {
+            background-color: #2a4a6a;
+            border: 2px solid #6ba3ff;
+        }
+
+        .region-button.active-tool:hover {
+            background-color: #325a7a;
+        }
         
         .region-button i {
             width: 16px;
@@ -187,6 +196,30 @@
                 transform: rotate(360deg);
             }
         }
+
+        /* Add anchor tool - full width button */
+        #btn-tool-add-anchor {
+            width: 100%;
+        }
+
+        #btn-tool-add-anchor:hover i,
+        #btn-tool-add-anchor.active-tool:hover i {
+            animation: anchorDrop 0.6s ease;
+        }
+
+        @keyframes anchorDrop {
+            0% {
+                transform: translateY(-4px);
+                opacity: 0.7;
+            }
+            50% {
+                transform: translateY(2px);
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
         
         .toggle-button {
             display: flex;
@@ -208,10 +241,6 @@
             background-color: #1a1a1a;
         }
         
-        .toggle-button:hover i {
-            animation: anchorDrop 0.6s ease;
-        }
-        
         .toggle-button.active {
             background-color: #6ba3ff;
             color: #0d0d0d;
@@ -224,20 +253,6 @@
         .toggle-button i {
             font-size: 14px;
             transition: transform 0.3s ease;
-        }
-        
-        @keyframes anchorDrop {
-            0% {
-                transform: translateY(-4px);
-                opacity: 0.7;
-            }
-            50% {
-                transform: translateY(2px);
-            }
-            100% {
-                transform: translateY(0);
-                opacity: 1;
-            }
         }
         
         @keyframes anchorSwing {
@@ -557,7 +572,7 @@
     <main>
         <section id="editor-side-panel">
             <!-- Create Regions Section -->
-            <div class="panel-section">
+            <div class="panel-section" id="sidebar-create-region-container">
                 <div class="section-content">
                     <div class="section-header">
                         <i class="fas fa-plus-circle"></i>
@@ -579,7 +594,7 @@
             </div>
             
             <!-- Region Tools Section -->
-            <div class="panel-section">
+            <div class="panel-section" id="sidebar-region-tools-container">
                 <div class="section-content">
                     <div class="section-header">
                         <i class="fas fa-tools"></i>
@@ -599,7 +614,7 @@
                             <span>Rotate</span>
                         </button>
                     </div>
-                    <button class="toggle-button" id="btn-tool-add-anchor">
+                    <button class="tool-button" id="btn-tool-add-anchor">
                         <i class="fas fa-anchor"></i>
                         <span>Add Anchors</span>
                     </button>
@@ -607,7 +622,7 @@
             </div>
             
             <!-- Map Layers Section -->
-            <div class="panel-section">
+            <div class="panel-section" id="sidebar-region-layers-container">
                 <div class="section-content">
                     <div class="section-header">
                         <i class="fas fa-layer-group"></i>

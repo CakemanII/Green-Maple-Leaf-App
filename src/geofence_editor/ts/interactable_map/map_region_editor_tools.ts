@@ -1,9 +1,15 @@
 /// <reference types="leaflet" />
 
+enum ToolType
+{
+    Move,
+    Rotate,
+    Scale,
+    AddAnchor
+}
 
 abstract class MapRegionEditorTool {
-    // Tool name
-    public abstract readonly ToolName: string;
+    public abstract readonly ToolType: ToolType;
 
     constructor() {}
     
@@ -60,9 +66,9 @@ abstract class MapRegionEditorTool {
 /**
  * Map Region Editor Translate tool (Move Tool)
  */
-class MapRegionEditorTranslateTool extends MapRegionEditorTool {
-    public override readonly ToolName: string = "move";
-    
+class MapRegionEditorTranslateTool extends MapRegionEditorTool {    
+    public override readonly ToolType: ToolType = ToolType.Move;
+
     constructor() { super();}
 
     // #region Utility Functions
@@ -194,7 +200,7 @@ class MapRegionEditorTranslateTool extends MapRegionEditorTool {
  * Map Region Editor Rotate tool (Rotate Tool)
  */
 class MapRegionEditorRotateTool extends MapRegionEditorTool {
-    public override readonly ToolName: string = "rotate";
+    public override readonly ToolType: ToolType = ToolType.Rotate;
 
     private lastAnchorMoved: AnchorPoint | null; // The last anchor point that was moved (used to calculate distance from pivot)
     private pivotDistance: number; // The distance from the pivot to the last moved anchor point
@@ -388,9 +394,9 @@ class MapRegionEditorRotateTool extends MapRegionEditorTool {
 /**
  * Map Region Editor Scale tool (Scale Tool)
  */
-class MapRegionEditorScaleTool extends MapRegionEditorTool {
-    public override readonly ToolName: string = "scale";
-    
+class MapRegionEditorScaleTool extends MapRegionEditorTool {    
+    public override readonly ToolType: ToolType = ToolType.Scale;
+
     private lastAnchorMoved: AnchorPoint | null; // The last anchor point that was moved (used to track when new drag starts)
     private originalAnchorPositions = new Map(); // Store original positions of all anchors for scaling
     private originalScaleAnchorPosition: L.LatLng | null; // Store the scale anchor's position at the start of scaling
@@ -690,21 +696,43 @@ class MapRegionEditorScaleTool extends MapRegionEditorTool {
 /**
  * Map Region Editor Add Anchor tool (Add Anchor Tool)
  */
-class MapRegionEditorAddAnchorTool extends MapRegionEditorTool {
-    public override readonly ToolName: string = "add-anchor";
-    
-    constructor() { super(); }
+class MapRegionEditorAddAnchorTool extends MapRegionEditorTool {    
+    public override readonly ToolType: ToolType = ToolType.AddAnchor;
 
-    // #region Utility Functions
+    private removed: boolean = false;
 
-    // #endregion
+    constructor() { 
+        super(); 
+
+        // Initialize map click event for adding anchor points
+        this.initalizeMapClickEvent();
+    }
+
+    /**
+     * Initialize map click event for adding anchor points.
+     */
+    public initalizeMapClickEvent()
+    {
+        InteractiveMap.mapInstance.on('click', (event: L.LeafletMouseEvent) => {
+            if (this.removed) { return; } // If tool is removed, do nothing.
+            this.mapClicked(event.latlng);
+        });
+    }
 
     // #region Main Functions
     public mapClicked(clickPosition: L.LatLng)
     {
+        // Ignore click if it's immediately after a drag operation
+        if (MapRegionEditor.INSTANCE.JustFinishedDragging) {
+            return;
+        }
+        
         // Add a new anchor point at the clicked location and put in inbetween the two closest anchors.
         MapRegionAnchorManager.INSTANCE.createAnchorPoint(clickPosition, null, null, true, true, true);
     }
+
+    public removeTool()
+    { this.removed = true; }
 
     // #endregion
 }
