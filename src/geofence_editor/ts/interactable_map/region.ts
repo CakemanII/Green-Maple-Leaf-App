@@ -438,6 +438,11 @@ abstract class MapRegion
         if (this.curveShape && this.regionData.General.IsVisible) {
             InteractiveMap.mapInstance.removeLayer(this.curveShape);
             this.regionData.General.IsVisible = false;
+            
+            // Clear highlight sequence if this region was being highlighted as long as it is the one being highlighted
+            if (MapRegionHightlightingHandler.INSTANCE.TargetHighlightUUID === this.regionData.UUID) {
+                MapRegionHightlightingHandler.INSTANCE.clearHighlightSequence();
+            }
         }
     }
 

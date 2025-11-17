@@ -65,6 +65,7 @@ class MapEditorUI {
 
         // Initialize MapEditorUIRegionInfoManager
         new MapEditorUIRegionInfoManager();
+        new MapRegionHightlightingHandler();
 
         // Initialize elements        
         this.sidebarCreateRegionContainer = document.getElementById(MapEditorUI.sidebarCreateRegionContainerID) as HTMLDivElement;
@@ -325,14 +326,9 @@ class MapEditorUI {
         // Clear existing layers
         this.regionListContainer.innerHTML = '';
         MapEditorUILayer.clearAllLayers();
-        (MapEditorUILayer as any).clearHighlight();
-        
-        // Clear grace period
-        if ((MapEditorUILayer as any).gracePeriodTimeout !== null) {
-            clearTimeout((MapEditorUILayer as any).gracePeriodTimeout);
-            (MapEditorUILayer as any).gracePeriodTimeout = null;
-            (MapEditorUILayer as any).isInGracePeriod = false;
-        }
+
+        // Clear highlights to be safe.
+        MapRegionHightlightingHandler.INSTANCE.clearHighlightSequence();
 
         // Iterate through regionDatas and create UI layers
         MapRegionDataManager.INSTANCE.getAllRegionDatas().forEach(
@@ -1016,13 +1012,120 @@ class MapEditorUIRegionInfoManager {
     }
 }
 
+/**
+ * Handles highlighting regions on the map when hovering over UI elements.
+ */
+class MapRegionHightlightingHandler {
+    private static instance: MapRegionHightlightingHandler;
+    public static get INSTANCE(): MapRegionHightlightingHandler { return MapRegionHightlightingHandler.instance; }
+
+    private static readonly highlightDelayDuration: number = 700; // ms
+    private static readonly gracePeriodDuration: number = 200; // ms
+
+    private highlightTimeout: number | null = null;
+    private clearHighlightTimeout: number | null = null;
+
+    private isInGracePeriod: boolean = false;
+    private targetHighlightUUID: string | null = null;
+    public get TargetHighlightUUID(): string | null { return this.targetHighlightUUID; }
+
+    constructor() 
+    {
+        // Ensure singleton instance
+        if (MapRegionHightlightingHandler.instance) {
+            console.error("MapRegionHightlightingHandler instance already exists!");
+            return;
+        }
+        MapRegionHightlightingHandler.instance = this;
+    }
+
+    /**
+     * Highlights a region on the map after a delay.
+     */
+    public highlightRegionSequence(UUID: string): void {
+        // Don't highlight if this region is being edited
+        const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
+        if (activeRegion && activeRegion.GetSetUUID === UUID) {
+            return;
+        }
+
+        // Ensure the region is visible
+        const regionToHighlight = MapRegionRegionManager.INSTANCE.getRegionByUUID(UUID);
+        if (!regionToHighlight || !regionToHighlight.RegionData.General.IsVisible) {
+            return;
+        }
+
+        // Clear other highlight if any
+        this.unhighlightRegion();
+
+        // Set target UUID
+        this.targetHighlightUUID = UUID;
+
+        // Clear any pending unhighlight timeout
+        if (this.clearHighlightTimeout !== null) {
+            clearTimeout(this.clearHighlightTimeout);
+            this.clearHighlightTimeout = null;
+        }
+
+        // Clear any pending highlight timeout
+        if (this.highlightTimeout !== null) {
+            clearTimeout(this.highlightTimeout);
+            this.highlightTimeout = null;
+        }
+
+        // If we're in grace period or a region is currently highlighted, highlight instantly
+        if (this.isInGracePeriod)
+        {
+            this.highlightRegion();
+            return;
+        }
+
+        // If we're not in the grace period, set a timeout to highlight after the delay
+        console.log("Setting highlight timeout for region UUID:", UUID);
+        this.highlightTimeout = window.setTimeout(() => {
+            // Only highlight if enough time has passed since last hover.
+            // This timeout will be automatically terminated if the user hovers overs a different region or leaves the region layer entirely.
+
+            // Highlight the region
+            this.highlightRegion();
+
+        }, MapRegionHightlightingHandler.highlightDelayDuration);
+    }
+
+    /**
+     * Clears any highlighted region on the map.
+     */
+    public clearHighlightSequence(): void {
+        // Unhighlight the region immediately
+        if (this.targetHighlightUUID === null) { return; }
+        this.unhighlightRegion();
+
+        // Clear any pending highlight timeout
+        if (this.highlightTimeout !== null) {
+            clearTimeout(this.highlightTimeout);
+            this.highlightTimeout = null;
+        }
+
+        // Start grace period to prevent immediate re-highlighting
+        this.isInGracePeriod = true;
+
+        this.clearHighlightTimeout = window.setTimeout(() => {
+            this.isInGracePeriod = false;
+        }, MapRegionHightlightingHandler.gracePeriodDuration);
+    }
+
+    private highlightRegion(): void {
+        MapRegionRegionManager.INSTANCE.getRegionByUUID(this.targetHighlightUUID!)?.highlightRegion();
+    }
+    private unhighlightRegion(): void {
+        if (this.targetHighlightUUID === null) { return; }
+        MapRegionRegionManager.INSTANCE.getRegionByUUID(this.targetHighlightUUID!)?.unhighlightRegion();
+        this.targetHighlightUUID = null;
+    }
+}
+
 class MapEditorUILayer {
     private static allLayers: MapEditorUILayer[] = [];
-    private static hoverTimeout: number | null = null;
-    private static gracePeriodTimeout: number | null = null;
-    private static lastHoverTime: number = 0;
-    private static currentlyHighlightedUUID: string | null = null;
-    private static isInGracePeriod: boolean = false;
     
     private UUID: string;
 
@@ -1157,87 +1260,12 @@ class MapEditorUILayer {
      */
     private assignHoverEvents(): void {
         this.layer.addEventListener('mouseenter', () => {
-            // Don't highlight if this region is being edited
-            const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
-            if (activeRegion && activeRegion.GetSetUUID === this.UUID) {
-                return;
-            }
-
-            // Cancel grace period timeout if we're entering a new layer
-            if (MapEditorUILayer.gracePeriodTimeout !== null) {
-                clearTimeout(MapEditorUILayer.gracePeriodTimeout);
-                MapEditorUILayer.gracePeriodTimeout = null;
-            }
-
-            // If we're in grace period or a region is currently highlighted, highlight instantly
-            if (MapEditorUILayer.isInGracePeriod || MapEditorUILayer.currentlyHighlightedUUID !== null) {
-                // Clear any pending timeout
-                if (MapEditorUILayer.hoverTimeout !== null) {
-                    clearTimeout(MapEditorUILayer.hoverTimeout);
-                    MapEditorUILayer.hoverTimeout = null;
-                }
-                // We're back in active hovering, exit grace period
-                MapEditorUILayer.isInGracePeriod = false;
-                // Highlight immediately
-                this.highlightRegion();
-            } else {
-                // Wait 1.5 seconds before highlighting
-                MapEditorUILayer.hoverTimeout = window.setTimeout(() => {
-                    this.highlightRegion();
-                }, 1500);
-            }
+            MapRegionHightlightingHandler.INSTANCE.highlightRegionSequence(this.UUID);
         });
 
         this.layer.addEventListener('mouseleave', () => {
-            // Clear the timeout if mouse leaves before highlighting
-            if (MapEditorUILayer.hoverTimeout !== null) {
-                clearTimeout(MapEditorUILayer.hoverTimeout);
-                MapEditorUILayer.hoverTimeout = null;
-            }
-            
-            // Start grace period - keep highlight for 500ms
-            if (MapEditorUILayer.currentlyHighlightedUUID !== null) {
-                MapEditorUILayer.isInGracePeriod = true;
-                MapEditorUILayer.gracePeriodTimeout = window.setTimeout(() => {
-                    // Grace period expired, clear highlight
-                    MapEditorUILayer.isInGracePeriod = false;
-                    MapEditorUILayer.clearHighlight();
-                    MapEditorUILayer.gracePeriodTimeout = null;
-                }, 500);
-            }
+            MapRegionHightlightingHandler.INSTANCE.clearHighlightSequence();
         });
-    }
-
-    /**
-     * Highlights the region on the map.
-     */
-    private highlightRegion(): void {
-        // Clear previous highlight
-        MapEditorUILayer.clearHighlight();
-
-        // Get the region
-        const region = MapRegionRegionManager.INSTANCE.getRegionByUUID(this.UUID);
-        if (!region) return;
-
-        // Highlight this region
-        MapEditorUILayer.currentlyHighlightedUUID = this.UUID;
-        MapEditorUILayer.lastHoverTime = Date.now();
-        
-        // Apply highlight effect (bring to front and increase border width)
-        (region as any).highlightRegion?.();
-    }
-
-    /**
-     * Clears the current region highlight.
-     */
-    private static clearHighlight(): void {
-        if (MapEditorUILayer.currentlyHighlightedUUID !== null) {
-            const region = MapRegionRegionManager.INSTANCE.getRegionByUUID(MapEditorUILayer.currentlyHighlightedUUID);
-            if (region) {
-                (region as any).unhighlightRegion?.();
-            }
-            MapEditorUILayer.currentlyHighlightedUUID = null;
-        }
     }
 
     // #region UI Update Methods
