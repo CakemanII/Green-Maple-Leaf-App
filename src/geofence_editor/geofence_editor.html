@@ -400,6 +400,32 @@
         .layer-action-btn.edit:hover i {
             animation: editBounce 0.5s ease;
         }
+
+        .layer-action-btn.edit.disabled {
+            background-color: #555555;
+            color: #888888;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .layer-action-btn.edit.disabled:hover {
+            opacity: 0.6;
+            transform: none;
+        }
+
+        .layer-action-btn.edit.disabled:hover i {
+            animation: none;
+        }
+
+        .layer-action-btn.edit.active {
+            background-color: #4a90e2;
+            color: white;
+            box-shadow: 0 0 10px rgba(74, 144, 226, 0.5);
+        }
+
+        .layer-action-btn.edit.active:hover {
+            background-color: #357abd;
+        }
         
         .layer-action-btn.eye {
             background-color: #50c878;

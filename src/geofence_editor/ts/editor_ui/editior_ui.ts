@@ -324,6 +324,15 @@ class MapEditorUI {
     public updateMapLayersList(): void {
         // Clear existing layers
         this.regionListContainer.innerHTML = '';
+        MapEditorUILayer.clearAllLayers();
+        (MapEditorUILayer as any).clearHighlight();
+        
+        // Clear grace period
+        if ((MapEditorUILayer as any).gracePeriodTimeout !== null) {
+            clearTimeout((MapEditorUILayer as any).gracePeriodTimeout);
+            (MapEditorUILayer as any).gracePeriodTimeout = null;
+            (MapEditorUILayer as any).isInGracePeriod = false;
+        }
 
         // Iterate through regionDatas and create UI layers
         MapRegionDataManager.INSTANCE.getAllRegionDatas().forEach(
@@ -344,6 +353,9 @@ class MapEditorUI {
 
         // Update Add Anchor button state
         this.updateRegionDependentButtons();
+
+        // Update all layer edit button states
+        MapEditorUILayer.updateAllEditButtonStates();
 
         // Update info panel
         if (isActivelyEditing) {
@@ -832,7 +844,8 @@ class MapEditorUIRegionInfoManager {
             regionData = activeRegion ? activeRegion.RegionData : null;
             if (!regionData) { return; }
 
-            regionData.General.Name = this.regionInfoNameField.value;
+            const nameCut = this.regionInfoNameField.value.substring(0, 100); // Limit to 50 chars
+            regionData.General.Name = nameCut;
             this.updateRegionDataInManager(regionData);
         });
 
@@ -1004,6 +1017,13 @@ class MapEditorUIRegionInfoManager {
 }
 
 class MapEditorUILayer {
+    private static allLayers: MapEditorUILayer[] = [];
+    private static hoverTimeout: number | null = null;
+    private static gracePeriodTimeout: number | null = null;
+    private static lastHoverTime: number = 0;
+    private static currentlyHighlightedUUID: string | null = null;
+    private static isInGracePeriod: boolean = false;
+    
     private UUID: string;
 
     // Local ELement ID references
@@ -1018,6 +1038,7 @@ class MapEditorUILayer {
     private hideRegionButton!: HTMLButtonElement;
     private deleteRegionButton!: HTMLButtonElement;
     private dragHandleRegionButton!: HTMLButtonElement;
+    private regionData: RegionData;
 
     constructor(regionData: RegionData) {
         if (!regionData) {
@@ -1027,6 +1048,7 @@ class MapEditorUILayer {
             throw new Error("Region data must have a valid UUID.");
         }
         this.UUID = regionData.UUID;
+        this.regionData = regionData;
 
         // Initialize HTML elements
         this.initalizeLayer();
@@ -1039,17 +1061,37 @@ class MapEditorUILayer {
         if (!regionData.General.IsVisible) {
             this.updateVisibilityButtonState(false);
         }
+
+        // Update edit button state based on whether this region is being edited
+        this.updateEditButtonState();
+
+        // Register this layer instance
+        MapEditorUILayer.allLayers.push(this);
     }
 
     /**
      * Initializes the layer HTML elements and appends them to the region list container.
      */
     private initalizeLayer(): void {
+        // Determine icon based on region type
+        let iconClass = 'fa-draw-polygon'; // Default for freeform
+        switch (this.regionData.RegionType) {
+            case RegionType.Rectangle:
+                iconClass = 'fa-square';
+                break;
+            case RegionType.Circle:
+                iconClass = 'fa-circle';
+                break;
+            case RegionType.Freeform:
+                iconClass = 'fa-draw-polygon';
+                break;
+        }
+
         // Create new layer item element
         this.layer = document.createElement('div');
         this.layer.className = 'layer-item';
         this.layer.innerHTML = `
-            <div class="layer-icon"><i class="fas fa-map-marker-alt"></i></div>
+            <div class="layer-icon"><i class="fas ${iconClass}"></i></div>
             <div class="layer-content">
                 <div class="layer-name">Search Grid 3</div>
                 <div class="layer-actions">
@@ -1070,6 +1112,9 @@ class MapEditorUILayer {
 
         // Initialize button handlers
         this.assignButtonEvents();
+
+        // Initialize hover handlers
+        this.assignHoverEvents();
     }
 
     /**
@@ -1078,9 +1123,20 @@ class MapEditorUILayer {
     private assignButtonEvents(): void {
         // Edit Region Button
         this.editRegionButton.addEventListener('click', () => {
-            MapRegionRegionManager.INSTANCE.attemptStartEditingRegion(this.UUID);
-            console.log('Edit Region button clicked');
-            // Implement edit functionality here
+            const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
+            const isThisRegionBeingEdited = activeRegion && activeRegion.GetSetUUID === this.UUID;
+            
+            if (isThisRegionBeingEdited) {
+                // If this region is being edited, stop editing
+                MapRegionRegionManager.INSTANCE.stopEditingRegion();
+                MapEditorUI.INSTANCE.onActiveEditingRegionChanged();
+                console.log('Stop editing region');
+            } else if (!activeRegion) {
+                // If no region is being edited, start editing this one
+                MapRegionRegionManager.INSTANCE.attemptStartEditingRegion(this.UUID);
+                console.log('Start editing region');
+            }
+            // If another region is being edited, do nothing (button is disabled)
         });
 
         this.hideRegionButton.addEventListener('click', () => {
@@ -1096,6 +1152,94 @@ class MapEditorUILayer {
         });
     }
 
+    /**
+     * Assigns hover event listeners for region highlighting.
+     */
+    private assignHoverEvents(): void {
+        this.layer.addEventListener('mouseenter', () => {
+            // Don't highlight if this region is being edited
+            const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
+            if (activeRegion && activeRegion.GetSetUUID === this.UUID) {
+                return;
+            }
+
+            // Cancel grace period timeout if we're entering a new layer
+            if (MapEditorUILayer.gracePeriodTimeout !== null) {
+                clearTimeout(MapEditorUILayer.gracePeriodTimeout);
+                MapEditorUILayer.gracePeriodTimeout = null;
+            }
+
+            // If we're in grace period or a region is currently highlighted, highlight instantly
+            if (MapEditorUILayer.isInGracePeriod || MapEditorUILayer.currentlyHighlightedUUID !== null) {
+                // Clear any pending timeout
+                if (MapEditorUILayer.hoverTimeout !== null) {
+                    clearTimeout(MapEditorUILayer.hoverTimeout);
+                    MapEditorUILayer.hoverTimeout = null;
+                }
+                // We're back in active hovering, exit grace period
+                MapEditorUILayer.isInGracePeriod = false;
+                // Highlight immediately
+                this.highlightRegion();
+            } else {
+                // Wait 1.5 seconds before highlighting
+                MapEditorUILayer.hoverTimeout = window.setTimeout(() => {
+                    this.highlightRegion();
+                }, 1500);
+            }
+        });
+
+        this.layer.addEventListener('mouseleave', () => {
+            // Clear the timeout if mouse leaves before highlighting
+            if (MapEditorUILayer.hoverTimeout !== null) {
+                clearTimeout(MapEditorUILayer.hoverTimeout);
+                MapEditorUILayer.hoverTimeout = null;
+            }
+            
+            // Start grace period - keep highlight for 500ms
+            if (MapEditorUILayer.currentlyHighlightedUUID !== null) {
+                MapEditorUILayer.isInGracePeriod = true;
+                MapEditorUILayer.gracePeriodTimeout = window.setTimeout(() => {
+                    // Grace period expired, clear highlight
+                    MapEditorUILayer.isInGracePeriod = false;
+                    MapEditorUILayer.clearHighlight();
+                    MapEditorUILayer.gracePeriodTimeout = null;
+                }, 500);
+            }
+        });
+    }
+
+    /**
+     * Highlights the region on the map.
+     */
+    private highlightRegion(): void {
+        // Clear previous highlight
+        MapEditorUILayer.clearHighlight();
+
+        // Get the region
+        const region = MapRegionRegionManager.INSTANCE.getRegionByUUID(this.UUID);
+        if (!region) return;
+
+        // Highlight this region
+        MapEditorUILayer.currentlyHighlightedUUID = this.UUID;
+        MapEditorUILayer.lastHoverTime = Date.now();
+        
+        // Apply highlight effect (bring to front and increase border width)
+        (region as any).highlightRegion?.();
+    }
+
+    /**
+     * Clears the current region highlight.
+     */
+    private static clearHighlight(): void {
+        if (MapEditorUILayer.currentlyHighlightedUUID !== null) {
+            const region = MapRegionRegionManager.INSTANCE.getRegionByUUID(MapEditorUILayer.currentlyHighlightedUUID);
+            if (region) {
+                (region as any).unhighlightRegion?.();
+            }
+            MapEditorUILayer.currentlyHighlightedUUID = null;
+        }
+    }
+
     // #region UI Update Methods
     private updateVisibilityButtonState(isVisible: boolean): void {
         if (isVisible) {
@@ -1105,6 +1249,40 @@ class MapEditorUILayer {
             this.hideRegionButton.innerHTML = `<i class="fas fa-eye-slash"></i>`;
             this.hideRegionButton.title = "Show Region";
         }
+    }
+
+    public updateEditButtonState(): void {
+        const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
+        const isThisRegionBeingEdited = activeRegion && activeRegion.GetSetUUID === this.UUID;
+        const isAnotherRegionBeingEdited = activeRegion && activeRegion.GetSetUUID !== this.UUID;
+
+        if (isAnotherRegionBeingEdited) {
+            // Disable the edit button
+            this.editRegionButton.classList.add('disabled');
+            this.editRegionButton.classList.remove('active');
+            this.editRegionButton.disabled = true;
+            this.editRegionButton.title = "Another region is being edited";
+        } else if (isThisRegionBeingEdited) {
+            // This region is being edited - show as active
+            this.editRegionButton.classList.remove('disabled');
+            this.editRegionButton.classList.add('active');
+            this.editRegionButton.disabled = false;
+            this.editRegionButton.title = "Stop Editing";
+        } else {
+            // Enable the edit button
+            this.editRegionButton.classList.remove('disabled');
+            this.editRegionButton.classList.remove('active');
+            this.editRegionButton.disabled = false;
+            this.editRegionButton.title = "Edit";
+        }
+    }
+
+    public static updateAllEditButtonStates(): void {
+        MapEditorUILayer.allLayers.forEach(layer => layer.updateEditButtonState());
+    }
+
+    public static clearAllLayers(): void {
+        MapEditorUILayer.allLayers = [];
     }
     // #endregion
 }

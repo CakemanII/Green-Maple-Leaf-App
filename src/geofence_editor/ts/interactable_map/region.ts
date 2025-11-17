@@ -83,6 +83,9 @@ abstract class MapRegion
     private readonly hidden_shape_opacity: number = 0.2; // Opacity for hidden shapes
     private readonly hidden_shape_color: string = "#888888"; // Color for hidden shapes
 
+    private readonly originalBorderThickness: number = 2; // Original border thickness
+    private readonly hoverBorderThickness: number = 7; // Border thickness on hover
+
     // Editable Point Data [FRONTEND USE ONLY]
     // These are the elements used for representing visual edittable points.
     // This can directly or indirectly effect the backend anchor data.
@@ -94,6 +97,7 @@ abstract class MapRegion
 
     private stripes: L.StripePattern | null; // Stripe pattern for restricted regions
     private fillPattern: any | null; // Fill pattern for the region
+    private borderThickness: number;
 
     constructor(regionInput: RegionData | string)
     {
@@ -118,6 +122,7 @@ abstract class MapRegion
 
         this.lastStyleState = {};
         
+        this.borderThickness = this.originalBorderThickness;
         this.stripes = null;
         this.fillPattern = null;
 
@@ -288,7 +293,7 @@ abstract class MapRegion
         // Create current style state for comparison (excluding circular references)
         const currentStyleState = {
             color: shapeColor,
-            weight: 2,
+            weight: this.borderThickness,
             opacity: this.regionData.General.IsVisible ? 1 : this.hidden_shape_opacity,
             fill: this.shapeAreaActive && shapeFillOpacity > 0,
             fillColor: this.shapeAreaActive ? fillColor : undefined,
@@ -306,7 +311,7 @@ abstract class MapRegion
             // Create the actual style options for Leaflet (including stripe pattern)
             const leafletStyleOptions: any = {
                 color: shapeColor,
-                weight: 2,
+                weight: this.borderThickness,
                 opacity: this.regionData.General.IsVisible ? 1 : this.hidden_shape_opacity,
                 fill: this.shapeAreaActive && shapeFillOpacity > 0,
                 fillColor: this.shapeAreaActive ? fillColor : undefined,
@@ -374,6 +379,34 @@ abstract class MapRegion
     /**
      * Remove the shape from the region entirely.
      */
+    /**
+     * Highlights the region to make it more prominent.
+     */
+    public highlightRegion(): void {
+        if (this.curveShape) {
+            // Bring to front
+            this.curveShape.bringToFront();
+            
+            // Increase border thickness and add glow effect
+            this.borderThickness = this.hoverBorderThickness;
+            this.updateRegionStyle();
+        }
+
+        // Also bring patterns to front if they exist
+        if (this.fillPattern && this.fillPattern.bringToFront) {
+            this.fillPattern.bringToFront();
+        }
+    }
+
+    /**
+     * Removes the highlight from the region.
+     */
+    public unhighlightRegion(): void {
+        // Restore to original style by calling update
+        this.borderThickness = this.originalBorderThickness;
+        this.updateRegionStyle();
+    }
+
     public removeRegion() 
     {
         // Remove all shape data
