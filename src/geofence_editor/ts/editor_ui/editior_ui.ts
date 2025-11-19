@@ -330,10 +330,23 @@ class MapEditorUI {
         // Clear highlights to be safe.
         MapRegionHightlightingHandler.INSTANCE.clearHighlightSequence();
 
-        // Iterate through regionDatas and create UI layers
-        MapRegionDataManager.INSTANCE.getAllRegionDatas().forEach(
-            (regionData: RegionData) => { new MapEditorUILayer(regionData); }
-        );
+        // Get all region datas and sort by LayerIndex
+        const allRegions = MapRegionDataManager.INSTANCE.getAllRegionDatas();
+        
+        // Separate regions with and without LayerIndex
+        const regionsWithIndex = allRegions.filter(r => r.LayerIndex !== undefined);
+        const regionsWithoutIndex = allRegions.filter(r => r.LayerIndex === undefined);
+        
+        // Sort regions with index (higher index = first in list)
+        regionsWithIndex.sort((a, b) => (b.LayerIndex ?? 0) - (a.LayerIndex ?? 0));
+        
+        // Combine: regions with index first, then regions without index
+        const sortedRegions = [...regionsWithIndex, ...regionsWithoutIndex];
+        
+        // Create UI layers in sorted order
+        sortedRegions.forEach((regionData: RegionData) => { 
+            new MapEditorUILayer(regionData); 
+        });
     }
 
     /**
@@ -1139,17 +1152,16 @@ class MapRegionHightlightingHandler {
 }
 
 class MapEditorUILayer {
-    private static allLayers: MapEditorUILayer[] = [];
+    public static allLayers: MapEditorUILayer[] = [];
     
-    private UUID: string;
+    public UUID: string;
+    public layer!: HTMLDivElement;
 
     // Local ELement ID references
     private static readonly layerEditRegionButtonID: string = "btn-layer-edit-region";
     private static readonly layerHideRegionButtonID: string = "btn-layer-toggle-visibility-region";
     private static readonly layerDeleteRegionButtonID: string = "btn-layer-delete-region";
     private static readonly layerDragHandleRegionButtonID: string = "btn-layer-drag-handle-region";
-
-    private layer!: HTMLDivElement;
 
     private editRegionButton!: HTMLButtonElement;
     private hideRegionButton!: HTMLButtonElement;
@@ -1232,6 +1244,9 @@ class MapEditorUILayer {
 
         // Initialize hover handlers
         this.assignHoverEvents();
+
+        // Initialize drag and drop handlers
+        this.assignDragEvents();
     }
 
     /**
@@ -1280,6 +1295,156 @@ class MapEditorUILayer {
         this.layer.addEventListener('mouseleave', () => {
             MapRegionHightlightingHandler.INSTANCE.clearHighlightSequence();
         });
+    }
+
+    /**
+     * Assigns drag and drop event listeners for reordering layers.
+     */
+    private assignDragEvents(): void {
+        let isDragging = false;
+        let startY = 0;
+        let startX = 0;
+        let dragThreshold = 5; // Pixels to move before drag starts
+        let hasDragStarted = false;
+        let currentAfterElement: HTMLElement | null = null;
+
+        const onMouseDown = (e: MouseEvent) => {
+            // Only allow dragging from non-button areas
+            const target = e.target as HTMLElement;
+            if (target.closest('.layer-action-btn')) {
+                return;
+            }
+
+            isDragging = true;
+            hasDragStarted = false;
+            startY = e.clientY;
+            startX = e.clientX;
+            
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            e.preventDefault();
+        };
+
+        const onMouseMove = (e: MouseEvent) => {
+            if (!isDragging) return;
+
+            const deltaY = Math.abs(e.clientY - startY);
+            const deltaX = Math.abs(e.clientX - startX);
+
+            // Start drag only after threshold is exceeded
+            if (!hasDragStarted && (deltaY > dragThreshold || deltaX > dragThreshold)) {
+                hasDragStarted = true;
+                this.layer.classList.add('dragging');
+                this.createPlaceholder();
+                this.originalIndex = this.getLayerIndex();
+            }
+
+            if (hasDragStarted) {
+                // Find the layer item under the cursor
+                const container = MapEditorUI.INSTANCE.RegionListContainer;
+                const afterElement = this.getDragAfterElement(container, e.clientY);
+                
+                // Only update if position changed
+                if (afterElement !== currentAfterElement) {
+                    currentAfterElement = afterElement;
+                    this.updatePlaceholderPosition(container, afterElement);
+                }
+            }
+        };
+
+        const onMouseUp = () => {
+            if (hasDragStarted) {
+                this.layer.classList.remove('dragging');
+                
+                // Insert the actual layer where the placeholder is
+                const container = MapEditorUI.INSTANCE.RegionListContainer;
+                if (this.placeholder && this.placeholder.parentNode) {
+                    container.insertBefore(this.layer, this.placeholder);
+                    this.placeholder.remove();
+                    
+                    // Update LayerIndex values based on new order
+                    this.updateLayerIndices(container);
+                }
+                
+                this.placeholder = null;
+                currentAfterElement = null;
+            }
+            
+            isDragging = false;
+            hasDragStarted = false;
+            
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        this.layer.addEventListener('mousedown', onMouseDown);
+    }
+
+    private placeholder: HTMLDivElement | null = null;
+    private originalIndex: number = 0;
+
+    private createPlaceholder(): void {
+        this.placeholder = document.createElement('div');
+        this.placeholder.className = 'layer-placeholder';
+        this.layer.parentNode?.insertBefore(this.placeholder, this.layer);
+    }
+
+    private updatePlaceholderPosition(container: HTMLElement, afterElement: HTMLElement | null): void {
+        if (!this.placeholder) return;
+        
+        if (afterElement == null) {
+            container.appendChild(this.placeholder);
+        } else {
+            container.insertBefore(this.placeholder, afterElement);
+        }
+    }
+
+    private getLayerIndex(): number {
+        const container = MapEditorUI.INSTANCE.RegionListContainer;
+        const layers = [...container.querySelectorAll('.layer-item')] as HTMLElement[];
+        return layers.indexOf(this.layer);
+    }
+
+    private getPlaceholderIndex(): number {
+        if (!this.placeholder) return -1;
+        const container = MapEditorUI.INSTANCE.RegionListContainer;
+        const children = [...container.children] as HTMLElement[];
+        return children.indexOf(this.placeholder);
+    }
+
+    private updateLayerIndices(container: HTMLElement): void {
+        // Get all layer items in their current DOM order
+        const layerElements = [...container.querySelectorAll('.layer-item')] as HTMLElement[];
+        
+        // Update LayerIndex for each region (highest index = first in list)
+        layerElements.forEach((layerEl, index) => {
+            const layerInstance = MapEditorUILayer.allLayers.find(l => l.layer === layerEl);
+            if (layerInstance) {
+                const regionData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(layerInstance.UUID);
+                if (regionData) {
+                    // Higher index = first position (top of list)
+                    regionData.LayerIndex = layerElements.length - index;
+                    MapRegionDataManager.INSTANCE.setRegionDataWithUUID(layerInstance.UUID, regionData, false, false);
+                }
+            }
+        });
+        
+        // Don't refresh UI - the drag already updated the DOM order
+    }
+
+    private getDragAfterElement(container: HTMLElement, y: number): HTMLElement | null {
+        const draggableElements = [...container.querySelectorAll('.layer-item:not(.dragging)')] as HTMLElement[];
+
+        return draggableElements.reduce<{ offset: number; element: HTMLElement | null }>((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
     }
 
     // #region UI Update Methods
