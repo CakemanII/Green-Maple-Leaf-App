@@ -336,6 +336,14 @@ class MapEditorUI {
         // Separate regions with and without LayerIndex
         const regionsWithIndex = allRegions.filter(r => r.LayerIndex !== undefined);
         const regionsWithoutIndex = allRegions.filter(r => r.LayerIndex === undefined);
+
+        // Assign the regions without indexes a layer index greater than the greatest indexed region.
+        if (regionsWithIndex.length > 0) {
+            const maxIndex = Math.max(...regionsWithIndex.map(r => r.LayerIndex!));
+            regionsWithoutIndex.forEach((region, idx) => {
+                region.LayerIndex = maxIndex + idx - 1;
+            });
+        }
         
         // Sort regions with index (higher index = first in list)
         regionsWithIndex.sort((a, b) => (b.LayerIndex ?? 0) - (a.LayerIndex ?? 0));
