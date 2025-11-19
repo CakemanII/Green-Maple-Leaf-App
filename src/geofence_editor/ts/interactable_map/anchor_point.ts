@@ -186,6 +186,12 @@ class AnchorPoint {
             }
         });
 
+        handleVisual.on('dragend', (e) => {
+            if (this.interactionHandlers.onHandleDragEnd) {
+                this.interactionHandlers.onHandleDragEnd(this, isIncomingHandle, e);
+            }
+        });
+
         // Create guide line visual
         this.createHandleGuideVisual(isIncomingHandle);
 

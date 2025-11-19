@@ -130,8 +130,22 @@ class MapRegionEditor
         }
 
         MapRegionRegionManager.INSTANCE.updateActiveRegionFrontend();
+    }
 
-
+    /**
+     * Called when a control handle drag ends
+     */
+    onHandleDragEnd(anchorPoint: AnchorPoint, isIncoming: boolean) {
+        if (this.activePrimaryTool) {
+            this.activePrimaryTool.onHandleDragEnd(anchorPoint, isIncoming);
+        }
+        MapRegionRegionManager.INSTANCE.updateActiveRegionFrontend();
+        
+        // Set flag to prevent click event from firing immediately after drag
+        this.justFinishedDragging = true;
+        setTimeout(() => {
+            this.justFinishedDragging = false;
+        }, 100);
     }
 
     /**

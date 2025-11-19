@@ -434,20 +434,15 @@ class MapEditorUIColorPicker {
         // Create content
         const content = document.createElement('div');
         content.className = 'color-picker-content';
-        
-        // Position at click location, but ensure it's to the right of sidebar (300px)
-        if (clickEvent) {
-            const left = Math.max(300, clickEvent.clientX);
-            content.style.position = 'fixed';
-            content.style.left = left + 'px';
-            content.style.top = clickEvent.clientY + 'px';
-        }
 
         // Create canvas for color square
         this.canvas = document.createElement('canvas');
         this.canvas.className = 'color-picker-canvas';
-        this.canvas.width = 280;
-        this.canvas.height = 280;
+        // Calculate canvas size based on current font size for responsive scaling
+        const baseFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
+        const canvasSize = Math.floor(17.5 * baseFontSize);
+        this.canvas.width = canvasSize;
+        this.canvas.height = canvasSize;
         this.ctx = this.canvas.getContext('2d')!;
 
         // Create hue slider
@@ -461,6 +456,8 @@ class MapEditorUIColorPicker {
         // Create right side container for inputs
         const rightContainer = document.createElement('div');
         rightContainer.className = 'color-picker-right';
+        // Set height to match canvas
+        rightContainer.style.height = canvasSize + 'px';
 
         // Create color comparison box
         const colorCompareBox = document.createElement('div');
@@ -505,6 +502,23 @@ class MapEditorUIColorPicker {
 
         // Add to document
         document.body.appendChild(this.modal);
+
+        // Position top based on click event
+        if (clickEvent) {
+            const contentRect = content.getBoundingClientRect();
+            
+            // Get footer bar height to prevent intersection
+            const footerBar = document.querySelector('.map-info');
+            const footerHeight = footerBar ? footerBar.getBoundingClientRect().height : 0;
+            
+            // Position vertically based on click, ensure it doesn't intersect footer or go below viewport
+            let top = clickEvent.clientY;
+            const maxTop = window.innerHeight - contentRect.height - footerHeight - 10;
+            top = Math.min(Math.max(10, top), maxTop);
+            
+            content.style.position = 'fixed';
+            content.style.top = top + 'px';
+        }
 
         // Draw initial color square
         this.drawColorSquare();
