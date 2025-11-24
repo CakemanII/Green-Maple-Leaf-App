@@ -1659,8 +1659,8 @@ class MapRegionCreatorEditorHandler
             Style: {
                 FillColor: "#ff7800",
                 FillOpacity: 0.5,
-                BorderColor: "#ff7800",
-                BorderOpacity: 0.8,
+                StrokeColor: "#ff7800",
+                StrokeOpacity: 0.8,
             },
 
             RegionType: this.regionType,
@@ -1731,8 +1731,8 @@ class MapRegionCreatorEditorHandler
             Style: {
                 FillColor: "#ff7800",
                 FillOpacity: 0.5,
-                BorderColor: "#ff7800",
-                BorderOpacity: 0.8,
+                StrokeColor: "#ff7800",
+                StrokeOpacity: 0.8,
             },
 
             UUID: Utils.createUUIDv4(),

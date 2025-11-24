@@ -43,8 +43,8 @@ type RegionData = {
     Style: {
         FillColor: string;
         FillOpacity: number;
-        BorderColor: string;
-        BorderOpacity: number;
+        StrokeColor: string;
+        StrokeOpacity: number;
     }
 
     RegionType: RegionType;
@@ -264,20 +264,20 @@ abstract class MapRegion
         // Ensure the shape exists
         if (!this.curveShape) return;
 
-        // Calculate current style parameters based on visibility
+        // Calculate current style parameters based on visibilityz; ShapeFillOpacity, FillColor, ShapeColor
         let shapeFillOpacity: number;
-        let shapeColor: string;
+        let strokeColor: string;
         let fillColor: string;
         
         if (!this.regionData.General.IsVisible) {
             // Use hidden shape styling
             shapeFillOpacity = this.shapeAreaActive ? this.hidden_shape_opacity : 0;
-            shapeColor = this.hidden_shape_color;
+            strokeColor = this.hidden_shape_color;
             fillColor = this.hidden_shape_color;
         } else {
             // Use normal styling
             shapeFillOpacity = this.shapeAreaActive ? this.regionData.Style.FillOpacity : 0;
-            shapeColor = !this.selfIntercepting ? this.regionData.Style.FillColor : this.invalid_shape_color;
+            strokeColor = !this.selfIntercepting ? this.regionData.Style.StrokeColor : this.invalid_shape_color;
             fillColor = this.regionData.Style.FillColor;
         }
 
@@ -292,7 +292,7 @@ abstract class MapRegion
 
         // Create current style state for comparison (excluding circular references)
         const currentStyleState = {
-            color: shapeColor,
+            color: strokeColor,
             weight: this.borderThickness,
             opacity: this.regionData.General.IsVisible ? 1 : this.hidden_shape_opacity,
             fill: this.shapeAreaActive && shapeFillOpacity > 0,
@@ -310,7 +310,7 @@ abstract class MapRegion
         if (styleChanged) {
             // Create the actual style options for Leaflet (including stripe pattern)
             const leafletStyleOptions: any = {
-                color: shapeColor,
+                color: strokeColor,
                 weight: this.borderThickness,
                 opacity: this.regionData.General.IsVisible ? 1 : this.hidden_shape_opacity,
                 fill: this.shapeAreaActive && shapeFillOpacity > 0,
@@ -367,7 +367,7 @@ abstract class MapRegion
         this.stripes = new L.StripePattern({
             weight: 5, // stripe width
             spaceWeight: 12, // space between stripes
-            color: color ? color : this.regionData.Style.FillColor, // stripe color
+            color: color ? color : this.regionData.Style.StrokeColor, // stripe color
             fillColor: color ? color : this.regionData.Style.FillColor,
             opacity: 1,
             angle: 45 // stripe angle in degrees

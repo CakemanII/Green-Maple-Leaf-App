@@ -928,7 +928,7 @@ class MapEditorUIRegionInfoManager {
             const value = parseFloat(this.regionInfoBorderOpacityField.value);
             if (!isNaN(value)) {
                 const valueClamped = Math.max(0, Math.min(1, value));
-                regionData.Style.BorderOpacity = valueClamped;
+                regionData.Style.StrokeOpacity = valueClamped;
             }
 
             this.updateRegionDataInManager(regionData);
@@ -986,13 +986,13 @@ class MapEditorUIRegionInfoManager {
         this.regionInfoBorderColorSwatch.addEventListener('click', (e) => {
             const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
             if (activeRegion) {
-                const originalColor = activeRegion.RegionData.Style.BorderColor;
+                const originalColor = activeRegion.RegionData.Style.StrokeColor;
                 new MapEditorUIColorPicker(
                     originalColor,
                     (selectedColor) => {
                         // On confirm
                         const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.BorderColor = selectedColor;
+                        newRegionData.Style.StrokeColor = selectedColor;
 
                         this.updateRegionDataInManager(newRegionData);
                     },
@@ -1000,14 +1000,14 @@ class MapEditorUIRegionInfoManager {
                     (color) => {
                         // On change (real-time update)
                         const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.BorderColor = color;
+                        newRegionData.Style.StrokeColor = color;
 
                         this.updateRegionDataInManager(newRegionData);
                     },
                     () => {
                         // On cancel (revert)
                         const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.BorderColor = originalColor;
+                        newRegionData.Style.StrokeColor = originalColor;
 
                         this.updateRegionDataInManager(newRegionData);
                     }
@@ -1038,12 +1038,12 @@ class MapEditorUIRegionInfoManager {
         this.regionInfoFillColorSwatch.style.backgroundColor = regionData.Style.FillColor;
 
         // Update border color
-        this.regionInfoBorderColorTextField.textContent = regionData.Style.BorderColor;
-        this.regionInfoBorderColorSwatch.style.backgroundColor = regionData.Style.BorderColor;
+        this.regionInfoBorderColorTextField.textContent = regionData.Style.StrokeColor;
+        this.regionInfoBorderColorSwatch.style.backgroundColor = regionData.Style.StrokeColor;
 
         // Update opacities
         this.regionInfoFillOpacityField.value = regionData.Style.FillOpacity.toString();
-        this.regionInfoBorderOpacityField.value = regionData.Style.BorderOpacity.toString();
+        this.regionInfoBorderOpacityField.value = regionData.Style.StrokeOpacity.toString();
     }
 }
 
