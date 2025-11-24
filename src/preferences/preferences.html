@@ -1,12 +1,184 @@
 <!doctype html>
 <html lang="en">
 	<head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Preferences - Green Maple Leaf App</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>Preferences — Green Maple Leaf</title>
+		<style>
+			/* Match visual style used in Geofence Editor */
+			:root{
+				--bg:#0d0d0d;
+				--panel:#1a1a1a;
+				--card:#242424;
+				--muted:#9ca3af;
+				--accent:#6ba3ff;
+				--border:#333333;
+				--radius:8px;
+			}
+
+			html{font-size:16px}
+			@media screen and (max-width:1600px){html{font-size:14px}}
+			@media screen and (max-width:1366px){html{font-size:12px}}
+
+			html,body{height:100%;}
+			body{
+				margin:0;
+				font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+				background-color:var(--bg);
+				color:#ffffff;
+				-webkit-font-smoothing:antialiased;
+				-moz-osx-font-smoothing:grayscale;
+				padding:18px;
+				box-sizing:border-box;
+			}
+
+			.prefs-shell{max-width:1040px;margin:0 auto;}
+
+			header.prefs-header{display:flex;align-items:flex-end;gap:12px;margin-bottom:14px}
+			header h1{font-size:1rem;margin:0;font-weight:600;color:var(--accent)}
+			header p{margin:0;color:var(--muted);font-size:0.875rem}
+
+			.prefs-grid{display:grid;grid-template-columns:1fr;gap:12px}
+			@media (max-width:800px){.prefs-grid{grid-template-columns:1fr}}
+
+			.prefs-card{
+				background-color:var(--card);
+				border:1px solid var(--border);
+				padding:12px;
+				border-radius:0.5rem;
+			}
+
+			.prefs-card h2{margin:0 0 8px 0;font-size:0.875rem;color:var(--accent);font-weight:600}
+			.prefs-card p.desc{margin:0 0 10px 0;color:var(--muted);font-size:0.8125rem}
+
+			.pref-row{display:flex;align-items:center;justify-content:space-between;margin:8px 0}
+			.pref-row .label{display:flex;flex-direction:column;gap:4px}
+			.pref-row .label span.title{font-size:0.875rem}
+			.pref-row .label span.hint{font-size:0.75rem;color:var(--muted)}
+
+			/* switch - tweaked to match editor buttons */
+			.switch{--w:46px;--h:26px;--pad:3px;width:var(--w);height:var(--h);background:#0d0d0d;border-radius:999px;padding:var(--pad);display:inline-flex;align-items:center;cursor:pointer}
+			.switch .knob{width:calc(var(--h) - var(--pad)*2);height:calc(var(--h) - var(--pad)*2);background:#ffffff;border-radius:50%;transition:transform .15s}
+			.switch.on{background:linear-gradient(90deg,var(--accent),#5faeff)}
+			.switch.on .knob{transform:translateX(20px)}
+
+			.control{min-width:160px}
+			select,input[type="text"],input[type="number"]{background:#0d0d0d;border:1px solid #1f1f1f;color:inherit;padding:8px 10px;border-radius:6px;outline:none}
+
+			.full-row{grid-column:1/-1}
+
+			.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+			.btn{background:#0d0d0d;border:1px solid #1f1f1f;color:#ffffff;padding:8px 12px;border-radius:6px;cursor:pointer}
+			.btn.primary{background:var(--accent);border-color:transparent;color:#071726}
+
+			/* subtle scrollbars to match editor */
+			.prefs-card::-webkit-scrollbar{width:0.5rem}
+			.prefs-card::-webkit-scrollbar-track{background:var(--bg);border-radius:0.25rem}
+			.prefs-card::-webkit-scrollbar-thumb{background:#3a3a3a;border-radius:0.25rem}
+		</style>
 	</head>
 	<body>
-		
+		<div class="prefs-shell">
+			<header class="prefs-header">
+				<div>
+					<h1>Preferences</h1>
+					<p>Adjust application settings. These are placeholders for styling review.</p>
+				</div>
+			</header>
+
+			<main class="prefs-grid">
+				<section class="prefs-card">
+					<h2>General</h2>
+					<p class="desc">General application settings and basic behavior toggles.</p>
+
+					<div class="pref-row">
+						<div class="label">
+							<span class="title">Enable background updates</span>
+							<span class="hint">Allow the app to fetch live data in background.</span>
+						</div>
+						<label class="switch" aria-label="Enable background updates">
+							<input type="checkbox" />
+							<span class="knob"></span>
+						</label>
+					</div>
+
+					<div class="pref-row">
+						<div class="label">
+							<span class="title">Default map view</span>
+							<span class="hint">Choose the initial map view when opening the editor.</span>
+						</div>
+						<div class="control">
+							<select>
+								<option>Street</option>
+								<option>Satellite</option>
+								<option>Hybrid</option>
+							</select>
+						</div>
+					</div>
+				</section>
+
+				<section class="prefs-card">
+					<h2>Notifications</h2>
+					<p class="desc">Control alerting behavior and notification thresholds.</p>
+
+					<div class="pref-row">
+						<div class="label">
+							<span class="title">Enable push alerts</span>
+							<span class="hint">Receive push alerts for important events.</span>
+						</div>
+						<label class="switch on" aria-label="Enable push alerts">
+							<input type="checkbox" checked />
+							<span class="knob"></span>
+						</label>
+					</div>
+
+					<div class="pref-row">
+						<div class="label">
+							<span class="title">Alert sensitivity</span>
+							<span class="hint">Set how sensitive alerts should be.</span>
+						</div>
+						<div class="control">
+							<select>
+								<option>Low</option>
+								<option selected>Medium</option>
+								<option>High</option>
+							</select>
+						</div>
+					</div>
+				</section>
+
+				<section class="prefs-card full-row">
+					<h2>User Interface</h2>
+					<p class="desc">Layout and display options for the application UI.</p>
+
+					<div class="pref-row">
+						<div class="label">
+							<span class="title">Compact mode</span>
+							<span class="hint">Use a denser layout to fit more content.</span>
+						</div>
+						<label class="switch" aria-label="Compact mode">
+							<input type="checkbox" />
+							<span class="knob"></span>
+						</label>
+					</div>
+
+					<div class="pref-row">
+						<div class="label">
+							<span class="title">Font size</span>
+							<span class="hint">Adjust base font size for accessibility.</span>
+						</div>
+						<div class="control">
+							<input type="number" min="12" max="24" value="14" /> px
+						</div>
+					</div>
+
+					<div class="actions">
+						<button class="btn">Reset</button>
+						<button class="btn primary">Save</button>
+					</div>
+				</section>
+			</main>
+		</div>
 	</body>
 </html>
 

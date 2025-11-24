@@ -53,6 +53,9 @@ class TabHandler {
 
         // Initialize tab button events (only attach listeners that target existing elements)
         this.initializeTabButtonEvents();
+
+        // Activate the first available tab by default
+        this.activateTab(Object.keys(this.tabs)[3]);
     }
 
     /**
