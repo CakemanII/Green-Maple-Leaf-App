@@ -1,16 +1,16 @@
 class TabHandler {
-    // Tabs can be absent in some views, so allow null and initialize to null.
-    private live_interface_tab: HTMLIFrameElement | null = null;
-    private geofence_editor_tab: HTMLIFrameElement | null = null;
-    private live_data_tab: HTMLIFrameElement | null = null;
-    private preferences_tab: HTMLIFrameElement | null = null;
-    private settings_tab: HTMLIFrameElement | null = null;
+    private static readonly TAB_IDS: Record<string, { tabId: string; buttonId: string }> = {
+        liveInterface:   { tabId: 'live_interface_tab',   buttonId: 'live_interface_tab_button' },
+        geofenceEditor:  { tabId: 'geofence_editor_tab',  buttonId: 'geofence_editor_tab_button' },
+        liveData:        { tabId: 'live_data_tab',        buttonId: 'live_data_tab_button' },
+        preferences:     { tabId: 'preferences_tab',      buttonId: 'preferences_tab_button' },
+        settings:        { tabId: 'settings_tab',         buttonId: 'settings_tab_button' },
+    };
 
-    private live_interface_tab_button: HTMLButtonElement | null = null;
-    private geofence_editor_tab_button: HTMLButtonElement | null = null;
-    private live_data_tab_button: HTMLButtonElement | null = null;
-    private preferences_tab_button: HTMLButtonElement | null = null;
-    private settings_tab_button: HTMLButtonElement | null = null;
+    // Tabs can be absent in some views, so allow null and initialize to null.
+    // Allow content/button to be null when an element is not present in the DOM.
+    private tabs: Record<string, { content: HTMLIFrameElement | null; button: HTMLButtonElement | null }> = {};
+    private activeTabKey: string | null = null;
 
     private static instance: TabHandler | undefined;
     public static Instance(): TabHandler | undefined { return this.instance; }
@@ -24,17 +24,32 @@ class TabHandler {
         TabHandler.instance = this;
         
         // Initialize tabs and buttons
-        this.live_interface_tab = document.getElementById('live_interface_tab') as HTMLIFrameElement | null;
-        this.geofence_editor_tab = document.getElementById('geofence_editor_tab') as HTMLIFrameElement | null;
-        this.live_data_tab = document.getElementById('live_data_tab') as HTMLIFrameElement | null;
-        this.preferences_tab = document.getElementById('preferences_tab') as HTMLIFrameElement | null;
-        this.settings_tab = document.getElementById('settings_tab') as HTMLIFrameElement | null;
+        this.tabs = {
+            liveInterface: { 
+                content: document.getElementById(TabHandler.TAB_IDS.liveInterface.tabId) as HTMLIFrameElement, 
+                button: document.getElementById(TabHandler.TAB_IDS.liveInterface.buttonId) as HTMLButtonElement 
+            },
 
-        this.live_interface_tab_button = document.getElementById('live_interface_tab_button') as HTMLButtonElement | null;
-        this.geofence_editor_tab_button = document.getElementById('geofence_editor_tab_button') as HTMLButtonElement | null;
-        this.live_data_tab_button = document.getElementById('live_data_tab_button') as HTMLButtonElement | null;
-        this.preferences_tab_button = document.getElementById('preferences_tab_button') as HTMLButtonElement | null;
-        this.settings_tab_button = document.getElementById('settings_tab_button') as HTMLButtonElement | null;
+            geofenceEditor: { 
+                content: document.getElementById(TabHandler.TAB_IDS.geofenceEditor.tabId) as HTMLIFrameElement, 
+                button: document.getElementById(TabHandler.TAB_IDS.geofenceEditor.buttonId) as HTMLButtonElement 
+            },
+
+            liveData: { 
+                content: document.getElementById(TabHandler.TAB_IDS.liveData.tabId) as HTMLIFrameElement, 
+                button: document.getElementById(TabHandler.TAB_IDS.liveData.buttonId) as HTMLButtonElement 
+            },
+
+            preferences: { 
+                content: document.getElementById(TabHandler.TAB_IDS.preferences.tabId) as HTMLIFrameElement, 
+                button: document.getElementById(TabHandler.TAB_IDS.preferences.buttonId) as HTMLButtonElement 
+            },
+
+            settings:  { 
+                content: document.getElementById(TabHandler.TAB_IDS.settings.tabId) as HTMLIFrameElement, 
+                button: document.getElementById(TabHandler.TAB_IDS.settings.buttonId) as HTMLButtonElement 
+            },
+        };
 
         // Initialize tab button events (only attach listeners that target existing elements)
         this.initializeTabButtonEvents();
@@ -44,58 +59,50 @@ class TabHandler {
      * Initializes the tab button event listeners.
      */
     private initializeTabButtonEvents(): void {
-        if (this.live_interface_tab_button) {
-            this.live_interface_tab_button.addEventListener('click', () => {
-                this.activateTab(this.live_interface_tab);
-            });
+        // Attach click event listeners to each tab button
+        for (const tabKey in this.tabs) {
+            const tabEntry = this.tabs[tabKey];
+            tabEntry.button?.addEventListener('click', () => this.onTabButtonClick(tabKey));
         }
+    }
 
-        if (this.geofence_editor_tab_button) {
-            this.geofence_editor_tab_button.addEventListener('click', () => {
-                this.activateTab(this.geofence_editor_tab);
-            });
+    /**
+     * Triggers when a tab button is clicked.
+     */
+    private onTabButtonClick(tabKey: string): void {
+        if (this.activeTabKey === tabKey) {
+            // Trigger secondary menus or actions if needed
         }
-
-        if (this.live_data_tab_button) {
-            this.live_data_tab_button.addEventListener('click', () => {
-                this.activateTab(this.live_data_tab);
-            });
-        }
-
-        if (this.preferences_tab_button) {
-            this.preferences_tab_button.addEventListener('click', () => {
-                this.activateTab(this.preferences_tab);
-            });
-        }
-
-        if (this.settings_tab_button) {
-            this.settings_tab_button.addEventListener('click', () => {
-                this.activateTab(this.settings_tab);
-            });
+        else {
+            this.activateTab(tabKey);
         }
     }
 
     /**
      * Activates the specified tab and hides all others.
      */
-    private activateTab(tab: HTMLIFrameElement | null): void {
-        if (!tab) {
-            console.warn('activateTab called with missing element — nothing to show.');
-            return;
-        }
-
-        this.hideAllTabs();
-        tab.style.display = 'block';
+    private activateTab(tabKey: string): void {
+        this.deactivateAllTabs();
+        const tabEntry = this.tabs[tabKey];
+        tabEntry.content?.classList.add('active');
+        tabEntry.button?.classList.add('active');
+        this.activeTabKey = tabKey;
     }
 
     /**
      * Hides all tabs.
      */
-    private hideAllTabs(): void {
-        if (this.live_interface_tab) this.live_interface_tab.style.display = 'none';
-        if (this.geofence_editor_tab) this.geofence_editor_tab.style.display = 'none';
-        if (this.live_data_tab) this.live_data_tab.style.display = 'none';
-        if (this.preferences_tab) this.preferences_tab.style.display = 'none';
-        if (this.settings_tab) this.settings_tab.style.display = 'none';
+    private deactivateAllTabs(): void {
+        for (const tabKey in this.tabs) {
+            this.deactivateTab(tabKey);
+        }
+    }
+
+    private deactivateTab(tabKey: string): void {
+        const tabEntry = this.tabs[tabKey];
+        tabEntry.content?.classList.remove('active');
+        tabEntry.button?.classList.remove('active');
     }
 }
+
+new TabHandler();
