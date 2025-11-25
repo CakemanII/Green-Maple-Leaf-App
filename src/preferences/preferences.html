@@ -63,6 +63,12 @@
 			.switch.on .knob{transform:translateX(20px)}
 
 			.control{min-width:160px}
+
+			/* Make map position inputs smaller and tighter together */
+			#map_initial_position_setting{ display:flex; align-items:center; gap:8px; }
+			#map_initial_position_setting .label{ flex:1; }
+			#map_initial_position_setting .control{ min-width:6.5rem; width:6.5rem; }
+			#map_initial_position_setting .control input{ padding:6px 8px; }
 			select,input[type="text"],input[type="number"]{background:#0d0d0d;border:1px solid #1f1f1f;color:inherit;padding:8px 10px;border-radius:6px;outline:none}
 
 			.full-row{grid-column:1/-1}
@@ -91,90 +97,182 @@
 					<h2>General</h2>
 					<p class="desc">General application settings and basic behavior toggles.</p>
 
-					<div class="pref-row">
+					<!-- Dark/Light mode Setting -->
+					<div class="pref-row" id="appearance_setting">
 						<div class="label">
-							<span class="title">Enable background updates</span>
-							<span class="hint">Allow the app to fetch live data in background.</span>
-						</div>
-						<label class="switch" aria-label="Enable background updates">
-							<input type="checkbox" />
-							<span class="knob"></span>
-						</label>
-					</div>
-
-					<div class="pref-row">
-						<div class="label">
-							<span class="title">Default map view</span>
-							<span class="hint">Choose the initial map view when opening the editor.</span>
+							<span class="title">Application Appearance</span>
+							<span class="hint">Determines whether application light mode or dark mode is enabled.</span>
 						</div>
 						<div class="control">
 							<select>
-								<option>Street</option>
+								<option>System</option>
+								<option>Dark</option>
+								<option>Light</option>
+							</select>
+						</div>
+					</div>
+
+					<!-- Primary application color setting -->
+					<div class="pref-row" id="primary_color_setting">
+						<div class="label">
+							<span class="title">Primary Application Color</span>
+							<span class="hint">Sets the primary accent color used for all headers, titles, and subheaders.</span>
+						</div>
+						<div class="control">
+							<input type="color" value="#6ba3ff" />
+						</div>
+					</div>
+
+					<div><br></br></div>
+
+					<!-- Map View type -->
+					<div class="pref-row" id="map_view_type_setting">
+						<div class="label">
+							<span class="title">Default Map View Type</span>
+							<span class="hint">Sets the default map view type used in the geofence editor.</span>
+						</div>
+						<div class="control">
+							<select>
+								<option>Auto</option>
 								<option>Satellite</option>
-								<option>Hybrid</option>
+								<option>Street</option>
 							</select>
 						</div>
 					</div>
 				</section>
 
 				<section class="prefs-card">
-					<h2>Notifications</h2>
-					<p class="desc">Control alerting behavior and notification thresholds.</p>
+					<h2>Live Interface</h2>
+					<p class="desc">Application preferences for the GCS launch control interface.</p>
+				</section>
 
-					<div class="pref-row">
-						<div class="label">
-							<span class="title">Enable push alerts</span>
-							<span class="hint">Receive push alerts for important events.</span>
-						</div>
-						<label class="switch on" aria-label="Enable push alerts">
-							<input type="checkbox" checked />
-							<span class="knob"></span>
-						</label>
-					</div>
+				<section class="prefs-card">
+					<h2>Geofence Editor</h2>
+					<p class="desc">Application preferences for the geofence editor interface.</p>
 
-					<div class="pref-row">
+					<!-- Default region creation restriction -->
+					<div class="pref-row" id="default_region_creation_restriction_setting">
 						<div class="label">
-							<span class="title">Alert sensitivity</span>
-							<span class="hint">Set how sensitive alerts should be.</span>
+							<span class="title">Default Region Restriction</span>
+							<span class="hint">Set whether newly created regions are restricted or unrestricted by default.</span>
 						</div>
 						<div class="control">
 							<select>
-								<option>Low</option>
-								<option selected>Medium</option>
-								<option>High</option>
+								<option>Unrestricted</option>
+								<option>Restricted</option>
 							</select>
 						</div>
 					</div>
-				</section>
 
-				<section class="prefs-card full-row">
-					<h2>User Interface</h2>
-					<p class="desc">Layout and display options for the application UI.</p>
-
-					<div class="pref-row">
+					<!-- Default region creation visibility -->
+					<div class="pref-row" id="default_region_creation_visibility_setting">
 						<div class="label">
-							<span class="title">Compact mode</span>
-							<span class="hint">Use a denser layout to fit more content.</span>
-						</div>
-						<label class="switch" aria-label="Compact mode">
-							<input type="checkbox" />
-							<span class="knob"></span>
-						</label>
-					</div>
-
-					<div class="pref-row">
-						<div class="label">
-							<span class="title">Font size</span>
-							<span class="hint">Adjust base font size for accessibility.</span>
+							<span class="title">Default Region Visibility</span>
+							<span class="hint">Set whether newly created regions are visible or hidden by default.</span>
 						</div>
 						<div class="control">
-							<input type="number" min="12" max="24" value="14" /> px
+							<select>
+								<option>Visible</option>
+								<option>Hidden</option>
+							</select>
 						</div>
 					</div>
 
-					<div class="actions">
-						<button class="btn">Reset</button>
-						<button class="btn primary">Save</button>
+					<!-- Default region creation fill color setting -->
+					<div class="pref-row" id="default_region_creation_color_setting">
+						<div class="label">
+							<span class="title">Default Region Fill Color</span>
+							<span class="hint">Set the default color all regions have when first created.</span>
+						</div>
+						<div class="control">
+							<input type="color" value="#6ba3ff" />
+						</div>
+					</div>
+
+					<!-- Default region creation border color setting -->
+					<div class="pref-row" id="default_region_creation_border_color_setting">
+						<div class="label">
+							<span class="title">Default Region Border Color</span>
+							<span class="hint">Set the default border color all regions have when first created.</span>
+						</div>
+						<div class="control">
+							<input type="color" value="#ffffff" />
+						</div>
+					</div>
+
+					<!-- Default region creation fill opacity -->
+					<div class="pref-row" id="default_region_creation_opacity_setting">
+						<div class="label">
+							<span class="title">Default Region Fill Opacity</span>
+							<span class="hint">Set the default fill opacity (transparency) all regions have when first created.</span>
+						</div>
+						<div class="control">
+							<input type="number" min="0" max="1" step="0.05" value="0.2" />
+						</div>
+					</div>
+
+					<!-- Default region creation border opacity -->
+					<div class="pref-row" id="default_region_creation_border_opacity_setting">
+						<div class="label">
+							<span class="title">Default Region Border Opacity</span>
+							<span class="hint">Set the default border opacity (transparency) all regions have when first created.</span>
+						</div>
+						<div class="control">
+							<input type="number" min="0" max="1" step="0.05" value="1.0" />
+						</div>
+					</div>
+
+					<div><br></br></div>
+
+					<!-- Map View type -->
+					<div class="pref-row" id="map_view_type_setting">
+						<div class="label">
+							<span class="title">Default Map View Type</span>
+							<span class="hint">Sets the default map view type used in the geofence editor.</span>
+						</div>
+						<div class="control">
+							<select>
+								<option>General</option>
+								<option>Auto</option>
+								<option>Satellite</option>
+								<option>Street</option>
+							</select>
+						</div>
+					</div>
+
+					<!-- Map initial zoom level -->
+					<div class="pref-row" id="map_initial_zoom_level_setting">
+						<div class="label">
+							<span class="title">Initial Map Zoom Level</span>
+							<span class="hint">Sets the initial zoom level used in the geofence editor.</span>
+						</div>
+						<div class="control">
+							<input type="number" min="1" max="20" step="1" value="12" />
+						</div>
+					</div>
+
+					<!-- Load previously saved geodata -->
+					<div class="pref-row" id="load_previous_geodata_setting">
+						<div class="label">
+							<span class="title">Load Previous Geodata on Startup</span>
+							<span class="hint">Determines whether the geofence editor loads previously saved geodata on application startup.</span>
+						</div>
+						<div class="control">
+							<label class="switch" aria-label="Load previous geodata on startup">
+								<input type="checkbox" checked />
+							</label>
+						</div>
+					</div>
+
+					<!-- Invaid region color -->
+					<div class="pref-row" id="invalid_region_color_setting">
+						<div class="label">
+							<span class="title">Invalid Region Color</span>
+							<span class="hint">Sets the color used to highlight invalid regions in the geofence editor.</span>
+						</div>
+						<div class="control">
+							<input type="color" value="#ff4d4d" />
+						</div>
 					</div>
 				</section>
 			</main>
