@@ -1,8 +1,8 @@
 class TabHandler {
     private static readonly TAB_IDS: Record<string, { tabId: string; buttonId: string }> = {
         liveInterface:   { tabId: 'live_interface_tab',   buttonId: 'live_interface_tab_button' },
-        geofenceEditor:  { tabId: 'geofence_editor_tab',  buttonId: 'geofence_editor_tab_button' },
         liveData:        { tabId: 'live_data_tab',        buttonId: 'live_data_tab_button' },
+        geofenceEditor:  { tabId: 'geofence_editor_tab',  buttonId: 'geofence_editor_tab_button' },
         preferences:     { tabId: 'preferences_tab',      buttonId: 'preferences_tab_button' },
         settings:        { tabId: 'settings_tab',         buttonId: 'settings_tab_button' },
     };
@@ -30,14 +30,14 @@ class TabHandler {
                 button: document.getElementById(TabHandler.TAB_IDS.liveInterface.buttonId) as HTMLButtonElement 
             },
 
-            geofenceEditor: { 
-                content: document.getElementById(TabHandler.TAB_IDS.geofenceEditor.tabId) as HTMLIFrameElement, 
-                button: document.getElementById(TabHandler.TAB_IDS.geofenceEditor.buttonId) as HTMLButtonElement 
-            },
-
             liveData: { 
                 content: document.getElementById(TabHandler.TAB_IDS.liveData.tabId) as HTMLIFrameElement, 
                 button: document.getElementById(TabHandler.TAB_IDS.liveData.buttonId) as HTMLButtonElement 
+            },
+
+            geofenceEditor: { 
+                content: document.getElementById(TabHandler.TAB_IDS.geofenceEditor.tabId) as HTMLIFrameElement, 
+                button: document.getElementById(TabHandler.TAB_IDS.geofenceEditor.buttonId) as HTMLButtonElement 
             },
 
             preferences: { 
@@ -55,7 +55,7 @@ class TabHandler {
         this.initializeTabButtonEvents();
 
         // Activate the first available tab by default
-        this.activateTab(Object.keys(this.tabs)[3]);
+        this.activateTab(Object.keys(this.tabs)[2]);
     }
 
     /**
