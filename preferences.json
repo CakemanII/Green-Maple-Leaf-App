@@ -1,0 +1,10 @@
+{
+    "appearance_theme": "Dark",
+    "default_region_creation_border_opacity": "1",
+    "default_region_creation_color": "#00ff40",
+    "default_region_creation_opacity": "0.25",
+    "default_region_creation_restriction": "Restricted",
+    "general_map_view_type": "Satellite",
+    "invalid_region_color_setting": "#8080ff",
+    "primary_color": "#8ca3dd"
+}

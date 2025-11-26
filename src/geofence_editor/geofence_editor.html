@@ -1212,33 +1212,6 @@
             // Initialize the region editor
             const regionEditor = new MapRegionEditor();
             console.log('MapRegionEditor initialized successfully');
-                       
-            /*// Add event listeners for region buttons
-            document.querySelectorAll('.region-button').forEach(button => {
-                button.addEventListener('click', function() {
-                    const mode = this.querySelector('span').textContent;
-                    document.getElementById('map-mode').textContent = mode;
-                    console.log('Creating region:', mode);
-                });
-            });
-            
-            // Add event listener for toggle anchors button
-            const toggleAnchorsBtn = document.getElementById('toggle-anchors');
-            toggleAnchorsBtn.addEventListener('click', function() {
-                this.classList.toggle('active');
-                const isActive = this.classList.contains('active');
-                console.log('Add Anchors:', isActive ? 'ON' : 'OFF');
-            });
-            
-            // Add event listeners for layer action buttons
-            document.querySelectorAll('.layer-action-btn').forEach(button => {
-                button.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const action = this.classList[1]; // edit, eye, settings, delete
-                    const layerName = this.closest('.layer-item').querySelector('.layer-name').textContent;
-                    console.log(`Action: ${action} on layer: ${layerName}`);
-                });
-            });*/
         });
     </script>
 
