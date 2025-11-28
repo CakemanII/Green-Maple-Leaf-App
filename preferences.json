@@ -4,7 +4,7 @@
     "default_region_creation_border_opacity": "1",
     "default_region_creation_color": "#734db3",
     "default_region_creation_opacity": "0.25",
-    "default_region_creation_restriction": "Unrestricted",
+    "default_region_creation_restriction": "Restricted",
     "default_region_creation_visibility": "Visible",
     "general_map_view_type": "Street",
     "geofence_map_view_type": "Auto",

@@ -26,7 +26,7 @@ class Preferences
         // Load initial preferences from server.
         setTimeout(() => {
             this.loadPreferencesFromServer();
-        }, 100);
+        }, 0);
     }
 
     /**
