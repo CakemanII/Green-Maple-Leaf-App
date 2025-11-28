@@ -75,6 +75,8 @@ abstract class MapRegion
     // These are the true anchor points used to create the curve.
     // Example Element: [LatLng: anchorLatLng, relIncomingHandle: relativeControlHandle1LatLng, relOutgoingHandle: relativeControlHandle2LatLng]
 
+    private curvePane: any;
+    private curvePaneID: string | null;
     private curveShape: any;
     private bezierCurveData: any[];
 
@@ -106,7 +108,7 @@ abstract class MapRegion
         this.updateFromUUID = typeof regionInput === 'string';
         if (this.updateFromUUID) {
             this.setUUID = regionInput as string;
-            this.getLatestRegionData();
+            this.attemptGetLatestRegionData();
         }
         else
         {
@@ -117,6 +119,8 @@ abstract class MapRegion
         this.shapeAreaActive = false;
         this.selfIntercepting = false;
 
+        this.curvePane = null;
+        this.curvePaneID = null;
         this.curveShape = null;
         this.bezierCurveData = [];
 
@@ -125,6 +129,18 @@ abstract class MapRegion
         this.borderThickness = this.originalBorderThickness;
         this.stripes = null;
         this.fillPattern = null;
+
+        // Initialize the pane
+        if (this.GetSetUUID !== "") {
+            this.curvePaneID = `region-pane-${this.GetSetUUID}`;
+        }
+        else
+        {
+            const randomString = Math.random().toString(36).substring(2, 15);
+            this.curvePaneID = `region-pane-temp-${randomString}`;
+        }
+        this.curvePane = InteractiveMap.mapInstance.createPane(this.curvePaneID!);
+        console.log(`Created pane with ID: ${this.curvePaneID}`);
 
         // Initialize the shape
         this.curveShape = L.curve([], {}).addTo(InteractiveMap.mapInstance);
@@ -192,10 +208,13 @@ abstract class MapRegion
     {
         // Get latest region data if updating from UUID
         if (this.updateFromUUID)
-            this.getLatestRegionData();
+            this.attemptGetLatestRegionData();
 
         // Recalculate backend anchor data from frontend shape point data
         this.translateToBackendData();
+
+        // Update the map pane
+        this.updateMapPane();
 
         // Update the shape
         this.updateShape();
@@ -212,9 +231,9 @@ abstract class MapRegion
     }
 
     /**
-     * Update region data from data manager.
+     * Attempts to update region data from data manager.
      */
-    private getLatestRegionData()
+    public attemptGetLatestRegionData()
     {
         if (this.updateFromUUID) {
             const latestData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(this.setUUID);
@@ -230,6 +249,35 @@ abstract class MapRegion
         {
             console.warn("updateRegionData called but updateFromUUID is false. No action taken.");
         }
+    }
+
+    /**
+     * Update map pane.
+     */
+    private updateMapPane()
+    {
+        if (!this.curvePane)
+        {
+            console.warn("Curve pane does not exist. Cannot update map pane.");
+        }
+
+        // Get proper z-index from layer index
+        const regionLayerRange: [number, number] = MAP_LAYER_INDICES.REGIONS as [number, number];
+        let zIndex: number = 0;
+
+        if (this.regionData.LayerIndex === undefined) {
+            zIndex = regionLayerRange[1]; // Default to base region layer
+        } else {
+            const layerIndex = this.regionData.LayerIndex;
+            zIndex = regionLayerRange[0] + layerIndex;
+            if (zIndex > regionLayerRange[1]) {
+                zIndex = regionLayerRange[1]; // Cap to max region layer
+                console.warn(`Region layer index ${layerIndex} exceeds maximum. Capped to ${regionLayerRange[1]}. TOO MANY REGIONS!`);
+            }
+        }
+
+        // Update the pane z-index
+        this.curvePane.style.zIndex = zIndex;
     }
 
     /**
@@ -315,7 +363,8 @@ abstract class MapRegion
                 opacity: this.regionData.General.IsVisible ? 1 : this.hidden_shape_opacity,
                 fill: this.shapeAreaActive && shapeFillOpacity > 0,
                 fillColor: this.shapeAreaActive ? fillColor : undefined,
-                fillOpacity: this.shapeAreaActive ? shapeFillOpacity : 0
+                fillOpacity: this.shapeAreaActive ? shapeFillOpacity : 0,
+                pane: this.curvePaneID,
             };
 
             // Add stripe pattern if this is a restricted region (both visible and hidden)
@@ -428,6 +477,15 @@ abstract class MapRegion
         if (this.fillPattern) {
             InteractiveMap.mapInstance.removeLayer(this.fillPattern);
             this.fillPattern = null;
+        }
+
+        // Remove the pane
+        if (this.curvePane) {
+            const panes = (InteractiveMap.mapInstance as any)._panes;
+            if (panes && panes[this.curvePaneID!]) {
+                delete panes[this.curvePaneID!];
+            }
+            this.curvePane = null;
         }
     }
 

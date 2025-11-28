@@ -87,7 +87,8 @@ class AnchorPoint {
         this.mainVisual = L.marker(this.anchorPosition!, {
             icon: AnchorPoint.MAIN_VISUAL,
             draggable: AnchorPoint.shouldBeInteractable(this.interactionHandlers),
-            riseOnHover: false
+            riseOnHover: false,
+            pane: MapRegionAnchorManager.INSTANCE.AnchorMapPaneID,
         }).addTo(InteractiveMap.mapInstance);
 
         // Add drag events to update position
@@ -150,7 +151,8 @@ class AnchorPoint {
         const handleVisual: L.Marker = L.marker(absHandlePosition, 
             { 
                 icon: AnchorPoint.CONTROL_HANDLE_VISUAL, 
-                draggable: true 
+                draggable: true ,
+                pane: MapRegionAnchorManager.INSTANCE.HandleMapPaneID,
             }
         ).addTo(InteractiveMap.mapInstance);
 
@@ -229,7 +231,8 @@ class AnchorPoint {
             color: isIncomingHandle ? '#00ff00' : '#ff6600',
             weight: 3,
             dashArray: '8, 4',
-            opacity: 0.9
+            opacity: 0.9,
+            pane: MapRegionAnchorManager.INSTANCE.HandleGuideMapPaneID,
         }).addTo(InteractiveMap.mapInstance);
 
         // Assign to the correct field

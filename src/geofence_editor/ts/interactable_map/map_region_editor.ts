@@ -322,6 +322,19 @@ class MapRegionAnchorManager
     public get SelectedHandles(): Set<[AnchorPoint, boolean]> { return this.selectedHandles; }
     private isDragging: boolean; // Flag to indicate if an anchor is being dragged
 
+    // Anchor pane management
+    private handleGuideMapPane: any; // Pane for handle guide visuals
+    private static readonly handleGuideMapPaneID: any = 'region-handle-guide-pane';
+    public get HandleGuideMapPaneID(): any { return MapRegionAnchorManager.handleGuideMapPaneID; }
+
+    private anchorMapPane: any; // Pane for anchor markers
+    private static readonly anchorMapPaneID: any = 'region-anchor-pane';
+    public get AnchorMapPaneID(): any { return MapRegionAnchorManager.anchorMapPaneID; }
+
+    private handleMapPane: any; // Pane for handle markers
+    private static readonly handleMapPaneID: any = 'region-handle-pane';
+    public get HandleMapPaneID(): any { return MapRegionAnchorManager.handleMapPaneID; }
+
     constructor()
     {
         // Ensure singleton instance
@@ -346,6 +359,26 @@ class MapRegionAnchorManager
         this.selectedAnchors = new Set<AnchorPoint>();
         this.selectedHandles = new Set<[AnchorPoint, boolean]>();
         this.isDragging = false;
+
+        // Initialize anchor and handle panes
+        this.initializePanes();
+    }
+
+    /**
+     * Initialize anchor and handle panes
+     */
+    private initializePanes() : void {
+        // Initialize anchor pane
+        this.anchorMapPane = InteractiveMap.mapInstance.createPane(MapRegionAnchorManager.anchorMapPaneID);
+        this.anchorMapPane.style.zIndex = MAP_LAYER_INDICES['REGION_ANCHORS'] as number;
+
+        // Initialize handle pane
+        this.handleMapPane = InteractiveMap.mapInstance.createPane(MapRegionAnchorManager.handleMapPaneID);
+        this.handleMapPane.style.zIndex = MAP_LAYER_INDICES['REGION_HANDLES'] as number;
+
+        // Initialize handle guide pane
+        this.handleGuideMapPane = InteractiveMap.mapInstance.createPane(MapRegionAnchorManager.handleGuideMapPaneID);
+        this.handleGuideMapPane.style.zIndex = MAP_LAYER_INDICES['REGION_HANDLE_GUIDES'] as number;
     }
 
     // #region Pivot and Scale Anchor Management
@@ -961,7 +994,7 @@ class MapRegionRegionManager
             this.regions.push(newRegion);
 
         // Update the editor UI
-        MapEditorUI.INSTANCE.updateMapLayersList();
+        MapEditorUILayerManager.INSTANCE.updateMapLayersListAndIndicies();
         
         return newRegion;
     }
@@ -1068,9 +1101,43 @@ class MapRegionRegionManager
 
     public updateAllRegions()
     {
-        for (const region of this.regions) {
+        // Compile all regions with & without index.
+        const regionsWithIndex: Array<{ region: MapRegion, layerIndex: number }> = [];
+        const regionsWithoutIndex: MapRegion[] = [];
+
+        this.regions.forEach((region, _) => {
+            // Check if it has regionData.
+            if (region.RegionData) {
+                // Update incases where regionData has changed externally.
+                region.attemptGetLatestRegionData();
+                const regionData: RegionData = region.RegionData;
+                // Add to list if it has a valid index.
+                if (regionData.LayerIndex !== undefined && regionData.LayerIndex !== null)
+                    regionsWithIndex.push({ region: region, layerIndex: region.RegionData.LayerIndex! });
+                else
+                    regionsWithoutIndex.push(region);
+            }
+            else
+            {
+                console.warn('Region has no associated region data:', region);
+            }
+        });
+
+        // Sort regions with index by their LayerIndex
+        regionsWithIndex.sort((a, b) => a.layerIndex - b.layerIndex);
+
+        // Combine the sorted regions with index and those without index
+        const sortedRegions: MapRegion[] = regionsWithIndex.map(item => item.region).concat(regionsWithoutIndex);
+        
+        // Invert the order so that higher index regions are drawn on top
+        sortedRegions.reverse();
+
+        // Update each region in the correct order
+        for (const region of sortedRegions) {
             region.update();
         }
+
+        console.log('Updated all regions in correct layer order.');
     }
 
     public setActiveEditingRegion(UUID: string)
@@ -1131,7 +1198,7 @@ class MapRegionRegionManager
         console.log(`Toggled visibility for region UUID: ${UUID} to ${regionData.General.IsVisible}`);
         
         // Update the UI to reflect the visibility change
-        MapEditorUI.INSTANCE.updateMapLayersList();
+        MapEditorUILayerManager.INSTANCE.updateMapLayersListAndIndicies();
     }
 
     public deleteRegion(UUID: string)
@@ -1163,7 +1230,7 @@ class MapRegionRegionManager
         MapRegionDataManager.INSTANCE.removeRegionDataByUUID(UUID);
 
         // Update the UI
-        MapEditorUI.INSTANCE.updateMapLayersList();
+        MapEditorUILayerManager.INSTANCE.updateMapLayersListAndIndicies();
         MapEditorUI.INSTANCE.onActiveEditingRegionChanged();
         
         console.log(`Deleted region with UUID: ${UUID}`);
@@ -1253,7 +1320,7 @@ class MapRegionRegionManager
     // #region Create Region From Editor
     public createRegionFromEditorTriggered(regionType: RegionType) 
     {
-        if (this.IsEditingRegion && false) { // disabled for now
+        if (this.IsEditingRegion) { // disabled for now
             console.warn('Cannot start creating a new region while editing an existing region. Stop editing first.');
             return;
         }
@@ -1369,7 +1436,7 @@ class MapRegionDataManager
             if (updateEditorPanel && MapRegionRegionManager.INSTANCE.ActiveEditingRegion?.RegionData.UUID === UUID)
             {
                 MapEditorUIRegionInfoManager.INSTANCE.updateRegionInfoPanel(MapRegionRegionManager.INSTANCE.ActiveEditingRegion!.RegionData);
-                MapEditorUI.INSTANCE.updateMapLayersList();
+                MapEditorUILayerManager.INSTANCE.updateMapLayersListAndIndicies();
             }
         }
     }

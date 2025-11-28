@@ -21,8 +21,6 @@ class MapEditorUI {
     private static readonly stopEditingButtonID: string = "btn-stop-editing";
     private static readonly deleteRegionButtonID: string = "btn-delete-region";
 
-    private static readonly regionListContainerID: string = "layers-container";
-
     private static readonly mapCoordsFooterElementID = "map-coords";
     private static readonly mapZoomFooterElementID = "map-zoom";
     private static readonly mapModeFooterElementID = "map-mode";
@@ -47,9 +45,6 @@ class MapEditorUI {
     private stopEditingButton!: HTMLButtonElement;
     private deleteRegionButton!: HTMLButtonElement;
 
-    private regionListContainer!: HTMLDivElement;
-    public get RegionListContainer(): HTMLDivElement { return this.regionListContainer; }
-
     private mapCoordsFooter!: HTMLElement;
     private mapZoomFooter!: HTMLElement;
     private mapModeFooter!: HTMLElement;
@@ -66,6 +61,7 @@ class MapEditorUI {
         // Initialize MapEditorUIRegionInfoManager
         new MapEditorUIRegionInfoManager();
         new MapRegionHightlightingHandler();
+        new MapEditorUILayerManager();
 
         // Initialize elements        
         this.sidebarCreateRegionContainer = document.getElementById(MapEditorUI.sidebarCreateRegionContainerID) as HTMLDivElement;
@@ -76,8 +72,6 @@ class MapEditorUI {
         this.createRectangleRegionButton = document.getElementById(MapEditorUI.createRectangleRegionButtonID) as HTMLButtonElement;
         this.createCircleRegionButton = document.getElementById(MapEditorUI.createCircleRegionButtonID) as HTMLButtonElement;
         this.createfreeformRegionButton = document.getElementById(MapEditorUI.createfreeformRegionButtonID) as HTMLButtonElement;
-        
-        this.regionListContainer = document.getElementById(MapEditorUI.regionListContainerID) as HTMLDivElement;
 
         // Get footer elements
         this.mapCoordsFooter = document.getElementById(MapEditorUI.mapCoordsFooterElementID) as HTMLElement;
@@ -320,44 +314,6 @@ class MapEditorUI {
     }
 
     /**
-     * Updates the map layers list in the UI.
-     */
-    public updateMapLayersList(): void {
-        // Clear existing layers
-        this.regionListContainer.innerHTML = '';
-        MapEditorUILayer.clearAllLayers();
-
-        // Clear highlights to be safe.
-        MapRegionHightlightingHandler.INSTANCE.clearHighlightSequence();
-
-        // Get all region datas and sort by LayerIndex
-        const allRegions = MapRegionDataManager.INSTANCE.getAllRegionDatas();
-        
-        // Separate regions with and without LayerIndex
-        const regionsWithIndex = allRegions.filter(r => r.LayerIndex !== undefined);
-        const regionsWithoutIndex = allRegions.filter(r => r.LayerIndex === undefined);
-
-        // Assign the regions without indexes a layer index greater than the greatest indexed region.
-        if (regionsWithIndex.length > 0) {
-            const maxIndex = Math.max(...regionsWithIndex.map(r => r.LayerIndex!));
-            regionsWithoutIndex.forEach((region, idx) => {
-                region.LayerIndex = maxIndex + idx - 1;
-            });
-        }
-        
-        // Sort regions with index (higher index = first in list)
-        regionsWithIndex.sort((a, b) => (b.LayerIndex ?? 0) - (a.LayerIndex ?? 0));
-        
-        // Combine: regions with index first, then regions without index
-        const sortedRegions = [...regionsWithIndex, ...regionsWithoutIndex];
-        
-        // Create UI layers in sorted order
-        sortedRegions.forEach((regionData: RegionData) => { 
-            new MapEditorUILayer(regionData); 
-        });
-    }
-
-    /**
      * Called when the active editing region changes.
      */
     public onActiveEditingRegionChanged(): void {
@@ -372,7 +328,7 @@ class MapEditorUI {
         this.updateRegionDependentButtons();
 
         // Update all layer edit button states
-        MapEditorUILayer.updateAllEditButtonStates();
+        MapEditorUILayerManager.INSTANCE.updateAllEditButtonStates();
 
         // Update info panel
         if (isActivelyEditing) {
@@ -1159,22 +1115,121 @@ class MapRegionHightlightingHandler {
     }
 }
 
-class MapEditorUILayer {
-    public static allLayers: MapEditorUILayer[] = [];
-    
+class MapEditorUILayerManager {
+    private static instance: MapEditorUILayerManager;
+    public static get INSTANCE(): MapEditorUILayerManager { return MapEditorUILayerManager.instance; }
+
+    private static readonly regionListContainerID: string = "layers-container";
+
+    private regionListContainer!: HTMLElement;
+    public get RegionListContainer(): HTMLElement { return this.regionListContainer; }
+
+    private allLayers: MapEditorUILayer[] = [];
+
+    constructor() {
+        // Ensure singleton instance
+        if (MapEditorUILayerManager.instance) {
+            console.error("MapEditorUILayerManager instance already exists!");
+            return;
+        }
+        MapEditorUILayerManager.instance = this;
+
+        // Initialize parent container
+        this.regionListContainer = document.getElementById(MapEditorUILayerManager.regionListContainerID)!;
+    }
+
+    /**
+     * Updates the map layers list in the UI.
+     */
+    public updateMapLayersListAndIndicies(): void {
+        // Clear existing layers
+        this.clearAllLayers();
+
+        // Clear highlights to be safe.
+        MapRegionHightlightingHandler.INSTANCE.clearHighlightSequence();
+
+        // Get all region datas and sort by LayerIndex
+        const allRegions = MapRegionDataManager.INSTANCE.getAllRegionDatas();
+        
+        // Separate regions with and without LayerIndex
+        const regionsWithIndex = allRegions.filter(r => r.LayerIndex !== undefined);
+        const regionsWithoutIndex = allRegions.filter(r => r.LayerIndex === undefined);
+
+        // Assign the regions without indexes a layer index greater than the greatest indexed region.
+        if (regionsWithIndex.length > 0) {
+            const maxIndex = Math.max(...regionsWithIndex.map(r => r.LayerIndex!));
+            regionsWithoutIndex.forEach((region, idx) => {
+                region.LayerIndex = maxIndex + idx - 1;
+            });
+        }
+        
+        // Sort regions with index (higher index = first in list)
+        regionsWithIndex.sort((a, b) => (b.LayerIndex ?? 0) - (a.LayerIndex ?? 0));
+        
+        // Combine: regions with index first, then regions without index
+        const sortedRegions = [...regionsWithIndex, ...regionsWithoutIndex];
+
+        // Create UI layers in sorted order
+        sortedRegions.forEach((regionData: RegionData) => { 
+            new MapEditorUILayer(regionData); 
+        });
+    }
+
+    /**
+     * Update LayerIndex values based on current DOM order.
+     */
+    public updateLayerIndicesFromDOM(container: HTMLElement): void {
+        // Get all layer items in their current DOM order
+        const layerElements = [...container.querySelectorAll('.layer-item')] as HTMLElement[];
+        
+        // Update LayerIndex for each region (highest index = first in list)
+        layerElements.forEach((layerEl, index) => {
+            const layerInstance = this.allLayers.find(layer => layer.UUID === layerEl.getAttribute('UUID'));
+            if (layerInstance) {
+                const regionData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(layerInstance.UUID);
+                if (regionData) {
+                    // Higher index = first position (top of list)
+                    regionData.LayerIndex = layerElements.length - index;
+                    MapRegionDataManager.INSTANCE.setRegionDataWithUUID(layerInstance.UUID, regionData, true, false);
+                }
+            }
+            else
+            {
+                console.warn("Could not find layer instance for element during LayerIndex update.");
+            }
+        });
+        
+        // Don't refresh UI - the drag already updated the DOM order
+    }
+
+    /**
+     * Creates and adds a new layer UI element for the given region data.
+     */
+    public updateAllEditButtonStates(): void {
+        this.allLayers.forEach((layer: MapEditorUILayer) => layer.updateEditButtonState());
+    }
+
+    private clearAllLayers(): void {
+        this.regionListContainer.innerHTML = '';
+        this.allLayers = [];
+    }
+
+    public addLayer(layer: MapEditorUILayer): void {
+        this.regionListContainer.appendChild(layer.layer);
+        this.allLayers.push(layer);
+    }
+}
+
+class MapEditorUILayer {    
     public UUID: string;
     public layer!: HTMLDivElement;
 
-    // Local ELement ID references
-    private static readonly layerEditRegionButtonID: string = "btn-layer-edit-region";
-    private static readonly layerHideRegionButtonID: string = "btn-layer-toggle-visibility-region";
-    private static readonly layerDeleteRegionButtonID: string = "btn-layer-delete-region";
-    private static readonly layerDragHandleRegionButtonID: string = "btn-layer-drag-handle-region";
-
+    // Element references
     private editRegionButton!: HTMLButtonElement;
     private hideRegionButton!: HTMLButtonElement;
     private deleteRegionButton!: HTMLButtonElement;
-    private dragHandleRegionButton!: HTMLButtonElement;
+
+    // Dyanmic region data reference
     private regionData: RegionData;
 
     constructor(regionData: RegionData) {
@@ -1201,9 +1256,6 @@ class MapEditorUILayer {
 
         // Update edit button state based on whether this region is being edited
         this.updateEditButtonState();
-
-        // Register this layer instance
-        MapEditorUILayer.allLayers.push(this);
     }
 
     /**
@@ -1226,6 +1278,7 @@ class MapEditorUILayer {
 
         // Create new layer item element
         this.layer = document.createElement('div');
+        this.layer.setAttribute('UUID', this.UUID);
         this.layer.className = 'layer-item';
         this.layer.innerHTML = `
             <div class="layer-icon"><i class="fas ${iconClass}"></i></div>
@@ -1240,7 +1293,7 @@ class MapEditorUILayer {
         `;
         
         // Add to the region list container
-        MapEditorUI.INSTANCE.RegionListContainer.appendChild(this.layer);
+        MapEditorUILayerManager.INSTANCE.addLayer(this);
         
         // Initialize button references using querySelector within this layer
         this.editRegionButton = this.layer.querySelector('.layer-action-btn.edit') as HTMLButtonElement;
@@ -1316,6 +1369,8 @@ class MapEditorUILayer {
         let hasDragStarted = false;
         let currentAfterElement: HTMLElement | null = null;
 
+        let simulatedContainer: HTMLElement;
+
         const onMouseDown = (e: MouseEvent) => {
             // Only allow dragging from non-button areas
             const target = e.target as HTMLElement;
@@ -1344,18 +1399,35 @@ class MapEditorUILayer {
                 hasDragStarted = true;
                 this.layer.classList.add('dragging');
                 this.createPlaceholder();
-                this.originalIndex = this.getLayerIndex();
             }
 
             if (hasDragStarted) {
                 // Find the layer item under the cursor
-                const container = MapEditorUI.INSTANCE.RegionListContainer;
+                const container = MapEditorUILayerManager.INSTANCE.RegionListContainer;
                 const afterElement = this.getDragAfterElement(container, e.clientY);
                 
                 // Only update if position changed
                 if (afterElement !== currentAfterElement) {
                     currentAfterElement = afterElement;
                     this.updatePlaceholderPosition(container, afterElement);
+
+                    // Create simulated container for visual feedback on the map.
+                    // Make a copy of the current order with the placeholder in the new position.
+                    simulatedContainer = document.createElement('div');
+                    const children = [...container.children] as HTMLElement[];
+                    children.forEach(child => {
+                        if (child === this.placeholder) {
+                            // Append this layer in place of the placeholder
+                            simulatedContainer.appendChild(this.layer.cloneNode(true));
+                        } else  if (child === this.layer) {
+                            // Do not include the actual layer. Skit it.
+                        } else {
+                            simulatedContainer.appendChild(child.cloneNode(true));
+                        }
+                    });
+                    console.log("Simulated container children count: " + simulatedContainer.children.length);
+                    // Update the map layer order visually based on simulated container
+                    MapEditorUILayerManager.INSTANCE.updateLayerIndicesFromDOM(simulatedContainer);
                 }
             }
         };
@@ -1365,13 +1437,13 @@ class MapEditorUILayer {
                 this.layer.classList.remove('dragging');
                 
                 // Insert the actual layer where the placeholder is
-                const container = MapEditorUI.INSTANCE.RegionListContainer;
+                const container = MapEditorUILayerManager.INSTANCE.RegionListContainer;
                 if (this.placeholder && this.placeholder.parentNode) {
                     container.insertBefore(this.layer, this.placeholder);
                     this.placeholder.remove();
                     
                     // Update LayerIndex values based on new order
-                    this.updateLayerIndices(container);
+                    MapEditorUILayerManager.INSTANCE.updateLayerIndicesFromDOM(container);
                 }
                 
                 this.placeholder = null;
@@ -1389,7 +1461,6 @@ class MapEditorUILayer {
     }
 
     private placeholder: HTMLDivElement | null = null;
-    private originalIndex: number = 0;
 
     private createPlaceholder(): void {
         this.placeholder = document.createElement('div');
@@ -1405,39 +1476,6 @@ class MapEditorUILayer {
         } else {
             container.insertBefore(this.placeholder, afterElement);
         }
-    }
-
-    private getLayerIndex(): number {
-        const container = MapEditorUI.INSTANCE.RegionListContainer;
-        const layers = [...container.querySelectorAll('.layer-item')] as HTMLElement[];
-        return layers.indexOf(this.layer);
-    }
-
-    private getPlaceholderIndex(): number {
-        if (!this.placeholder) return -1;
-        const container = MapEditorUI.INSTANCE.RegionListContainer;
-        const children = [...container.children] as HTMLElement[];
-        return children.indexOf(this.placeholder);
-    }
-
-    private updateLayerIndices(container: HTMLElement): void {
-        // Get all layer items in their current DOM order
-        const layerElements = [...container.querySelectorAll('.layer-item')] as HTMLElement[];
-        
-        // Update LayerIndex for each region (highest index = first in list)
-        layerElements.forEach((layerEl, index) => {
-            const layerInstance = MapEditorUILayer.allLayers.find(l => l.layer === layerEl);
-            if (layerInstance) {
-                const regionData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(layerInstance.UUID);
-                if (regionData) {
-                    // Higher index = first position (top of list)
-                    regionData.LayerIndex = layerElements.length - index;
-                    MapRegionDataManager.INSTANCE.setRegionDataWithUUID(layerInstance.UUID, regionData, false, false);
-                }
-            }
-        });
-        
-        // Don't refresh UI - the drag already updated the DOM order
     }
 
     private getDragAfterElement(container: HTMLElement, y: number): HTMLElement | null {
@@ -1490,14 +1528,6 @@ class MapEditorUILayer {
             this.editRegionButton.disabled = false;
             this.editRegionButton.title = "Edit";
         }
-    }
-
-    public static updateAllEditButtonStates(): void {
-        MapEditorUILayer.allLayers.forEach(layer => layer.updateEditButtonState());
-    }
-
-    public static clearAllLayers(): void {
-        MapEditorUILayer.allLayers = [];
     }
     // #endregion
 }
