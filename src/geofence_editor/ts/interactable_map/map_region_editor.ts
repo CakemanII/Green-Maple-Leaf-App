@@ -1426,6 +1426,8 @@ class MapRegionCreatorEditorHandler
     private mouseGhostAnchorVisual: L.Marker | null; // Ghost anchor for visual feedback during region creation
     private placedGhostAnchorVisuals: L.Marker[]; // Ghost anchors for placed points
 
+    private regionStyle: { [key: string]: any } = {};
+
     private creationComplete: boolean = false;
 
     constructor(regionType: RegionType)
@@ -1441,6 +1443,9 @@ class MapRegionCreatorEditorHandler
 
         this.mouseGhostAnchorVisual = null;
 
+        // Define default region style
+        this.getRegionStylePreferences();
+
         // Create Mouse Anchor Visual
         this.createMouseGhostAnchor();
 
@@ -1452,6 +1457,21 @@ class MapRegionCreatorEditorHandler
 
         // Update the region creation button UI in the Editor
         MapEditorUI.INSTANCE.setCreateRegionButtonSelection(regionType, true);
+    }
+
+    /**
+     * Get the region style preferences
+     */
+    private async getRegionStylePreferences()
+    {
+        this.regionStyle = {
+            defaultVisibility: await PreferencesReference.Instance.getPreference("default_region_creation_visibility") === "Visible",
+            defaultRestricted: await PreferencesReference.Instance.getPreference("default_region_creation_restriction") === "Restricted",
+            defaultFillColor: await PreferencesReference.Instance.getPreference("default_region_creation_color"),
+            defaultStrokeColor: await PreferencesReference.Instance.getPreference("default_region_creation_border_color"),
+            defaultFillOpacity: await PreferencesReference.Instance.getPreference("default_region_creation_opacity"),
+            defaultStrokeOpacity: await PreferencesReference.Instance.getPreference("default_region_creation_border_opacity")
+        }
     }
 
     /**
@@ -1656,14 +1676,14 @@ class MapRegionCreatorEditorHandler
             General: {
                 Name: "",
                 IsVisible: true,
-                IsRestricted: false,
+                IsRestricted: this.regionStyle.defaultRestricted,
             },
 
             Style: {
-                FillColor: "#ff7800",
-                FillOpacity: 0.5,
-                StrokeColor: "#ff7800",
-                StrokeOpacity: 0.8,
+                FillColor: this.regionStyle.defaultFillColor,
+                FillOpacity: this.regionStyle.defaultFillOpacity,
+                StrokeColor: this.regionStyle.defaultStrokeColor,
+                StrokeOpacity: this.regionStyle.defaultStrokeOpacity,
             },
 
             RegionType: this.regionType,
@@ -1723,27 +1743,19 @@ class MapRegionCreatorEditorHandler
         // Cleanup temporary visuals and data
         this.cleanup();
 
-        // Get default style preferences
-        const defaultVisibility: boolean = await PreferencesReference.Instance.getPreference("default_region_creation_visibility") === "Visible";
-        const defaultRestricted: boolean = await PreferencesReference.Instance.getPreference("default_region_creation_restriction") === "Restricted";
-        const defaultFillColor: string = await PreferencesReference.Instance.getPreference("default_region_creation_color");
-        const defaultStrokeColor: string = await PreferencesReference.Instance.getPreference("default_region_creation_border_color");
-        const defaultFillOpacity: number = await PreferencesReference.Instance.getPreference("default_region_creation_opacity");
-        const defaultStrokeOpacity: number = await PreferencesReference.Instance.getPreference("default_region_creation_border_opacity");
-
         // Create region data object for final region
         const regionData: RegionData = {
             General: {
                 Name: this.generateRegionName(),
-                IsVisible: defaultVisibility,
-                IsRestricted: defaultRestricted,
+                IsVisible: this.regionStyle.defaultVisibility,
+                IsRestricted: this.regionStyle.defaultRestricted,
             },
 
             Style: {
-                FillColor: defaultFillColor,
-                FillOpacity: defaultFillOpacity,
-                StrokeColor: defaultStrokeColor,
-                StrokeOpacity: defaultStrokeOpacity,
+                FillColor: this.regionStyle.defaultFillColor,
+                FillOpacity: this.regionStyle.defaultFillOpacity,
+                StrokeColor: this.regionStyle.defaultStrokeColor,
+                StrokeOpacity: this.regionStyle.defaultStrokeOpacity,
             },
 
             UUID: Utils.createUUIDv4(),
