@@ -1,4 +1,6 @@
 /// <reference types="leaflet" />
+declare const PreferencesReference: any;
+// Now you can use PreferencesReference directly in this file
 
 class Visuals {
     // Custom Icons for Map Markers
@@ -1579,6 +1581,7 @@ class MapRegionCreatorEditorHandler
 
     /**
      * Updates the region shape points for the temporary region based on mouse position.
+     * @param mouseLatlng The current mouse position
      */
     private updateRegionShapePoints(mouseLatlng: L.LatLng)
     {
@@ -1707,7 +1710,7 @@ class MapRegionCreatorEditorHandler
     /**
      * Finalizes the region creation and adds it to the region manager.
      */
-    private finalizeRegionCreation()
+    private async finalizeRegionCreation()
     {
         if (!this.isCreationComplete()) {
             console.warn("Cannot finalize region creation. Not enough points placed.");
@@ -1720,19 +1723,27 @@ class MapRegionCreatorEditorHandler
         // Cleanup temporary visuals and data
         this.cleanup();
 
+        // Get default style preferences
+        const defaultVisibility: boolean = await PreferencesReference.Instance.getPreference("default_region_creation_visibility") === "Visible";
+        const defaultRestricted: boolean = await PreferencesReference.Instance.getPreference("default_region_creation_restriction") === "Restricted";
+        const defaultFillColor: string = await PreferencesReference.Instance.getPreference("default_region_creation_color");
+        const defaultStrokeColor: string = await PreferencesReference.Instance.getPreference("default_region_creation_border_color");
+        const defaultFillOpacity: number = await PreferencesReference.Instance.getPreference("default_region_creation_opacity");
+        const defaultStrokeOpacity: number = await PreferencesReference.Instance.getPreference("default_region_creation_border_opacity");
+
         // Create region data object for final region
         const regionData: RegionData = {
             General: {
                 Name: this.generateRegionName(),
-                IsVisible: true,
-                IsRestricted: false,
+                IsVisible: defaultVisibility,
+                IsRestricted: defaultRestricted,
             },
 
             Style: {
-                FillColor: "#ff7800",
-                FillOpacity: 0.5,
-                StrokeColor: "#ff7800",
-                StrokeOpacity: 0.8,
+                FillColor: defaultFillColor,
+                FillOpacity: defaultFillOpacity,
+                StrokeColor: defaultStrokeColor,
+                StrokeOpacity: defaultStrokeOpacity,
             },
 
             UUID: Utils.createUUIDv4(),
@@ -1747,7 +1758,7 @@ class MapRegionCreatorEditorHandler
         MapRegionRegionManager.INSTANCE.loadRegion(regionData.UUID!);
 
         MapRegionRegionManager.INSTANCE.setActiveEditingRegion(
-           regionData.UUID!
+            regionData.UUID!
         );
 
         // Update the editor UI

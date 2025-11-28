@@ -43,6 +43,15 @@ class Preferences
                 const value = messageData.value;
                 this.updatePreference(key, value);
             }
+            else if (event.data.type === "getPreference") {
+                const value = this.getPreference(event.data.key);
+
+                event.source!.postMessage({
+                    type: "preferenceValue",
+                    value,
+                    requestId: event.data.requestId   // Echo back
+                });
+            }
         });
     }
 
