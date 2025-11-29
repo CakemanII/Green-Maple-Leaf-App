@@ -144,6 +144,9 @@ abstract class MapRegion
 
         // Initialize the shape
         this.curveShape = L.curve([], {}).addTo(InteractiveMap.mapInstance);
+
+        // Initial update
+        this.update();
     }
 
     // #region Translate Curve Shape Geometry

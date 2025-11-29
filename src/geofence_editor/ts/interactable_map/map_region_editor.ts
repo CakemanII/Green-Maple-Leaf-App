@@ -1017,9 +1017,11 @@ class MapRegionRegionManager
         // Clear existing regions
         this.deleteAllRegions();
 
-        // Load each region from the file data
+        // Add all data regions
         geoeditFileData.regions.forEach(regionData => {
-            this.loadRegion(regionData, true);
+            MapRegionDataManager.INSTANCE.appendRegionData(regionData);
+            const uuid: string = regionData.UUID!;
+            this.loadRegion(uuid, true);
         });
     }
 
@@ -1062,8 +1064,8 @@ class MapRegionRegionManager
      * Clears all regions from the _regions array.
      */
     public deleteAllRegions() {
-        for (const region of this.regions) {
-            this.deleteRegion(region.GetSetUUID);
+        while (this.regions.length > 0) {
+            this.deleteRegion(this.regions[0].GetSetUUID);
         }
     }
     // #endregion

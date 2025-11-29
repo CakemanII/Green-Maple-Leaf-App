@@ -21,6 +21,9 @@ class MapEditorUI {
     private static readonly stopEditingButtonID: string = "btn-stop-editing";
     private static readonly deleteRegionButtonID: string = "btn-delete-region";
 
+    private static readonly saveGeoeditButtonID: string = "btn-save-geoedit-data";
+    private static readonly loadGeoeditButtonID: string = "btn-load-geoedit-data";
+
     private static readonly mapCoordsFooterElementID = "map-coords";
     private static readonly mapZoomFooterElementID = "map-zoom";
     private static readonly mapModeFooterElementID = "map-mode";
@@ -44,6 +47,9 @@ class MapEditorUI {
     private convertToFreeformButton!: HTMLButtonElement;
     private stopEditingButton!: HTMLButtonElement;
     private deleteRegionButton!: HTMLButtonElement;
+
+    private saveGeoeditButton!: HTMLButtonElement;
+    private loadGeoeditButton!: HTMLButtonElement;
 
     private mapCoordsFooter!: HTMLElement;
     private mapZoomFooter!: HTMLElement;
@@ -82,6 +88,8 @@ class MapEditorUI {
         this.initalizeToolButtons();
         // Initialize create region buttons
         this.initializeCreateRegionButtons();
+        // Initialize save/load geoedit buttons
+        this.initializeSaveLoadGeoeditButtons(); 
         // Initialize footer
         this.initalizeFooter();
 
@@ -203,6 +211,20 @@ class MapEditorUI {
             button.addEventListener('click', () => {
                 MapRegionRegionManager.INSTANCE.createRegionFromEditorTriggered(type);
             });
+        });
+    }
+
+    private initializeSaveLoadGeoeditButtons(): void {
+        // Save Geoedit Button
+        this.saveGeoeditButton = document.getElementById(MapEditorUI.saveGeoeditButtonID) as HTMLButtonElement;
+        this.saveGeoeditButton.addEventListener('click', async () => {
+            await GeoeditFileManager.Instance.saveCurrentToGeoeditFile();
+        });
+
+        // Load Geoedit Button
+        this.loadGeoeditButton = document.getElementById(MapEditorUI.loadGeoeditButtonID) as HTMLButtonElement;
+        this.loadGeoeditButton.addEventListener('click', async () => {
+            await GeoeditFileManager.Instance.loadGeoeditFile("d81ab31b-a07c-4eba-85b6-3f4321f0d0f7");
         });
     }
     // #endregion

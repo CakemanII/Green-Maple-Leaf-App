@@ -1173,6 +1173,9 @@
                     <button class="region-button rectangle" id="btn-save-geoedit-data">
                         <span>Save</span>
                     </button>
+                    <button class="region-button rectangle" id="btn-load-geoedit-data">
+                        <span>Load</span>
+                    </button>
                 </div>
             </div>
         </section>
@@ -1197,8 +1200,11 @@
     </main>
     
     <!-- Load compiled TypeScript classes (non-module, in dependency order) -->
-    <!-- 0. Shared Configuration Reference -->
+    <!-- -1. Shared Configuration Reference -->
     <script src="../shared/compiled_js/global_configs_reference.js"></script>
+
+    <!-- 0. Load and Save Geoedit -->
+    <script src="./compiled_js/geofence_filing.js"></script>
 
     <!-- 1. Base map -->
     <script src="./compiled_js/interactable_map/map.js"></script>

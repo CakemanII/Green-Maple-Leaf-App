@@ -63,19 +63,15 @@ def load_config():
 #region Geofence Data Routes
 @app.route('/save_geoedit', methods=['POST'])
 def save_geoedit_file():
-    data = request.get_json(silent=True)
-    if not data or 'uuid' not in data or 'geoedit_data' not in data:
-        return ('Invalid data provided', 400)
-    uuid: str = data['uuid']
-    geoedit_data: str = data['regions']
-    success: bool = GeoFenceFileManager.save_geoedit_file(uuid, geoedit_data)
+    data: object = request.get_json(silent=True)
+    success: bool = GeoFenceFileManager.save_geoedit_file(data)
     return ('', 200) if success else ('Error saving geofence file', 500)
 
 
-@app.route('/load_geoedit', methods=['GET'])
-def load_geoedit_file():
-    uuid: str = request.data.uuid
-    geoedit_data = GeoFenceFileManager.load_geoedit_file(uuid)
+@app.route('/get_geoedit', methods=['GET'])
+def get_geoedit_file():
+    uuid: str = request.args.get('uuid', '')
+    geoedit_data = GeoFenceFileManager.get_geoedit_file(uuid)
     if geoedit_data is None:
         return (None, 404)
     return geoedit_data, 200

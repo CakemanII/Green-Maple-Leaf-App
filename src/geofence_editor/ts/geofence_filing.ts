@@ -26,23 +26,21 @@ class GeoeditFileManager {
      */
     public async loadGeoeditFile(fileUUID: string): Promise<void> {
         // Get the file contents from the server.
-        const fileContents = await fetch(`/load_geoedit?uuid=${fileUUID}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error("Network response was not ok");
-                }
-                if (response.status === 404) {
-                    throw new Error("Geoedit file not found");
-                }
-                return response.text();
-            });
+        const response = await fetch(`/get_geoedit?uuid=${encodeURIComponent(fileUUID)}`,
+            { method: 'GET' });
+        console.log(response);
+        if (!response.ok) {
+            throw new Error(`Failed to load geoedit file with UUID: ${fileUUID}`);
+        }
+        
+        const fileContents: string = await response.text();
 
         // Set the active file UUID.
         this.activeFileUUID = fileUUID;
 
         // Parse the file contents.
         const geoeditData: GeoeditFileData = this.parseGeoeditFile(fileContents);
-
+        
         // Load regions into the map editor.
         MapRegionRegionManager.INSTANCE.loadGeoeditFileContents(geoeditData);
     }
@@ -67,12 +65,15 @@ class GeoeditFileManager {
      * Verifies the integrity of the geoedit file data.
      */
     private verifyData(data: any): boolean {
+        console.log(data);
         // Ensure top-level properties exist
         if (data["regions"] === undefined || !Array.isArray(data["regions"])) {
+            console.warn("Regions property missing or not an array.");
             return false;
         }
 
         if (data["UUID"] === undefined || typeof data["UUID"] !== "string") {
+            console.warn("UUID property missing or not a string.");
             return false;
         }
 
@@ -85,7 +86,7 @@ class GeoeditFileManager {
                 region.General.Name === undefined ||
                 region.General.IsVisible === undefined ||
                 region.General.IsRestricted === undefined ||
-                region.regionType === undefined ||
+                region.RegionType === undefined ||
                 region.FrontEndData === undefined) { return false; }
             
             // Ensure style properties exist
@@ -143,8 +144,13 @@ class GeoeditFileManager {
         if (UUID === "")
             UUID = Utils.createUUIDv4();
 
+        // Remove derrivied backend properties from region data
+        for (const regionData of regionDatas) {
+            delete (regionData as RegionData).DerivedBackendData;
+        }
+
         // Populate file data
-        fileData["UUID"] = this.activeFileUUID;
+        fileData["UUID"] = UUID;
         fileData["regions"] = regionDatas;
 
         // return stringified JSON
