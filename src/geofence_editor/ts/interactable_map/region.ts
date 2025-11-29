@@ -131,13 +131,16 @@ abstract class MapRegion
         this.fillPattern = null;
 
         // Initialize the pane
+        const randomString = ( Math.random().toString(36).substring(2, 15) ) 
+        + ( Math.random().toString(36).substring(2, 15) ) ; // DUCKTAPE FIX
+        
         if (this.GetSetUUID !== "") {
-            this.curvePaneID = `region-pane-${this.GetSetUUID}`;
+            this.curvePaneID = `region-pane-${this.GetSetUUID}+${randomString}`;
         }
         else
         {
-            const randomString = Math.random().toString(36).substring(2, 15);
-            this.curvePaneID = `region-pane-temp-${randomString}`;
+            
+            this.curvePaneID = `region-pane-temp+${randomString}`;
         }
         this.curvePane = InteractiveMap.mapInstance.createPane(this.curvePaneID!);
         console.log(`Created pane with ID: ${this.curvePaneID}`);
@@ -484,6 +487,7 @@ abstract class MapRegion
 
         // Remove the pane
         if (this.curvePane) {
+            this.curvePane.remove();
             const panes = (InteractiveMap.mapInstance as any)._panes;
             if (panes && panes[this.curvePaneID!]) {
                 delete panes[this.curvePaneID!];

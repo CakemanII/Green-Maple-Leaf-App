@@ -1205,7 +1205,8 @@ class MapRegionRegionManager
 
         // Stop editing if this region is currently being edited
         // Clear the active editing region reference WITHOUT calling stopEditingRegion() to avoid update() calls
-        if (this.activeEditingRegion && this.activeEditingRegion.GetSetUUID === UUID) {
+        const wasBeingEdited = (this.activeEditingRegion && this.activeEditingRegion.GetSetUUID === UUID);
+        if (wasBeingEdited) {
             // Clear anchors
             MapRegionAnchorManager.INSTANCE.clearAnchors();
             // Clear the active editing region reference
@@ -1219,14 +1220,12 @@ class MapRegionRegionManager
         this.regions.splice(regionIndex, 1);
 
         // Remove the region data from the data manager
-        console.log(`Removing region data for UUID: ${UUID}`);
         MapRegionDataManager.INSTANCE.removeRegionDataByUUID(UUID);
 
         // Update the UI
         MapEditorUILayerManager.INSTANCE.updateMapLayersListAndIndicies();
-        MapEditorUI.INSTANCE.onActiveEditingRegionChanged();
-        
-        console.log(`Deleted region with UUID: ${UUID}`);
+        if (wasBeingEdited)
+            MapEditorUI.INSTANCE.onActiveEditingRegionChanged();
     }
 
     // #region Region Management Functions
