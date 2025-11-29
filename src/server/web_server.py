@@ -1,7 +1,8 @@
 from flask import Flask, send_from_directory, request
 import os
 
-from preferences import Preferences
+from preferences_file_manager import PreferencesFileManager
+from geofence_file_manager import GeoFenceFileManager
 
 SRC_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MAIN_DIR: str = os.path.join(SRC_DIR, 'main')
@@ -47,16 +48,37 @@ def save_config():
     data = request.get_json(silent=True)
     if not data:
         return ('No JSON data provided', 400)
-    success: bool = Preferences.save_preferences(data)
+    success: bool = PreferencesFileManager.save_preferences(data)
     return ('', 200) if success else ('Error saving preferences', 500)
 
 
 @app.route('/load_config', methods=['GET'])
 def load_config():
     # Return current preferences data
-    preferences_data = Preferences.get_preferences_data()
+    preferences_data = PreferencesFileManager.get_preferences_data()
     return preferences_data, 200
 
+#endregion
+
+#region Geofence Data Routes
+@app.route('/save_geoedit', methods=['POST'])
+def save_geoedit_file():
+    data = request.get_json(silent=True)
+    if not data or 'uuid' not in data or 'geoedit_data' not in data:
+        return ('Invalid data provided', 400)
+    uuid: str = data['uuid']
+    geoedit_data: str = data['regions']
+    success: bool = GeoFenceFileManager.save_geoedit_file(uuid, geoedit_data)
+    return ('', 200) if success else ('Error saving geofence file', 500)
+
+
+@app.route('/load_geoedit', methods=['GET'])
+def load_geoedit_file():
+    uuid: str = request.data.uuid
+    geoedit_data = GeoFenceFileManager.load_geoedit_file(uuid)
+    if geoedit_data is None:
+        return (None, 404)
+    return geoedit_data, 200
 #endregion
 
 if __name__ == '__main__':

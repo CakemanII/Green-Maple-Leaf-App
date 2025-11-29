@@ -1,0 +1,29 @@
+{
+    "UUID": "",
+    "regions": [
+        {
+            "UUID": "",
+            "LayerIndex": 0,
+            "General": {
+                "Name": "",
+                "IsVisible": false,
+                "IsRestricted": false
+            },
+
+            "Style": {
+                "FillColor": "",
+                "FillOpacity": 0,
+                "StrokeColor": "",
+                "StrokeOpacity": 0
+            },
+            "RegionType": "",
+            "FrontEndData": [
+                {
+                    "anchorPos": [0, 0], 
+                    "relIncomingHandlePos": [0, 0], 
+                    "relOutgoingHandlePos": [0, 0]
+                }
+            ]
+        }
+    ]
+}

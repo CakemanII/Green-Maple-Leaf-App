@@ -1,6 +1,6 @@
 import json
 
-class Preferences:
+class PreferencesFileManager:
     @staticmethod
     def _get_preferences_path() -> str:
         '''
@@ -13,7 +13,7 @@ class Preferences:
         '''
         Returns the current preferences data.
         '''
-        with open(Preferences._get_preferences_path(), 'r') as config_file:
+        with open(PreferencesFileManager._get_preferences_path(), 'r') as config_file:
             raw_data: str = config_file.read()
             return json.loads(raw_data)
 
@@ -26,7 +26,7 @@ class Preferences:
         try:
             # Write updated preferences back to file
             print("Saving preferences:", new_preferences)
-            with open(Preferences._get_preferences_path(), 'w') as config_file:
+            with open(PreferencesFileManager._get_preferences_path(), 'w') as config_file:
                 config_file.write(json.dumps(new_preferences, indent=4))
 
         except Exception as e:

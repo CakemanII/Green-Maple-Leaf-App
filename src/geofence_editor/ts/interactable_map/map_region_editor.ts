@@ -950,7 +950,7 @@ class MapRegionRegionManager
      * @param {RegionData | string} regionInput - Data defining the region to load or UUID to get regiondata from DataManager
      * @param {boolean} pushToRegionsArray - Whether to add the loaded region to the regions array
      */
-    loadRegion(regionInput: RegionData | string, pushToRegionsArray: boolean = true) : MapRegion | null {
+    public loadRegion(regionInput: RegionData | string, pushToRegionsArray: boolean = true) : MapRegion | null {
         // Get region data
         const isUUIDInput = (typeof regionInput === 'string');
         let regionData: RegionData;
@@ -1001,37 +1001,26 @@ class MapRegionRegionManager
 
     /**
      * Loads multiple regions from an array of region configurations.
-     * @param {Array} regionsConfig - Array of region configuration objects
      */
-    loadMultipleRegions(regionsConfig: Array<any>) {
-        const loadedRegions: MapRegion[] = [];
-        
-        regionsConfig.forEach((regionData: RegionData, index) => {
-            const region = this.loadRegion(regionData);
-            
-            if (region) {
-                loadedRegions.push(region);
-                //console.log(`Loaded region ${index + 1}/${regionsConfig.length}`);
-            } else {
-                console.error(`Failed to load region ${index + 1}:`, regionData);
-            }
-        });
-
-        return loadedRegions;
-    }
-
-    /**
-     * Loads a region from JSON data.
-     * @param {string} jsonData - JSON string containing region configuration
-     */
-    loadRegionFromJSON(jsonData: string) {
-        try {
-            const regionData = JSON.parse(jsonData);
-            return this.loadRegion(regionData);
-        } catch (error) {
-            console.error('Error parsing JSON region data:', error);
-            return null;
+    public loadGeoeditFileContents(geoeditFileData: GeoeditFileData) {
+        // Stop editing any active region
+        if (this.activeEditingRegion) {
+            MapRegionRegionManager.INSTANCE.stopEditingRegion();
         }
+
+        // Stop attempting to add any active regioin
+        if (this.editorRegionCreator) {
+            this.editorRegionCreator.cancelRegionCreation();
+            this.editorRegionCreator = null;
+        }
+
+        // Clear existing regions
+        this.deleteAllRegions();
+
+        // Load each region from the file data
+        geoeditFileData.regions.forEach(regionData => {
+            this.loadRegion(regionData, true);
+        });
     }
 
     /**
@@ -1072,8 +1061,10 @@ class MapRegionRegionManager
     /**
      * Clears all regions from the _regions array.
      */
-    clearAllRegions() {
-        this.regions.length = 0;
+    public deleteAllRegions() {
+        for (const region of this.regions) {
+            this.deleteRegion(region.GetSetUUID);
+        }
     }
     // #endregion
 
