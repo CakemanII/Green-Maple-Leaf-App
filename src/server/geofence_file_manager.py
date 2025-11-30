@@ -1,6 +1,32 @@
 import json
+import os
 
 class GeoFenceFileManager:
+    @staticmethod
+    def list_geoedit_files() -> list[dict]:
+        '''
+        Returns a list of available geofence files with their metadata.
+        '''
+        # Compile list of geofence files
+        geofence_directory: str = r"C:\Users\tyler\OneDrive\Desktop\Green Maple Leaf App\saves\geofence"
+        files_list: list[dict] = []
+
+        # Iterate through files in the geofence directory
+        for filename in os.listdir(geofence_directory):
+            # Ensure this ends with .geoedit
+            if filename.endswith('.geoedit'):
+                file_path: str = os.path.join(geofence_directory, filename)
+                # Get file metadata
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+                    metadata = data['metadata']
+
+                files_list.append(metadata)
+
+        # Return the compiled list
+        return files_list
+
+
     @staticmethod
     def get_geoedit_file(uuid: str) -> object | None:
         '''

@@ -1,5 +1,14 @@
-type GeoeditFileData = {
+declare const MapEditorUITextInputDialog: any;
+
+type GeofenceFileMetadata = {
     UUID: string;
+    name: string;
+    lastModified: string;
+    fileSize: number;
+}
+
+type GeoeditFileData = {
+    metadata: GeofenceFileMetadata;
     regions: RegionData[];
 }
 
@@ -20,31 +29,6 @@ class GeoeditFileManager {
         GeoeditFileManager.instance = this;
     }
 
-    //#region Loading Geoedit Files
-    /**
-     * Gets and loads a geoedit file with specific UUID.
-     */
-    public async loadGeoeditFile(fileUUID: string): Promise<void> {
-        // Get the file contents from the server.
-        const response = await fetch(`/get_geoedit?uuid=${encodeURIComponent(fileUUID)}`,
-            { method: 'GET' });
-        console.log(response);
-        if (!response.ok) {
-            throw new Error(`Failed to load geoedit file with UUID: ${fileUUID}`);
-        }
-        
-        const fileContents: string = await response.text();
-
-        // Set the active file UUID.
-        this.activeFileUUID = fileUUID;
-
-        // Parse the file contents.
-        const geoeditData: GeoeditFileData = this.parseGeoeditFile(fileContents);
-        
-        // Load regions into the map editor.
-        MapRegionRegionManager.INSTANCE.loadGeoeditFileContents(geoeditData);
-    }
-
     /**
      * Parses a geoedit file from a string.
      */
@@ -62,56 +46,120 @@ class GeoeditFileManager {
     }
 
     /**
+     * Gets the active geoedit file UUID.
+     */
+    private async getActiveGeoeditFileUUID(UUID: string): Promise<GeoeditFileData> {
+        // Get the file contents from the server.
+        const response = await fetch(`/get_geoedit?uuid=${encodeURIComponent(UUID)}`,
+            { method: 'GET' });
+
+        if (!response.ok) {
+            throw new Error(`Failed to load geoedit file with UUID: ${UUID}`);
+        }
+        
+        const fileContents: string = await response.text();
+
+        // Parse the file contents.
+        const geoeditData: GeoeditFileData = this.parseGeoeditFile(fileContents);
+        return geoeditData;
+    }
+
+    /**
      * Verifies the integrity of the geoedit file data.
      */
     private verifyData(data: any): boolean {
-        console.log(data);
-        // Ensure top-level properties exist
-        if (data["regions"] === undefined || !Array.isArray(data["regions"])) {
-            console.warn("Regions property missing or not an array.");
-            return false;
+        if (
+            typeof data === "object" &&
+            data !== null &&
+            typeof data.metadata === "object" &&
+            data.metadata !== null &&
+            typeof data.metadata.UUID === "string" &&
+            typeof data.metadata.name === "string" &&
+            typeof data.metadata.lastModified === "string" &&
+            typeof data.metadata.fileSize === "number" &&
+            Array.isArray(data.regions)
+        ) {
+            return true;
+        }
+        return false;
+    }
+
+    //#region Displaying Geoedit Files for Loading
+    /**
+     * Fetches a list of available geoedit files from the server.
+     */
+    public async fetchAvailableGeoeditFiles(): Promise<GeofenceFileMetadata[]> {
+        const response = await fetch('/get_list_geoedits', { method: 'GET' });
+
+        // Check for successful response
+        if (!response.ok) {
+            throw new Error("Failed to fetch list of geoedit files.");
         }
 
-        if (data["UUID"] === undefined || typeof data["UUID"] !== "string") {
-            console.warn("UUID property missing or not a string.");
-            return false;
-        }
+        // Parse the response JSON
+        const data: any = await response.json();
+        // Return the list of geoedit file metadata
+        return data.files as GeofenceFileMetadata[];
+    }
 
-        // Ensure each region has required properties
-        for (const region of data["regions"]) {
-            // Ensure each region has these properties.
-            if (region.UUID === undefined ||
-                region.LayerIndex === undefined ||
-                region.General === undefined ||
-                region.General.Name === undefined ||
-                region.General.IsVisible === undefined ||
-                region.General.IsRestricted === undefined ||
-                region.RegionType === undefined ||
-                region.FrontEndData === undefined) { return false; }
-            
-            // Ensure style properties exist
-            if (region.Style === undefined ||
-                region.Style.FillColor === undefined ||
-                region.Style.FillOpacity === undefined ||
-                region.Style.StrokeColor === undefined ||
-                region.Style.StrokeOpacity === undefined) { return false; }
-            
-            // Else continue, has everything.
-        }
+    //#endregion
 
-        // All regions verified
-        return true;
+    //#region Loading Geoedit Files
+    /**
+     * Gets and loads a geoedit file with specific UUID.
+     */
+    public async loadGeoeditFile(fileUUID: string): Promise<void> {
+        const geoditData: GeoeditFileData = await this.getActiveGeoeditFileUUID(fileUUID);
+
+        // Set the active file UUID.
+        this.activeFileUUID = fileUUID;
+        
+        // Load regions into the map editor.
+        MapRegionRegionManager.INSTANCE.loadGeoeditFileContents(geoditData);
     }
     //#endregion
 
     //#region Saving Geoedit Files
     /**
-     * Generates and saves the current geoedit file to the server.
+     * Attempts to save the current geoedit file. If no active file exists, prompts user for a name.
      */
-    public saveCurrentToGeoeditFile(): void {
+    public async attemptSaveCurrentToGeoeditFile(): Promise<void> {
+        // Continue if there is already an active region file.
+        if (this.activeFileUUID !== "") { 
+            const results: GeoeditFileData = await this.getActiveGeoeditFileUUID(this.activeFileUUID);
+            const name: string = results["metadata"]["name"];
+
+            this.saveCurrentToGeoeditFile(name); 
+            return; 
+        }
+        
+        // Get name of new geoedit file from user.
+        new MapEditorUITextInputDialog(
+            "Save Geoedit File", 
+            "Enter a name for the new geoedit file:",
+            (inputName: string) => {
+                // Create new UUID for the file.
+                this.activeFileUUID = Utils.createUUIDv4();
+                // Save the file.
+                this.saveCurrentToGeoeditFile(inputName);
+            },
+            (inputName: string) => {
+                // Verify the input name is valid (non-empty).
+                return inputName.trim().length > 0 ? true : "Please enter a valid file name.";
+            }
+        );
+    }
+
+    /**
+     * Generates and saves the current geoedit file to the server.
+     * Returns 
+     */
+    private saveCurrentToGeoeditFile(name: string): void {
+        // Get all regions
         const allRegionDatas = MapRegionDataManager.INSTANCE.getAllRegionDatas();
+
         // Generate the file content
-        const fileContent: string = this.generateGeoeditFileContent(allRegionDatas);
+        const fileContent: string = this.generateGeoeditFileContent(allRegionDatas, name);
 
         // Send the file content to the server to save
         fetch('/save_geoedit', {
@@ -136,13 +184,12 @@ class GeoeditFileManager {
     /**
      * Generates the content of a geoedit file from region data.
      */
-    private generateGeoeditFileContent(regionDatas: RegionData[]): string {
+    private generateGeoeditFileContent(regionDatas: RegionData[], name: string): string {
         const fileData: any = {};
 
         // Create UUID if none exists
-        let UUID = this.activeFileUUID;
-        if (UUID === "")
-            UUID = Utils.createUUIDv4();
+        if (this.activeFileUUID === "")
+            throw new Error("Active file UUID is not set.");
 
         // Remove derrivied backend properties from region data
         for (const regionData of regionDatas) {
@@ -150,7 +197,8 @@ class GeoeditFileManager {
         }
 
         // Populate file data
-        fileData["UUID"] = UUID;
+        fileData["name"] = name;
+        fileData["UUID"] = this.activeFileUUID;
         fileData["regions"] = regionDatas;
 
         // return stringified JSON

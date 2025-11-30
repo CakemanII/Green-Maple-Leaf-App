@@ -75,6 +75,11 @@ def get_geoedit_file():
     if geoedit_data is None:
         return (None, 404)
     return geoedit_data, 200
+
+@app.route('/get_list_geoedits', methods=['GET'])
+def list_geoedit_files():
+    geoedit_list = GeoFenceFileManager.list_geoedit_files()
+    return {'files': geoedit_list}, 200
 #endregion
 
 if __name__ == '__main__':

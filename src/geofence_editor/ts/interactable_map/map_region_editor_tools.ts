@@ -1,4 +1,5 @@
 /// <reference types="leaflet" />
+declare const MapEditorUIConfirmDialog: any;
 
 enum ToolType
 {
