@@ -13,7 +13,6 @@ SHARED_DIR: str = os.path.join(SRC_DIR, 'shared')
 app = Flask(__name__, static_folder=None)
 
 #region Initial File Serving Routes
-
 @app.route('/')
 def serve_index():
     return send_from_directory(MAIN_DIR, 'index.html')
