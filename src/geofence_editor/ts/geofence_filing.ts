@@ -123,9 +123,9 @@ class GeoeditFileManager {
     /**
      * Attempts to save the current geoedit file. If no active file exists, prompts user for a name.
      */
-    public async attemptSaveCurrentToGeoeditFile(): Promise<void> {
+    public async attemptSaveCurrentToGeoeditFile(forceNewFile: boolean): Promise<void> {
         // Continue if there is already an active region file.
-        if (this.activeFileUUID !== "") { 
+        if (this.activeFileUUID !== "" && !forceNewFile) { 
             const results: GeoeditFileData = await this.getActiveGeoeditFileUUID(this.activeFileUUID);
             const name: string = results["metadata"]["name"];
 
@@ -134,7 +134,7 @@ class GeoeditFileManager {
         }
         
         // Get name of new geoedit file from user.
-        new MapEditorUITextInputDialog(
+        MapEditorUITextInputDialog.show(
             "Save Geoedit File", 
             "Enter a name for the new geoedit file:",
             (inputName: string) => {
@@ -196,9 +196,13 @@ class GeoeditFileManager {
             delete (regionData as RegionData).DerivedBackendData;
         }
 
-        // Populate file data
-        fileData["name"] = name;
-        fileData["UUID"] = this.activeFileUUID;
+        // Populate metadata and regions
+        fileData["metadata"] = {
+            UUID: this.activeFileUUID,
+            name: name,
+            lastModified: new Date().toISOString(),
+            fileSize: 0 // Placeholder, server can update this upon saving
+        };
         fileData["regions"] = regionDatas;
 
         // return stringified JSON

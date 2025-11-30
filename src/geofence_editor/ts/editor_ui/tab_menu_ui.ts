@@ -32,7 +32,7 @@ class TabMenuUI {
         // Save Button
         this.saveButton.addEventListener('click', async () => {
             // Trigger save functionality
-            await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile();
+            await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile(false);
         });
     }
 

@@ -1,3 +1,209 @@
+// ...existing code...
+// ...existing code...
+/**
+ * Large file list dialog for displaying geoedit files with metadata
+ */
+class MapEditorUIFileListDialog {
+    /**
+     * Show a large file list dialog
+     * @param files - Array of file metadata objects
+     * @param onSelect - Callback when a file is selected (clicked)
+     */
+    public static show(
+        files: Array<{ name: string, lastModified: string, fileSize: number, UUID: string }>,
+        onConfirmSelection: (uuid: string) => void
+    ): void {
+        // Overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10001;
+        `;
+
+        // Dialog
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 0;
+            min-width: 720px;
+            max-width: 1100px;
+            min-height: 540px;
+            max-height: 700px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+            border: 1px solid #333333;
+        `;
+
+        // Title
+        const title = document.createElement('div');
+        title.textContent = 'Load Geoedit File';
+        title.style.cssText = `
+            color: #6ba3ff;
+            font-size: 2.1rem;
+            font-weight: 700;
+            background: #1a1a1a;
+            padding: 28px 40px 18px 40px;
+            border-radius: 18px 4px 0 0 / 8px 18px 0 0; /* Beveled corners */
+            border-bottom: 1px solid #333333;
+            letter-spacing: 0.02em;
+        `;
+        dialog.appendChild(title);
+
+        // File list container (static height, scrollable)
+        const listContainer = document.createElement('div');
+        listContainer.style.cssText = `
+            flex: 1 1 auto;
+            overflow-y: auto;
+            background: #242424;
+            padding: 0 40px;
+            max-height: 350px;
+            min-height: 350px;
+            border-bottom: 1px solid #333333;
+        `;
+        // Custom scrollbar
+        listContainer.style.scrollbarWidth = 'thin';
+        listContainer.style.scrollbarColor = '#3a3a3a #0d0d0d';
+        listContainer.style.setProperty('scrollbar-width', 'thin');
+
+
+        // Table
+        const table = document.createElement('table');
+        table.style.cssText = `
+            width: 100%;
+            border-collapse: collapse;
+            color: #fff;
+            font-size: 1.08rem;
+        `;
+
+        // Table header
+        const thead = document.createElement('thead');
+        thead.innerHTML = `
+            <tr style="background:#1a1a1a;">
+                <th style="padding: 0.75rem 1rem; text-align:left; font-weight:700;">Name</th>
+                <th style="padding: 0.75rem 1rem; text-align:left; font-weight:700;">Date Modified</th>
+                <th style="padding: 0.75rem 1rem; text-align:right; font-weight:700;">Size</th>
+                <th style="padding: 0.75rem 1rem; text-align:left; font-weight:700;">UUID</th>
+            </tr>
+        `;
+        table.appendChild(thead);
+
+        // Table body
+        const tbody = document.createElement('tbody');
+        files.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime());
+        let selectedRow: HTMLTableRowElement | null = null;
+        let selectedUUID: string | null = null;
+        for (const file of files) {
+            const tr = document.createElement('tr');
+            tr.style.cursor = 'pointer';
+            tr.tabIndex = 0;
+            tr.style.color = '#fff';
+            tr.onmouseenter = () => {
+                if (tr !== selectedRow) tr.style.background = '#3a3a3a';
+            };
+            tr.onmouseleave = () => {
+                if (tr !== selectedRow) tr.style.background = '';
+            };
+            tr.onclick = () => {
+                if (selectedRow) {
+                    selectedRow.style.background = '';
+                    selectedRow.style.color = '#fff';
+                }
+                selectedRow = tr;
+                selectedUUID = file.UUID;
+                tr.style.background = '#6ba3ff'; // Sidebar accent color for selection
+                tr.style.color = '#181a1b';
+                confirmBtn.disabled = false;
+            };
+            tr.innerHTML = `
+                <td style="padding: 0.6rem 1rem; font-weight:600;">${file.name}</td>
+                <td style="padding: 0.6rem 1rem;">${new Date(file.lastModified).toLocaleString()}</td>
+                <td style="padding: 0.6rem 1rem; text-align:right;">${(file.fileSize/1024).toFixed(1)} KB</td>
+                <td style="padding: 0.6rem 1rem; font-family:monospace;">${file.UUID}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        listContainer.appendChild(table);
+        dialog.appendChild(listContainer);
+
+        // Footer (confirm and close buttons)
+        const footer = document.createElement('div');
+        footer.style.cssText = `
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 40px 28px 40px;
+            background: #1a1a1a;
+            border-radius: 0 0 12px 12px;
+        `;
+
+        // Confirm button (bottom left)
+        const confirmBtn = document.createElement('button');
+        confirmBtn.textContent = 'Confirm';
+        confirmBtn.disabled = true;
+        confirmBtn.style.cssText = `
+            padding: 0.85rem 2.5rem;
+            background: #6ba3ff;
+            color: #181a1b;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.15rem;
+            font-weight: 700;
+            cursor: pointer;
+            opacity: 1;
+            transition: background 0.2s;
+        `;
+        confirmBtn.onclick = () => {
+            if (selectedUUID) {
+                document.body.removeChild(overlay);
+                onConfirmSelection(selectedUUID);
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+
+        // Close button (bottom right)
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'Close';
+        closeBtn.style.cssText = `
+            padding: 0.85rem 2.5rem;
+            background: #3a3a3a;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.15rem;
+            font-weight: 700;
+            cursor: pointer;
+        `;
+        closeBtn.onclick = () => { document.body.removeChild(overlay); document.removeEventListener('keydown', escapeHandler); };
+
+        footer.appendChild(confirmBtn);
+        footer.appendChild(closeBtn);
+        dialog.appendChild(footer);
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // Escape key closes dialog
+        const escapeHandler = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(overlay);
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+    }
+}
 /**
  * Simple confirmation dialog utility class
  */
@@ -326,9 +532,10 @@ class MapEditorUITextInputDialog {
         buttonContainer.appendChild(yesButton);
         dialog.appendChild(titleEl);
         dialog.appendChild(messageEl);
-        dialog.appendChild(buttonContainer);
         inputContainer.appendChild(inputField);
+        dialog.appendChild(inputContainer); // <-- Fix: add input field to dialog
         dialog.appendChild(feedbackMessage);
+        dialog.appendChild(buttonContainer);
         overlay.appendChild(dialog);
 
         // Close function

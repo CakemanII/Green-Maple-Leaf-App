@@ -1,3 +1,5 @@
+declare const MapEditorUIFileListDialog: any;
+
 class MapEditorUI {
     private static instance: MapEditorUI;
     public static get INSTANCE(): MapEditorUI { return MapEditorUI.instance; }
@@ -22,6 +24,7 @@ class MapEditorUI {
     private static readonly deleteRegionButtonID: string = "btn-delete-region";
 
     private static readonly saveGeoeditButtonID: string = "btn-save-geoedit-data";
+    private static readonly saveAsGeoeditButtonID: string = "btn-save-as-geoedit-data";
     private static readonly loadGeoeditButtonID: string = "btn-load-geoedit-data";
 
     private static readonly mapCoordsFooterElementID = "map-coords";
@@ -49,6 +52,7 @@ class MapEditorUI {
     private deleteRegionButton!: HTMLButtonElement;
 
     private saveGeoeditButton!: HTMLButtonElement;
+    private saveAsGeoeditButtonID!: HTMLButtonElement;
     private loadGeoeditButton!: HTMLButtonElement;
 
     private mapCoordsFooter!: HTMLElement;
@@ -218,13 +222,27 @@ class MapEditorUI {
         // Save Geoedit Button
         this.saveGeoeditButton = document.getElementById(MapEditorUI.saveGeoeditButtonID) as HTMLButtonElement;
         this.saveGeoeditButton.addEventListener('click', async () => {
-            await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile();
+            await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile(false);
+        });
+
+        // Save as Geoedit Button
+        this.saveAsGeoeditButtonID = document.getElementById(MapEditorUI.saveAsGeoeditButtonID) as HTMLButtonElement;
+        this.saveAsGeoeditButtonID.addEventListener('click', async () => {
+            await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile(true);
         });
 
         // Load Geoedit Button
         this.loadGeoeditButton = document.getElementById(MapEditorUI.loadGeoeditButtonID) as HTMLButtonElement;
+        // Ensure the file list dialog class is available
+        // @ts-ignore
         this.loadGeoeditButton.addEventListener('click', async () => {
-            await GeoeditFileManager.Instance.loadGeoeditFile("d81ab31b-a07c-4eba-85b6-3f4321f0d0f7");
+            // Show the prompt dialog for selecting a geoedit file
+            MapEditorUIFileListDialog.show(
+                await GeoeditFileManager.Instance.fetchAvailableGeoeditFiles(),
+                async (uuid: string) => {
+                    await GeoeditFileManager.Instance.loadGeoeditFile(uuid);
+                }
+            );
         });
     }
     // #endregion

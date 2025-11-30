@@ -42,13 +42,14 @@ class GeoFenceFileManager:
         except FileNotFoundError:
             return None
         
+        
     @staticmethod
     def save_geoedit_file(data: object) -> bool:
         '''
         Saves the given geofence data to a file identified by the UUID.
         Returns True if successful, False otherwise.
         '''
-        uuid: str = data['UUID']
+        uuid: str = data['metadata']['UUID']
         file_path = f'saves/geofence/{uuid}.geoedit'
         try:
             with open(file_path, 'w') as f:

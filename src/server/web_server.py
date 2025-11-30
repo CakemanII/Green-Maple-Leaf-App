@@ -78,6 +78,7 @@ def get_geoedit_file():
 @app.route('/get_list_geoedits', methods=['GET'])
 def list_geoedit_files():
     geoedit_list = GeoFenceFileManager.list_geoedit_files()
+    print(geoedit_list)
     return {'files': geoedit_list}, 200
 #endregion
 
