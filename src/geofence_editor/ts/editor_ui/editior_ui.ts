@@ -92,6 +92,8 @@ class MapEditorUI {
         this.initalizeToolButtons();
         // Initialize create region buttons
         this.initializeCreateRegionButtons();
+        // Initialize save/load geoedit buttons
+        this.initializeSaveLoadGeoeditButtons(); 
         // Initialize footer
         this.initalizeFooter();
 
@@ -213,6 +215,34 @@ class MapEditorUI {
             button.addEventListener('click', () => {
                 MapRegionRegionManager.INSTANCE.createRegionFromEditorTriggered(type);
             });
+        });
+    }
+
+    private initializeSaveLoadGeoeditButtons(): void {
+        // Save Geoedit Button
+        this.saveGeoeditButton = document.getElementById(MapEditorUI.saveGeoeditButtonID) as HTMLButtonElement;
+        this.saveGeoeditButton.addEventListener('click', async () => {
+            await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile(false);
+        });
+
+        // Save as Geoedit Button
+        this.saveAsGeoeditButtonID = document.getElementById(MapEditorUI.saveAsGeoeditButtonID) as HTMLButtonElement;
+        this.saveAsGeoeditButtonID.addEventListener('click', async () => {
+            await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile(true);
+        });
+
+        // Load Geoedit Button
+        this.loadGeoeditButton = document.getElementById(MapEditorUI.loadGeoeditButtonID) as HTMLButtonElement;
+        // Ensure the file list dialog class is available
+        // @ts-ignore
+        this.loadGeoeditButton.addEventListener('click', async () => {
+            // Show the prompt dialog for selecting a geoedit file
+            MapEditorUIFileListDialog.show(
+                await GeoeditFileManager.Instance.fetchAvailableGeoeditFiles(),
+                async (uuid: string) => {
+                    await GeoeditFileManager.Instance.loadGeoeditFile(uuid);
+                }
+            );
         });
     }
     // #endregion
