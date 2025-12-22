@@ -75,6 +75,10 @@ class TabHandler {
     private onTabButtonClick(tabKey: string): void {
         if (this.activeTabKey === tabKey) {
             // Trigger secondary menus or actions if needed
+            this.tabs[tabKey].content!.contentWindow!.postMessage(
+                { type: 'activateMenu' }, 
+                '*'
+            );
         }
         else {
             this.activateTab(tabKey);

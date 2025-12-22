@@ -2,9 +2,9 @@ class TabMenuUI {
     // Element IDs
     private static readonly TAB_MENU_CONTAINER_ID: string = "tab-menu";
 
-    private static readonly TAB_MENU_SAVE_BUTTON_ID: string = "tab-menu-save-button";
-    private static readonly TAB_MENU_SAVE_AS_BUTTON_ID: string = "tab-menu-save-as-button";
-    private static readonly TAB_MENU_LOAD_BUTTON_ID: string = "tab-menu-load-button";
+    private static readonly TAB_MENU_SAVE_BUTTON_ID: string = "btn-save-geoedit-data";
+    private static readonly TAB_MENU_SAVE_AS_BUTTON_ID: string = "btn-save-as-geoedit-data";
+    private static readonly TAB_MENU_LOAD_BUTTON_ID: string = "btn-load-geoedit-data";
 
     // HTML Element References
     private tabMenuContainer: HTMLElement;
@@ -22,17 +22,51 @@ class TabMenuUI {
         this.loadButton = document.getElementById(TabMenuUI.TAB_MENU_LOAD_BUTTON_ID) as HTMLButtonElement;
 
         // Initialize event listeners
-        this.initializeEventListeners();
+        this.initializeMenuActivationListeners();
+        
+        this.initializeButtonEventListeners();
     }
 
     /**
-     * Initializes event listeners for the tab menu UI.
+     * Initializes event listeners for activating the tab menu.
      */
-    private initializeEventListeners(): void {
+    private initializeMenuActivationListeners(): void {
+        // Listen for messages from iframes to show/hide the menu
+        window.addEventListener('message', (event) => {
+            // Ensure the message is from the parent
+            if (event.source !== window.parent) return;
+            // Check message type
+            if (event.data.type === 'activateMenu') {
+                this.showMenu();
+            }
+        });
+    }
+
+    /**
+     * Initializes button event listeners for the tab menu UI.
+     */
+    private initializeButtonEventListeners(): void {
         // Save Button
         this.saveButton.addEventListener('click', async () => {
             // Trigger save functionality
             await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile(false);
+        });
+
+        // Save As Button
+        this.saveAsButton.addEventListener('click', async () => {
+            // Trigger save as functionality
+            await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile(true);
+        });
+
+        // Load Button
+        this.loadButton.addEventListener('click', async () => {
+            // Trigger load functionality
+            MapEditorUIFileListDialog.show(
+                await GeoeditFileManager.Instance.fetchAvailableGeoeditFiles(),
+                async (uuid: string) => {
+                    await GeoeditFileManager.Instance.loadGeoeditFile(uuid);
+                }
+            );
         });
     }
 
