@@ -1,8 +1,10 @@
-from flask import Flask, send_from_directory, request
+from flask import Flask, send_from_directory, request, jsonify
+from flask_socketio import SocketIO, emit
 import os
 
 from preferences_file_manager import PreferencesFileManager
 from geofence_file_manager import GeoFenceFileManager
+from radio_communication_buffer import RadioCommunicationBuffer, TimeStamped
 
 SRC_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MAIN_DIR: str = os.path.join(SRC_DIR, 'main')
@@ -11,6 +13,7 @@ PREFERENCES_DIR: str = os.path.join(SRC_DIR, 'preferences')
 SHARED_DIR: str = os.path.join(SRC_DIR, 'shared')
 
 app = Flask(__name__, static_folder=None)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 #region Initial File Serving Routes
 @app.route('/')
@@ -82,5 +85,27 @@ def list_geoedit_files():
     return {'files': geoedit_list}, 200
 #endregion
 
+#region Live Rocket Info Routes
+
+# Store the latest rocket data for web clients
+def send_rocket_data_to_webserver(label: str, data: TimeStamped[object]):
+    """
+    Callback function to receive rocket data from RadioCommunicationBuffer.
+    Stores the data and SENDS it to all connected web clients via WebSocket.
+    """
+
+    # SEND the data to all connected web clients immediately
+    socketio.emit('rocket_data', {
+        'label': label,
+        'timestamp': data['sent_timestamp'],
+        'content': data['data']
+    })
+    print(f"[Web Server] Sent rocket data to clients - {label}: {data}")
+
+#endregion
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Initialize RadioCommunicationBuffer with callback
+    print("Starting Radio Communication Buffer...")
+    radio_buffer = RadioCommunicationBuffer(min_send_interval=0.1, on_receive_data=send_rocket_data_to_webserver)
+    socketio.run(app, debug=True, use_reloader=False)
