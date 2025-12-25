@@ -12,27 +12,31 @@ class LiveDataManager {
         LiveDataManager.instance = this;
 
         // Initialization code here
-        const accelGraph: LineGraphRepresentation = new LineGraphRepresentation(
-            'Vertical Acceleration',  // title
-            'm/s²',          // unit
-            -100,             // yMin
-            100,              // yMax
-            30,              // timeWindow in seconds
-            300              // max data points
-        );
-        const velGraph: LineGraphRepresentation = new LineGraphRepresentation(
-            'Vertical Velocity',  // title
-            'm/s',          // unit
-            -200,             // yMin
-            200,              // yMax
-            30,              // timeWindow in seconds
-            300              // max data points
-        );
-        this.registerGraph('accel', accelGraph);
-        this.registerGraph('vel', velGraph);
+        this.intializeMotionGraphs();
         
         // Start listening for data updates
         this.listenForDataUpdates();
+    }
+
+    private intializeMotionGraphs(): void {
+        const graphsToCreate: { key: string; title: string; unit: string; yMin: number; yMax: number; }[] = [
+            { key: 'accel', title: 'Vertical Acceleration', unit: 'm/s²', yMin: -100, yMax: 100 },
+            { key: 'vel', title: 'Vertical Velocity', unit: 'm/s', yMin: -200, yMax: 200 },
+            { key: 'alt', title: 'Altitude', unit: 'm', yMin: -900, yMax: 900 }
+        ];
+
+        graphsToCreate.forEach(graphInfo => {
+            const graph: LineGraphRepresentation = new LineGraphRepresentation(
+                graphInfo.title,
+                graphInfo.unit,
+                graphInfo.yMin,
+                graphInfo.yMax,
+                30,   // timeWindow in seconds
+                300   // max data points
+            );
+            this.registerGraph(graphInfo.key, graph);
+        }
+        );
     }
 
     private listenForDataUpdates(): void {
