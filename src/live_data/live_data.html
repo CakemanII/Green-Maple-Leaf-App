@@ -12,55 +12,102 @@
             --muted:#9ca3af;
             --accent:#6ba3ff;
             --graph-line:#f5a623;
-            --graph-dot:#f5a623;
             --border:#333333;
             --axis:#555555;
-            --radius:8px;
         }
 
         html{font-size:16px}
         @media screen and (max-width:1600px){html{font-size:14px}}
         @media screen and (max-width:1366px){html{font-size:12px}}
 
-        html,body{height:100%;}
+        html,body{height:100%;margin:0;}
         body{
-            margin:0;
             font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
             background-color:var(--bg);
             color:#ffffff;
             -webkit-font-smoothing:antialiased;
             -moz-osx-font-smoothing:grayscale;
-            padding:18px;
             box-sizing:border-box;
         }
 
-        .data-shell{max-width:100%;margin:0;}
-
-        .graph-card{
+        .page-header{
+            padding:12px 18px;
+            border-bottom:1px solid var(--border);
             background-color:var(--card);
-            border:1px solid var(--border);
-            padding:16px;
-            border-radius:0.5rem;
-            margin-bottom:12px;
         }
 
-        .graph-card h2{margin:0 0 12px 0;font-size:0.875rem;color:var(--accent);font-weight:600}
+        .page-title{
+            margin:0;
+            font-size:1.2rem;
+            font-weight:600;
+            color:#ffffff;
+        }
 
-        .graph-container{
-            position:relative;
+        .graphs-container{
+            padding:18px;
+        }
+
+        .graph-row{
             display:flex;
-            align-items:stretch;
+            gap:12px;
+            margin-bottom:12px;
+            background-color:var(--card);
+            border:1px solid var(--border);
+            border-radius:0.5rem;
+            padding:16px;
+        }
+
+        .graph-main{
+            flex:5;
+            display:flex;
+            flex-direction:column;
+        }
+
+        .graph-header{
+            display:flex;
+            align-items:center;
+            margin-bottom:8px;
+        }
+
+        .graph-title{
+            font-size:0.875rem;
+            color:var(--accent);
+            font-weight:600;
+            margin:0;
+        }
+
+        .graph-content{
+            display:flex;
+            gap:8px;
+            height:155px;
+        }
+
+        .y-axis-section{
+            display:flex;
+            gap:4px;
+            height:140px;
+        }
+
+        .y-axis-title{
+            writing-mode:vertical-rl;
+            transform:rotate(180deg);
+            font-size:0.7rem;
+            color:var(--muted);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            min-width:20px;
+            height:140px;
         }
 
         .y-axis-labels{
             display:flex;
             flex-direction:column;
             justify-content:space-between;
-            padding-right:8px;
-            font-size:0.85rem;
+            font-size:0.75rem;
             color:#6ba3ff;
-            min-width:40px;
-            font-weight:500;
+            min-width:30px;
+            height:140px;
         }
 
         .y-label{
@@ -68,31 +115,18 @@
             line-height:1;
         }
 
-        .y-axis-title{
-            writing-mode:vertical-rl;
-            transform:rotate(180deg);
-            font-size:0.75rem;
-            color:var(--muted);
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            padding-right:8px;
-            min-width:24px;
-        }
-
-        .graph-area{
+        .graph-canvas-wrapper{
             flex:1;
             display:flex;
             flex-direction:column;
         }
 
-        .graph-svg-container{
+        .graph-canvas{
             position:relative;
-            height:120px;
             background-color:var(--panel);
-            border-radius:4px 4px 0 0;
             border:1px solid var(--border);
-            border-bottom:none;
+            border-radius:4px;
+            height:140px;
         }
 
         .graph-svg{
@@ -100,89 +134,155 @@
             height:100%;
         }
 
-        .graph-dot{
-            position:absolute;
-            width:10px;
-            height:10px;
-            background-color:var(--graph-dot);
-            border-radius:50%;
-            transform:translate(-50%,-50%);
-            box-shadow:0 0 4px rgba(245,166,35,0.5);
-        }
-
-        .x-axis-container{
+        .x-axis-info{
             display:flex;
             align-items:center;
             justify-content:center;
-            padding:8px 0px;
-            background-color:var(--panel);
-            border-radius:0 0 4px 4px;
-            border:1px solid var(--border);
-            border-top:none;
+            padding:6px 0;
+            position:relative;
         }
 
         .x-axis-label{
-            font-size:0.85rem;
+            font-size:0.75rem;
             color:#6ba3ff;
             font-weight:500;
+            position:absolute;
+            right:0;
+            top:50%;
+            transform:translateY(-50%);
         }
 
         .x-axis-title{
-            position:absolute;
-            left:50%;
-            transform:translateX(-50%);
-            font-size:0.75rem;
+            font-size:0.7rem;
             color:var(--muted);
+        }
+
+        .graph-info{
+            flex:1;
+            background-color:var(--panel);
+            border:1px solid var(--border);
+            border-radius:4px;
+            padding:16px;
+            min-width:160px;
+            display:flex;
+            flex-direction:column;
+            gap:12px;
+        }
+
+        .graph-info h3{
+            margin:0;
+            font-size:0.75rem;
+            color:var(--accent);
+            font-weight:600;
+            text-transform:uppercase;
+            letter-spacing:0.5px;
+            padding-bottom:8px;
+            border-bottom:1px solid var(--border);
+        }
+
+        .info-stats{
+            display:grid;
+            grid-template-columns:repeat(3, 1fr);
+            gap:8px;
+        }
+
+        .info-item{
+            display:flex;
+            flex-direction:column;
+            gap:4px;
+            padding:8px;
+            background-color:var(--card);
+            border-radius:4px;
+            border:1px solid var(--border);
+        }
+
+        .info-label{
+            font-size:0.65rem;
+            color:var(--muted);
+            font-weight:500;
+        }
+
+        .info-value{
+            font-size:0.75rem;
+            color:#6ba3ff;
+            font-weight:600;
         }
     </style>
 </head>
 <body>
-    <div class="data-shell">
-        <div class="graph-card">
-            <h2>Acceleration</h2>
-            <div class="graph-container">
-                <div class="y-axis-title">m/s²</div>
-                <div class="y-axis-labels">
-                    <span class="y-label">10</span>
-                    <span class="y-label">0</span>
-                    <span class="y-label">-10</span>
+    <div class="page-header">
+        <h1 class="page-title">Live Data</h1>
+    </div>
+
+    <div class="graphs-container" id ="graphs-container">
+        <!-- Graph Row 1: Acceleration -->
+        <div class="graph-row">
+            <div class="graph-main">
+                <div class="graph-header">
+                    <h2 class="graph-title">Acceleration</h2>
                 </div>
-                <div class="graph-area">
-                    <div class="graph-svg-container">
-                        <!-- Line Graph SVG -->
-                        <!-- Y: 0 is at 50% (middle), range from -10 to 10 -->
-                        <!-- X: 0 to 30 seconds -->
-                        <svg class="graph-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                            <!-- X-axis (at y=50, the zero line) -->
-                            <line x1="0" y1="50" x2="100" y2="50" stroke="#555555" stroke-width="1" vector-effect="non-scaling-stroke"/>
-                            
-                            <!-- Y-axis (at x=0, left side) -->
-                            <line x1="0" y1="0" x2="0" y2="100" stroke="#555555" stroke-width="1" vector-effect="non-scaling-stroke"/>
-                            
-                            <!-- Lines connecting points -->
-                            <!-- Example data: time 0-30s, values from -10 to 10 -->
-                            <!-- Point 1: (0s, -7) | Point 2: (10s, 5) | Point 3: (15s, 0) | Point 4: (20s, -3) | Point 5: (30s, 2) -->
-                            <!-- X mapping: 0->0, 30->100 | Y mapping: 10->0, 0->50, -10->100 -->
-                            <polyline points="0,85 33.33,25 50,50 66.66,65 100,40" 
-                                      fill="none" stroke="#f5a623" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                        </svg>
-                        
-                        <!-- Data point dots -->
-                        <div class="graph-dot" style="left:0%;top:85%"></div>
-                        <div class="graph-dot" style="left:33.33%;top:25%"></div>
-                        <div class="graph-dot" style="left:50%;top:50%"></div>
-                        <div class="graph-dot" style="left:66.66%;top:65%"></div>
-                        <div class="graph-dot" style="left:100%;top:40%"></div>
-                        
-                        <!-- X-axis label positioned at the end of the axis line -->
-                        <span class="x-axis-label" style="position:absolute;right:0;top:50%;transform:translateY(-50%);padding-left:8px;">30</span>
+                <div class="graph-content">
+                    <div class="y-axis-section">
+                        <div class="y-axis-title">m/s²</div>
+                        <div class="y-axis-labels">
+                            <span class="y-label">10</span>
+                            <span class="y-label">0</span>
+                            <span class="y-label">-10</span>
+                        </div>
                     </div>
-                    <div class="x-axis-container">
-                        <span class="x-axis-title">Time (s)</span>
+                    <div class="graph-canvas-wrapper">
+                        <div class="graph-canvas">
+                            <svg class="graph-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                <!-- X-axis (at y=50, the zero line) -->
+                                <line x1="0" y1="50" x2="100" y2="50" stroke="#555555" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                                
+                                <!-- Y-axis (at x=0, left side) -->
+                                <line x1="0" y1="0" x2="0" y2="100" stroke="#555555" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                                
+                                <!-- Graph line -->
+                                <polyline points="0,85 15,65 25,30 35,28 45,32 55,45 65,38 75,60 85,55 100,40" 
+                                          fill="none" stroke="#f5a623" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                            </svg>
+                        </div>
+                        <div class="x-axis-info">
+                            <span class="x-axis-title">Time (s)</span>
+                            <span class="x-axis-label">30</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="graph-info">
+                <h3>Information</h3>
+                <div class="info-stats">
+                    <div class="info-item">
+                        <span class="info-label">Max</span>
+                        <span class="info-value">8.5 m/s²</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Min</span>
+                        <span class="info-value">-7.2 m/s²</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Avg</span>
+                        <span class="info-value">1.3 m/s²</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Current</span>
+                        <span class="info-value">2.8 m/s²</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Peak</span>
+                        <span class="info-value">9.1 m/s²</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Duration</span>
+                        <span class="info-value">30s</span>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Additional graph rows can be added here -->
     </div>
 
 
