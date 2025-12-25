@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import time
 from typing import Callable, TypedDict
+import threading
 
 
 class RadioDataObject(TypedDict):
@@ -18,7 +19,8 @@ class RadioComsSimulationServer:
 
         self.app = Flask(__name__)
         self._register_routes()
-        self.start()
+        self.server_thread = threading.Thread(target=self.start, daemon=True)
+        self.server_thread.start()
 
     def _register_routes(self):
         @self.app.route("/", methods=["POST"])
