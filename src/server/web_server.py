@@ -9,6 +9,7 @@ from radio_communication_buffer import RadioCommunicationBuffer, TimeStamped
 SRC_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MAIN_DIR: str = os.path.join(SRC_DIR, 'main')
 GEOFENCE_EDITOR_DIR: str = os.path.join(SRC_DIR, 'geofence_editor')
+LIVE_DATA_DIR: str = os.path.join(SRC_DIR, 'live_data')
 PREFERENCES_DIR: str = os.path.join(SRC_DIR, 'preferences')
 SHARED_DIR: str = os.path.join(SRC_DIR, 'shared')
 
@@ -23,6 +24,10 @@ def serve_index():
 @app.route('/geofence_editor.html')
 def serve_geofence():
     return send_from_directory(GEOFENCE_EDITOR_DIR, 'geofence_editor.html')
+
+@app.route('/live_data.html')
+def serve_live_data():
+    return send_from_directory(LIVE_DATA_DIR, 'live_data.html')
 
 @app.route('/preferences.html')
 def serve_preferences():
@@ -106,6 +111,5 @@ def send_rocket_data_to_webserver(label: str, data: TimeStamped[object]):
 
 if __name__ == '__main__':
     # Initialize RadioCommunicationBuffer with callback
-    print("Starting Radio Communication Buffer...")
     radio_buffer = RadioCommunicationBuffer(min_send_interval=0.1, on_receive_data=send_rocket_data_to_webserver)
     socketio.run(app, debug=True, use_reloader=False)

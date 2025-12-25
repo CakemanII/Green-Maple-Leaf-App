@@ -3,6 +3,7 @@ from typing import TypedDict, TypeVar, Generic, Callable
 import threading
 
 from radio_communication_server import RadioComsServer
+from radio_communication_simulation_server import RadioComsSimulationServer
 
 T = TypeVar("T")
 
@@ -88,7 +89,8 @@ class RadioCommunicationBuffer:
         self._thread.start()
 
         # Initialize the RadioComsManager
-        self.radio_coms_manager = RadioComsServer(on_receive_radio_data=self._receive_data)
+        #self.radio_coms_manager = RadioComsServer(on_receive_radio_data=self._receive_data)
+        self.radio_coms_manager = RadioComsSimulationServer(on_receive_radio_data=self._receive_data)
 
 
     def _main(self):
@@ -130,8 +132,6 @@ class RadioCommunicationBuffer:
             if existing_data['sent_timestamp'] == sent_timestamp:
                 # print(f"Duplicate data received for label: {label} with sent_timestamp: {sent_timestamp}. Ignoring.")
                 return
-            
-        print(self.internal_buffer)
         
         # Update internal buffer
         timestamped_data: TimeStamped[object] = {
