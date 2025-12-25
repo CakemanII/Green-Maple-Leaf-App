@@ -32,6 +32,7 @@ class TimeStamped(Generic[T], TypedDict):
 class InternalRadioDataBuffer(TypedDict):
     # ICM-20649 6-DoF
     accel: TimeStamped[LinearMotionComponent] # Linear Acceleration
+    vel: TimeStamped[LinearMotionComponent] # Linear Velocity TEMPORARY
     ang_vel: TimeStamped[AngularMotionComponent] # Angular Velocity
 
     # GY-NEO6MV2 NEO-6M GPS
@@ -127,10 +128,10 @@ class RadioCommunicationBuffer:
             return
         
         # Check if the label has the same sent_timestamp.
-        if  "accel" in self.internal_buffer:
+        if  label in self.internal_buffer:
             existing_data: TimeStamped[object] = self.internal_buffer[label]
             if existing_data['sent_timestamp'] == sent_timestamp:
-                # print(f"Duplicate data received for label: {label} with sent_timestamp: {sent_timestamp}. Ignoring.")
+                print(f"Duplicate data received for label: {label} with sent_timestamp: {sent_timestamp}. Ignoring.")
                 return
         
         # Update internal buffer

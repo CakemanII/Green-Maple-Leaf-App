@@ -26,18 +26,20 @@ class RadioComsSimulationServer:
         @self.app.route("/", methods=["POST"])
         def receive_telemetry():
             data = request.get_json(force=True)
-            print(data)
+            
+            # Format data content
+            data_data: any = data.get("data", {})
+            if isinstance(data_data, dict):
+                data_data = list(data_data.values())[0]
+            else:
+                TypeError("Data content is not in expected format")
 
             packet: RadioDataObject = {
                 "label": data.get("label", "unknown"),
                 "sent_timestamp": data.get("sent_timestamp", 0.0),
                 "received_timestamp": time.time(),
-                "data": data.get("data", {})
+                "data": data_data
             }
-
-            print("\n=== RECEIVED TELEMETRY ===")
-            print(packet)
-            print("==========================\n")
 
             if self._on_receive_radio_data:
                 self._on_receive_radio_data(packet)

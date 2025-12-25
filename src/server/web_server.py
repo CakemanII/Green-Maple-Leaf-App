@@ -40,7 +40,7 @@ def serve_shared(path):
 @app.route('/<path:path>')
 def serve_static(path):
     # Try main, geofence_editor, preferences in order
-    for folder in [MAIN_DIR, GEOFENCE_EDITOR_DIR, PREFERENCES_DIR]:
+    for folder in [MAIN_DIR, GEOFENCE_EDITOR_DIR, PREFERENCES_DIR, LIVE_DATA_DIR]:
         file_path = os.path.join(folder, path)
         if os.path.isfile(file_path):
             return send_from_directory(folder, path)
