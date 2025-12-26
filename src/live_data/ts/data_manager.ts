@@ -2,7 +2,7 @@ class LiveDataManager {
     private static instance: LiveDataManager;
     public static get INSTANCE(): LiveDataManager { return LiveDataManager.instance; }
 
-    private graphsDictionary: { [key: string]: Representation } = {};
+    private graphsDictionary: { [key: string]: GraphicalRepresentation } = {};
 
     constructor() {
         // Ensure singleton
@@ -21,7 +21,7 @@ class LiveDataManager {
     private intializeMotionGraphs(): void {
         const graphsToCreate: { key: string; title: string; unit: string; yMin: number; yMax: number; }[] = [
             { key: 'accel', title: 'Vertical Acceleration', unit: 'm/s²', yMin: -1, yMax: 1 },
-            { key: 'vel', title: 'Vertical Velocity', unit: 'm/s', yMin: -10, yMax: 125 },
+            //{ key: 'vel', title: 'Vertical Velocity', unit: 'm/s', yMin: -10, yMax: 125 },
             { key: 'dps_alt', title: 'Altitude', unit: 'm', yMin: 0, yMax: 200 }
         ];
 
@@ -32,11 +32,24 @@ class LiveDataManager {
                 graphInfo.yMin,
                 graphInfo.yMax,
                 30,   // timeWindow in seconds
-                300   // max data points
             );
             this.registerGraph(graphInfo.key, graph);
         }
         );
+
+        const velGraph: LineGraphRepresentation = new LineGraphRepresentation(
+            'Velocity',
+            'm/s',
+            -10,
+            125,
+            30,   // timeWindow in seconds
+            {
+                "x": { color: '#FF0000', width: 2, opacity: 1 },
+                "y": { color: '#00FF00', width: 2, opacity: 1 },
+                "z": { color: '#0000FF', width: 2, opacity: 1 }
+            }
+        );
+        this.registerGraph('vel', velGraph);
     }
 
     private listenForDataUpdates(): void {
@@ -81,7 +94,15 @@ class LiveDataManager {
                 }
 
                 // Add the data point to the graph (relative time as x, value as y)
-                graph.addDataPoint(relativeTime, value);
+                if (label === 'vel') {
+                    // For velocity graph, use collection key based on data type
+                    graph.addDataPoint(relativeTime, (content as Vector3D).x, "x");
+                    graph.addDataPoint(relativeTime, (content as Vector3D).y, "y");
+                    graph.addDataPoint(relativeTime, (content as Vector3D).z, "z");
+                } else {
+                    graph.addDataPoint(relativeTime, value);
+                }
+
             } else {
                 console.warn(`[LiveDataManager] No graph found for label '${label}'`);
             }
@@ -110,7 +131,7 @@ class LiveDataManager {
         }
     }
 
-    private registerGraph(key: string, graph: Representation): void {
+    private registerGraph(key: string, graph: GraphicalRepresentation): void {
         this.graphsDictionary[key] = graph;
     }
 }
