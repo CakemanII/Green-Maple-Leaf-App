@@ -41,7 +41,9 @@ class LineGraphRepresentation extends Representation {
     private graphRow!: HTMLDivElement;
     private graphTitle!: HTMLHeadingElement;
     private polyline!: SVGPolylineElement;
+    private xAxisLine!: SVGLineElement;
     private xAxisLabel!: HTMLSpanElement;
+    private xAxisMinLabel!: HTMLSpanElement;
     private yAxisLabels!: HTMLDivElement;
     private infoStats!: HTMLDivElement;
     
@@ -132,14 +134,14 @@ class LineGraphRepresentation extends Representation {
         svg.setAttribute('preserveAspectRatio', 'none');
         
         // X-axis line
-        const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        xAxis.setAttribute('x1', '0');
-        xAxis.setAttribute('y1', '50');
-        xAxis.setAttribute('x2', '100');
-        xAxis.setAttribute('y2', '50');
-        xAxis.setAttribute('stroke', '#555555');
-        xAxis.setAttribute('stroke-width', '1');
-        xAxis.setAttribute('vector-effect', 'non-scaling-stroke');
+        this.xAxisLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        this.xAxisLine.setAttribute('x1', '0');
+        this.xAxisLine.setAttribute('y1', '50');
+        this.xAxisLine.setAttribute('x2', '100');
+        this.xAxisLine.setAttribute('y2', '50');
+        this.xAxisLine.setAttribute('stroke', '#555555');
+        this.xAxisLine.setAttribute('stroke-width', '1');
+        this.xAxisLine.setAttribute('vector-effect', 'non-scaling-stroke');
         
         // Y-axis line
         const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -158,7 +160,7 @@ class LineGraphRepresentation extends Representation {
         this.polyline.setAttribute('stroke-width', '2');
         this.polyline.setAttribute('vector-effect', 'non-scaling-stroke');
         
-        svg.appendChild(xAxis);
+        svg.appendChild(this.xAxisLine);
         svg.appendChild(yAxis);
         svg.appendChild(this.polyline);
         
@@ -168,14 +170,21 @@ class LineGraphRepresentation extends Representation {
         const xAxisInfo = document.createElement('div');
         xAxisInfo.className = 'x-axis-info';
         
+        // Min time label (left side)
+        this.xAxisMinLabel = document.createElement('span');
+        this.xAxisMinLabel.className = 'x-axis-label-min';
+        this.xAxisMinLabel.textContent = '0';
+        
         const xAxisTitle = document.createElement('span');
         xAxisTitle.className = 'x-axis-title';
         xAxisTitle.textContent = 'Time (s)';
         
+        // Max time label (right side)
         this.xAxisLabel = document.createElement('span');
         this.xAxisLabel.className = 'x-axis-label';
         this.xAxisLabel.textContent = this.timeWindow.toString();
         
+        xAxisInfo.appendChild(this.xAxisMinLabel);
         xAxisInfo.appendChild(xAxisTitle);
         xAxisInfo.appendChild(this.xAxisLabel);
         
@@ -232,25 +241,70 @@ class LineGraphRepresentation extends Representation {
     private updateYAxisLabels(): void {
         this.yAxisLabels.innerHTML = '';
         
+        // Set the y-axis labels container to relative positioning
+        this.yAxisLabels.style.position = 'relative';
+        
+        // Top label (yMax)
         const topLabel = document.createElement('span');
         topLabel.className = 'y-label';
         topLabel.textContent = this.yMax.toString();
+        topLabel.style.position = 'absolute';
+        topLabel.style.top = '0%';
+        topLabel.style.right = '0';
+        topLabel.style.transform = 'translateY(-50%)';
         
-        const midLabel = document.createElement('span');
-        midLabel.className = 'y-label';
-        const midValue = (this.yMax + this.yMin) / 2;
-        midLabel.textContent = midValue.toFixed(1);
-        
+        // Bottom label (yMin)
         const bottomLabel = document.createElement('span');
         bottomLabel.className = 'y-label';
         bottomLabel.textContent = this.yMin.toString();
+        bottomLabel.style.position = 'absolute';
+        bottomLabel.style.bottom = '0%';
+        bottomLabel.style.right = '0';
+        bottomLabel.style.transform = 'translateY(50%)';
         
         this.yAxisLabels.appendChild(topLabel);
-        this.yAxisLabels.appendChild(midLabel);
         this.yAxisLabels.appendChild(bottomLabel);
+        
+        // Check if 0 is within the range [yMin, yMax]
+        const zeroInRange = this.yMin <= 0 && this.yMax >= 0;
+        
+        if (zeroInRange) {
+            // Calculate where 0 should be positioned (as percentage from top)
+            // Map 0 from [yMax, yMin] to [0%, 100%]
+            const zeroPercentFromTop = ((this.yMax - 0) / (this.yMax - this.yMin)) * 100;
+            
+            // Calculate distances from top and bottom
+            const distanceFromTop = zeroPercentFromTop;
+            const distanceFromBottom = 100 - zeroPercentFromTop;
+            
+            // Threshold based on the ratio max:100, min:-9 where 0 is ~8.26% from bottom
+            // max:100, min:-8 where 0 is ~7.41% from bottom
+            // Hide the label if it gets closer than 8.3% to either edge
+            const proximityThreshold = 7.41 //8.3;
+            
+            const isTooCloseToTop = distanceFromTop < proximityThreshold;
+            const isTooCloseToBottom = distanceFromBottom < proximityThreshold;
+            
+            // Only show the 0 label if it's not too close to either edge
+            if (!isTooCloseToTop && !isTooCloseToBottom) {
+                // Create the 0 label
+                const zeroLabel = document.createElement('span');
+                zeroLabel.className = 'y-label';
+                zeroLabel.textContent = '0';
+                zeroLabel.style.position = 'absolute';
+                zeroLabel.style.top = `${zeroPercentFromTop}%`;
+                zeroLabel.style.right = '0';
+                zeroLabel.style.transform = 'translateY(-50%)';
+                
+                this.yAxisLabels.appendChild(zeroLabel);
+            }
+        }
     }
 
     protected update(): void {
+        // Always update x-axis position based on current yMin and yMax
+        this.updateXAxisPosition();
+        
         if (this.dataPoints.length === 0) {
             this.polyline.setAttribute('points', '');
             return;
@@ -260,6 +314,28 @@ class LineGraphRepresentation extends Representation {
         const yValues = this.dataPoints.map(p => p.y);
         const max = Math.max(...yValues);
         const min = Math.min(...yValues);
+        
+        // Dynamically expand y-axis bounds if data exceeds current limits
+        // Scale to 110% of the max magnitude point and round to integer
+        let boundsChanged = false;
+        const scaledMax = Math.ceil(max * 1.10);
+        const scaledMin = Math.floor(min * 1.10);
+        
+        if (scaledMax > this.yMax) {
+            this.yMax = scaledMax;
+            boundsChanged = true;
+        }
+        if (scaledMin < this.yMin) {
+            this.yMin = scaledMin;
+            boundsChanged = true;
+        }
+        
+        // Update y-axis labels and x-axis position if bounds changed
+        if (boundsChanged) {
+            this.updateYAxisLabels();
+            this.updateXAxisPosition();
+        }
+        
         const avg = yValues.reduce((a, b) => a + b, 0) / yValues.length;
         const current = yValues[yValues.length - 1];
         const peak = max; // Could be calculated differently if needed
@@ -292,15 +368,17 @@ class LineGraphRepresentation extends Representation {
             endTime = lastTime;
             startTime = firstTime;
             
-            // Update the x-axis label to show the current max time
-            this.xAxisLabel.textContent = lastTime.toFixed(1);
+            // Update both min and max time labels to show the current time range
+            this.xAxisMinLabel.textContent = startTime.toFixed(1);
+            this.xAxisLabel.textContent = endTime.toFixed(1);
         } else {
             // Still within initial time window, start from 0
             displayTimeWindow = this.timeWindow;
             startTime = 0;
             endTime = this.timeWindow;
             
-            // Keep the original timeWindow label
+            // Keep the original labels (0 and timeWindow)
+            this.xAxisMinLabel.textContent = startTime.toFixed(1);
             this.xAxisLabel.textContent = this.timeWindow.toString();
         }
 
@@ -343,5 +421,27 @@ class LineGraphRepresentation extends Representation {
                 valueElement.textContent = value;
             }
         }
+    }
+
+    private updateXAxisPosition(): void {
+        // Calculate where y=0 should be in SVG coordinates
+        let yPosition: number;
+        
+        // Check if 0 is within the range
+        if (this.yMin <= 0 && this.yMax >= 0) {
+            // 0 is in range, calculate its position
+            // Map 0 from [yMin, yMax] to [100, 0] (inverted SVG coordinates)
+            yPosition = 100 - ((0 - this.yMin) / (this.yMax - this.yMin)) * 100;
+        } else if (this.yMin > 0) {
+            // All values are positive, x-axis at bottom
+            yPosition = 100;
+        } else {
+            // All values are negative, x-axis at top
+            yPosition = 0;
+        }
+        
+        // Update the x-axis line position
+        this.xAxisLine.setAttribute('y1', yPosition.toString());
+        this.xAxisLine.setAttribute('y2', yPosition.toString());
     }
 }

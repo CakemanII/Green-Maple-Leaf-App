@@ -20,9 +20,9 @@ class LiveDataManager {
 
     private intializeMotionGraphs(): void {
         const graphsToCreate: { key: string; title: string; unit: string; yMin: number; yMax: number; }[] = [
-            { key: 'accel', title: 'Vertical Acceleration', unit: 'm/s²', yMin: -100, yMax: 100 },
-            { key: 'vel', title: 'Vertical Velocity', unit: 'm/s', yMin: -200, yMax: 200 },
-            { key: 'dps_alt', title: 'Altitude', unit: 'm', yMin: -900, yMax: 900 }
+            { key: 'accel', title: 'Vertical Acceleration', unit: 'm/s²', yMin: -1, yMax: 1 },
+            { key: 'vel', title: 'Vertical Velocity', unit: 'm/s', yMin: -10, yMax: 125 },
+            { key: 'dps_alt', title: 'Altitude', unit: 'm', yMin: 0, yMax: 200 }
         ];
 
         graphsToCreate.forEach(graphInfo => {
