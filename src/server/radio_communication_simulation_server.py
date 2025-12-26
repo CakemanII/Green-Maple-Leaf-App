@@ -29,9 +29,7 @@ class RadioComsSimulationServer:
             
             # Format data content
             data_data = data.get("data", {})
-            print(data_data)
             data_in_data: any = data_data.get(data_data.get("type", None), None)
-            print(data_in_data)
 
             packet: RadioDataObject = {
                 "label": data.get("label", "unknown"),

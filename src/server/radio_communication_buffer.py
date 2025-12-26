@@ -107,6 +107,7 @@ class RadioCommunicationBuffer:
                     data: TimeStamped[object] = self.internal_buffer[label]
                     if self.on_receive_data:
                         self.on_receive_data(label, data)
+                    
 
 
     def _receive_data(self, data: dict):
@@ -143,7 +144,8 @@ class RadioCommunicationBuffer:
         self.internal_buffer[label] = timestamped_data
 
         # Add label to queue
-        self.label_queue.append(label)
+        if label not in self.label_queue:
+            self.label_queue.append(label)
 
 
     def _can_send(self) -> bool:
