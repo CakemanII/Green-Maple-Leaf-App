@@ -19,13 +19,35 @@ class LiveDataManager {
     }
 
     private intializeMotionGraphs(): void {
-        const graphsToCreate: { key: string; title: string; unit: string; yMin: number; yMax: number; }[] = [
-            { key: 'accel', title: 'Vertical Acceleration', unit: 'm/s²', yMin: -1, yMax: 1 },
-            //{ key: 'vel', title: 'Vertical Velocity', unit: 'm/s', yMin: -10, yMax: 125 },
+        const vectorGraphsToCreate: { key: string; title: string; unit: string; yMin: number; yMax: number; }[] = [
+            { key: 'accel', title: 'Linear Acceleration', unit: 'm/s²', yMin: -1, yMax: 1 },
+            { key: 'vel', title: 'Linear Velocity', unit: 'm/s', yMin: -10, yMax: 125 },
+            { key: 'ang_vel', title: 'Angular Velocity', unit: '°/s', yMin: -2, yMax: 2 },
+            { key: 'ang_pos', title: 'Angular Position', unit: '°', yMin: -4, yMax: 4 }
+        ];
+
+       vectorGraphsToCreate.forEach(graphInfo => {    
+            const velGraph: LineGraphRepresentation = new LineGraphRepresentation(
+                graphInfo.title,
+                graphInfo.unit,
+                graphInfo.yMin,
+                graphInfo.yMax,
+                30,   // timeWindow in seconds
+                {
+                    "x": { color: '#FF0000', width: 2, opacity: 1 },
+                    "y": { color: '#00FF00', width: 2, opacity: 1 },
+                    "z": { color: '#0000FF', width: 2, opacity: 1 }
+                }
+            );
+            this.registerGraph(graphInfo.key, velGraph);
+        });
+
+
+        const singleValueGraphsToCreate: { key: string; title: string; unit: string; yMin: number; yMax: number; }[] = [
             { key: 'dps_alt', title: 'Altitude', unit: 'm', yMin: 0, yMax: 200 }
         ];
 
-        graphsToCreate.forEach(graphInfo => {
+        singleValueGraphsToCreate.forEach(graphInfo => {
             const graph: LineGraphRepresentation = new LineGraphRepresentation(
                 graphInfo.title,
                 graphInfo.unit,
@@ -34,22 +56,7 @@ class LiveDataManager {
                 30,   // timeWindow in seconds
             );
             this.registerGraph(graphInfo.key, graph);
-        }
-        );
-
-        const velGraph: LineGraphRepresentation = new LineGraphRepresentation(
-            'Velocity',
-            'm/s',
-            -10,
-            125,
-            30,   // timeWindow in seconds
-            {
-                "x": { color: '#FF0000', width: 2, opacity: 1 },
-                "y": { color: '#00FF00', width: 2, opacity: 1 },
-                "z": { color: '#0000FF', width: 2, opacity: 1 }
-            }
-        );
-        this.registerGraph('vel', velGraph);
+        });
     }
 
     private listenForDataUpdates(): void {
@@ -74,35 +81,29 @@ class LiveDataManager {
             const relativeTime = timestamp - firstTimestamp!;
 
             console.log(`[LiveDataManager] Received data for '${label}':`, content, `at t=${relativeTime.toFixed(2)}s`);
+            console.log(`[LiveDataManager] Available graphs:`, Object.keys(this.graphsDictionary));
 
             // Find the graph with the matching label
             const graph = this.graphsDictionary[label];
             
+            if (!graph) {
+                console.warn(`[LiveDataManager] No graph found for label '${label}'. Available graphs:`, Object.keys(this.graphsDictionary));
+            }
+            
             if (graph) {
                 // Extract the value from content (assuming it's a number or has a 'value' property)
-                let value: number;
+                let value: any = content;
                 let type: string = this.getDataType(content);
-                if (type === 'number') {
-                    value = content;
-                } 
-                else if (type === 'vector3d') {
-                    value = (content as Vector3D).y; // Example: using x component    
-                } 
-                else {
-                    console.warn(`[LiveDataManager] Unable to extract numeric value from content:`, content);
-                    return;
-                }
 
                 // Add the data point to the graph (relative time as x, value as y)
-                if (label === 'vel') {
+                if (type === 'vector3d') {
                     // For velocity graph, use collection key based on data type
-                    graph.addDataPoint(relativeTime, (content as Vector3D).x, "x");
-                    graph.addDataPoint(relativeTime, (content as Vector3D).y, "y");
-                    graph.addDataPoint(relativeTime, (content as Vector3D).z, "z");
+                    graph.addDataPoint(relativeTime, (value as Vector3D).x, "x");
+                    graph.addDataPoint(relativeTime, (value as Vector3D).y, "y");
+                    graph.addDataPoint(relativeTime, (value as Vector3D).z, "z");
                 } else {
-                    graph.addDataPoint(relativeTime, value);
+                    graph.addDataPoint(relativeTime, value as number);
                 }
-
             } else {
                 console.warn(`[LiveDataManager] No graph found for label '${label}'`);
             }

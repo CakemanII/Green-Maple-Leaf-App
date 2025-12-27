@@ -307,7 +307,7 @@ class LineGraphRepresentation extends GraphicalRepresentation {
         this.infoStats.className = 'info-stats';
         
         // Create 6 info items
-        const infoLabels = ['Max', 'Min', 'Avg', 'Current', 'Peak', 'Duration'];
+        const infoLabels = ['Max', 'Min', 'Avg', 'Current', 'Delay', 'Duration'];
         for (const label of infoLabels) {
             const infoItem = document.createElement('div');
             infoItem.className = 'info-item';
@@ -390,7 +390,7 @@ class LineGraphRepresentation extends GraphicalRepresentation {
 
         // Set graph inspection to default if only one collection exists
         const collectionKeys = Object.keys(this.dataPointsCollection);
-        if (collectionKeys.length === 1) {
+        if (collectionKeys.length === 1 || true) {
             this.collectionBeingInspected = collectionKeys[0];
         }
 
@@ -463,7 +463,7 @@ class LineGraphRepresentation extends GraphicalRepresentation {
             // Calculate other statistics of the collection
             const avg = yValues.reduce((a, b) => a + b, 0) / yValues.length;
             const current = yValues[yValues.length - 1];
-            const peak = max; // Could be calculated differently if needed
+            const delay = (dataPoints.length >= 1 ? dataPoints[dataPoints.length - 1].x : 0) - (dataPoints.length >= 2 ? dataPoints[dataPoints.length - 2].x : 0);
             const duration = dataPoints.length > 0 
                 ? dataPoints[dataPoints.length - 1].x - dataPoints[0].x 
                 : 0;
@@ -473,7 +473,7 @@ class LineGraphRepresentation extends GraphicalRepresentation {
             this.updateInfoStat('min', `${min.toFixed(1)} ${this.unit}`);
             this.updateInfoStat('avg', `${avg.toFixed(1)} ${this.unit}`);
             this.updateInfoStat('current', `${current.toFixed(1)} ${this.unit}`);
-            this.updateInfoStat('peak', `${peak.toFixed(1)} ${this.unit}`);
+            this.updateInfoStat('delay', `${delay.toFixed(3)}s`);
             this.updateInfoStat('duration', `${duration.toFixed(1)}s`);
         }
 
@@ -654,7 +654,6 @@ class LineGraphRepresentation extends GraphicalRepresentation {
             return;
         }
 
-        console.log(`[LineGraphRepresentation] Applying style for collection '${collectionKey}':`, lineStyle);
         // Apply styles to the polyline
         polyline.setAttribute('stroke', lineStyle.color);
         polyline.setAttribute('stroke-width', lineStyle.width.toString());

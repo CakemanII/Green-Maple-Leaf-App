@@ -111,5 +111,5 @@ def send_rocket_data_to_webserver(label: str, data: TimeStamped[object]):
 
 if __name__ == '__main__':
     # Initialize RadioCommunicationBuffer with callback
-    radio_buffer = RadioCommunicationBuffer(min_send_interval=0.1, on_receive_data=send_rocket_data_to_webserver)
+    radio_buffer = RadioCommunicationBuffer(min_send_interval=0.05, on_receive_data=send_rocket_data_to_webserver)
     socketio.run(app, debug=True, use_reloader=False)

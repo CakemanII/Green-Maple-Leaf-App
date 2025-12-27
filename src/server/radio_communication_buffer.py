@@ -2,7 +2,6 @@ import time
 from typing import TypedDict, TypeVar, Generic, Callable
 import threading
 
-from radio_communication_server import RadioComsServer
 from radio_communication_simulation_server import RadioComsSimulationServer
 
 T = TypeVar("T")
@@ -34,6 +33,7 @@ class InternalRadioDataBuffer(TypedDict):
     accel: TimeStamped[LinearMotionComponent] # Linear Acceleration
     vel: TimeStamped[LinearMotionComponent] # Linear Velocity TEMPORARY
     ang_vel: TimeStamped[AngularMotionComponent] # Angular Velocity
+    ang_pos: TimeStamped[AngularMotionComponent] # Angular Position (IF 9-DoF is used, otherwise not accurate)
 
     # GY-NEO6MV2 NEO-6M GPS
     gps_stamp: TimeStamped[float] # GPS Timestamp
