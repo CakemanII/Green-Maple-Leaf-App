@@ -23,6 +23,7 @@ class GPSCoordinates(TypedDict):
 
 
 class TimeStamped(Generic[T], TypedDict):
+    label: str
     received_timestamp: float
     sent_timestamp: float
     data: T
@@ -69,12 +70,12 @@ class RadioCommunicationBuffer:
     This class will handle sending data to the rocket and receiving data from it, as well as sending that data to the web server.
     """
 
-    INTERVAL_DELAY: float = 0.05  # Minimum interval between sends in seconds
+    INTERVAL_DELAY: float = 0.05  # Minimum interval between processing
     
     def __init__(
             self,
             min_send_interval: float = 0.1,
-            on_receive_data: Callable[[str, TimeStamped[object]], None] | None = None
+            on_receive_data: Callable[[list[TimeStamped[object]]], None] | None = None
         ):
         # Setup Variables
         self.min_send_interval = min_send_interval
@@ -103,11 +104,12 @@ class RadioCommunicationBuffer:
             if self._can_send():
                 # Send data from queue
                 if len(self.label_queue) > 0:
-                    label: str = self.label_queue.pop(0)
-                    data: TimeStamped[object] = self.internal_buffer[label]
-                    if self.on_receive_data:
-                        self.on_receive_data(label, data)
-                    
+                    for label in self.label_queue:
+                        data: TimeStamped[object] = self.internal_buffer[label]
+                        if self.on_receive_data:
+                            self.on_receive_data(label, data)
+                    # Clear the queue
+                    self.label_queue = []                    
 
 
     def _receive_data(self, data: dict):

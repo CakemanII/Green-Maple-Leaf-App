@@ -108,22 +108,9 @@ def send_rocket_data_to_webserver(label: str, data: TimeStamped[object]):
     })
     print(f"[Web Server] Sent rocket data to clients - {label}: {data}")
 
-def send_rocket_data_batch_test_to_webserver(datas):
-    """
-    Test function to simulate sending a batch of rocket data to web clients.
-    """
-    for data in datas:
-        socketio.emit('rocket_data', {
-            'label': data['label'],
-            'timestamp': data['sent_timestamp'],
-            'content': data['data']
-        })
-        print(f"[Web Server] Sent rocket data to clients - {data['label']}: {data}")
-
 #endregion
 
 if __name__ == '__main__':
     # Initialize RadioCommunicationBuffer with callback
-    # radio_buffer = RadioCommunicationBuffer(min_send_interval=0.05, on_receive_data=send_rocket_data_to_webserver)
-    radio_sim_server = RadioComsSimulationServer(on_receive_radio_data=send_rocket_data_batch_test_to_webserver)
+    radio_buffer = RadioCommunicationBuffer(min_send_interval=0.05, on_receive_data=send_rocket_data_to_webserver)
     socketio.run(app, debug=True, use_reloader=False)

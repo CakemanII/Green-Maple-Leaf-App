@@ -33,21 +33,18 @@ class RadioComsSimulationServer:
             data = request.get_json(force=True)
             
             # Format data content
-            datas: list[RadioDataObject] = []
-            for v in data:
-                data_data = v.get("data", {})
-                data_in_data: any = data_data.get(data_data.get("type", None), None)
+            data_data = data.get("data", {})
+            data_in_data: any = data_data.get(data_data.get("type", None), None)
 
-                packet: RadioDataObject = {
-                    "label": v.get("label", "unknown"),
-                    "sent_timestamp": v.get("sent_timestamp", 0.0),
-                    "received_timestamp": time.time(),
-                    "data": data_in_data
-                }
+            packet: RadioDataObject = {
+                "label": data.get("label", "unknown"),
+                "sent_timestamp": data.get("sent_timestamp", 0.0),
+                "received_timestamp": time.time(),
+                "data": data_in_data
+            }
             
-                datas.append(packet)
-            
-            self._on_receive_radio_data(datas)
+            if self._on_receive_radio_data:
+                self._on_receive_radio_data(packet)
 
             return jsonify({"status": "ok"})
 
