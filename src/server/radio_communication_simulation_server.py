@@ -25,21 +25,29 @@ class RadioComsSimulationServer:
     def _register_routes(self):
         @self.app.route("/", methods=["POST"])
         def receive_telemetry():
+            # Make sure we have a handler
+            if not self._on_receive_radio_data:
+                return jsonify({"status": "no handler"}), 500
+            
+            # Parse incoming JSON data
             data = request.get_json(force=True)
             
             # Format data content
-            data_data = data.get("data", {})
-            data_in_data: any = data_data.get(data_data.get("type", None), None)
+            datas: list[RadioDataObject] = []
+            for v in data:
+                data_data = v.get("data", {})
+                data_in_data: any = data_data.get(data_data.get("type", None), None)
 
-            packet: RadioDataObject = {
-                "label": data.get("label", "unknown"),
-                "sent_timestamp": data.get("sent_timestamp", 0.0),
-                "received_timestamp": time.time(),
-                "data": data_in_data
-            }
+                packet: RadioDataObject = {
+                    "label": v.get("label", "unknown"),
+                    "sent_timestamp": v.get("sent_timestamp", 0.0),
+                    "received_timestamp": time.time(),
+                    "data": data_in_data
+                }
             
-            if self._on_receive_radio_data:
-                self._on_receive_radio_data(packet)
+                datas.append(packet)
+            
+            self._on_receive_radio_data(datas)
 
             return jsonify({"status": "ok"})
 
