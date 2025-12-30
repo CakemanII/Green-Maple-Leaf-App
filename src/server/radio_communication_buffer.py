@@ -23,7 +23,6 @@ class GPSCoordinates(TypedDict):
 
 
 class TimeStamped(Generic[T], TypedDict):
-    label: str
     received_timestamp: float
     sent_timestamp: float
     data: T
@@ -70,7 +69,7 @@ class RadioCommunicationBuffer:
     This class will handle sending data to the rocket and receiving data from it, as well as sending that data to the web server.
     """
 
-    INTERVAL_DELAY: float = 0.05  # Minimum interval between processing
+    INTERVAL_DELAY: float = 0.029 # Minimum interval between processing
     
     def __init__(
             self,

@@ -3,6 +3,7 @@ class LiveDataManager {
     public static get INSTANCE(): LiveDataManager { return LiveDataManager.instance; }
 
     private graphsDictionary: { [key: string]: GraphicalRepresentation } = {};
+    private callbacksDictionary: { [key: string]: () => void } = {};
 
     constructor() {
         // Ensure singleton
@@ -19,15 +20,16 @@ class LiveDataManager {
     }
 
     private intializeMotionGraphs(): void {
-        const vectorGraphsToCreate: { key: string; title: string; unit: string; yMin: number; yMax: number; }[] = [
-            { key: 'accel', title: 'Linear Acceleration', unit: 'm/s²', yMin: -1, yMax: 1 },
-            { key: 'vel', title: 'Linear Velocity', unit: 'm/s', yMin: -10, yMax: 125 },
-            { key: 'ang_vel', title: 'Angular Velocity', unit: '°/s', yMin: -2, yMax: 2 },
-            { key: 'ang_pos', title: 'Angular Position', unit: '°', yMin: -4, yMax: 4 }
+        const vectorGraphsToCreate: { key: string; title: string; unit: string; yMin: number; yMax: number; scaleY: boolean }[] = [
+            { key: 'accel', title: 'Linear Acceleration', unit: 'm/s²', yMin: -1, yMax: 1, scaleY: true },
+            { key: 'vel', title: 'Linear Velocity', unit: 'm/s', yMin: -10, yMax: 125, scaleY: true  },
+            { key: 'ang_accel', title: 'Angular Acceleration (Derivative)', unit: '°/s²', yMin: 0, yMax: 20, scaleY: true  },
+            { key: 'ang_vel', title: 'Angular Velocity', unit: '°/s', yMin: -2, yMax: 2, scaleY: true  },
+            { key: 'ang_pos', title: 'Angular Position', unit: '°', yMin: 0, yMax: 360, scaleY: false  }
         ];
 
        vectorGraphsToCreate.forEach(graphInfo => {    
-            const velGraph: LineGraphRepresentation = new LineGraphRepresentation(
+            const graph: LineGraphRepresentation = new LineGraphRepresentation(
                 graphInfo.title,
                 graphInfo.unit,
                 graphInfo.yMin,
@@ -37,9 +39,10 @@ class LiveDataManager {
                     "x": { color: '#FF0000', width: 2, opacity: 1 },
                     "y": { color: '#00FF00', width: 2, opacity: 1 },
                     "z": { color: '#0000FF', width: 2, opacity: 1 }
-                }
+                },
             );
-            this.registerGraph(graphInfo.key, velGraph);
+            graph.setOverflowY(graphInfo.scaleY ? LineGraphYOverflowMode.ScaleAxis : LineGraphYOverflowMode.None);
+            this.registerGraph(graphInfo.key, graph);
         });
 
 
@@ -57,6 +60,9 @@ class LiveDataManager {
             );
             this.registerGraph(graphInfo.key, graph);
         });
+
+        // Set up derivative/integral callbacks
+        this.setDerivativeIntegralCallback('ang_vel', 'ang_accel', true);  // Derivative of velocity is acceleration
     }
 
     private listenForDataUpdates(): void {
@@ -104,6 +110,12 @@ class LiveDataManager {
                 } else {
                     graph.addDataPoint(relativeTime, value as number);
                 }
+
+                // Calculate the derivative/integral if a callback is registered
+                const callback = this.callbacksDictionary[label];
+                if (callback) {
+                    callback();
+                }
             } else {
                 console.warn(`[LiveDataManager] No graph found for label '${label}'`);
             }
@@ -134,6 +146,57 @@ class LiveDataManager {
 
     private registerGraph(key: string, graph: GraphicalRepresentation): void {
         this.graphsDictionary[key] = graph;
+    }
+
+    private setDerivativeIntegralCallback(call_key: string, output_key: string, calc_derivative: boolean): void {
+        this.callbacksDictionary[call_key] = () => {
+            this.derivativeIntegralCallback(call_key, output_key, calc_derivative);
+        };
+    } 
+
+    private derivativeIntegralCallback(input_key: string, output_key: string, calc_derivative: boolean): void {
+        console.log(`[LiveDataManager] Calculating ${calc_derivative ? 'derivative' : 'integral'} for '${input_key}' to store in '${output_key}'`);
+        // Calculate the derivative or integral for the specified output key
+        const inputGraph: GraphicalRepresentation = this.graphsDictionary[input_key];
+        if (!inputGraph) {
+            console.warn(`[LiveDataManager] No graph found for key '${input_key}' to use to calculate derivative/integral.`);
+            return;
+        }
+
+        // Get the output graph
+        const outputGraph: GraphicalRepresentation = this.graphsDictionary[output_key];
+        if (!outputGraph) {
+            console.warn(`[LiveDataManager] No graph found for key '${output_key}' to store derivative/integral results.`);
+            return;
+        }
+
+        // Calculate derivative or integral for each collection
+        const collectionKeys = inputGraph.getAllCollectionKeys();
+        collectionKeys.forEach(collectionKey => {
+            // Get the data points for this collection
+            const inputDataPoints = inputGraph.getDataPointsCollection(true, 2, collectionKey);
+            const a = inputDataPoints[0]; const b = inputDataPoints[1]; // Last two data points
+
+            // Calculate time difference
+            const deltaTime = b.x - a.x;
+
+            // Calculate derivative or integral
+            if (calc_derivative) {
+                // Calculate the time inbetween the points
+                const midTime = (a.x + b.x) / 2;
+
+                // Calculate derivative
+                const derivativeValue = DerivativeCalculator.calculate(a.y, b.y, deltaTime);
+                outputGraph.addDataPoint(midTime, derivativeValue, collectionKey);
+            } else {
+                // Get the last integral value if exists
+                const lastOutputDataPoints = outputGraph.getDataPointsCollection(true, 1, collectionKey);
+                const lastIntegralValue = lastOutputDataPoints.length > 0 ? lastOutputDataPoints[0].y : 0;
+                // Calculate integral
+                const integralValue = IntegralCalculator.calculate(lastIntegralValue, a.y, b.y, deltaTime);
+                outputGraph.addDataPoint(b.x, integralValue, collectionKey);
+            }
+        });
     }
 }
 

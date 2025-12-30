@@ -59,6 +59,27 @@ abstract class GraphicalRepresentation {
     }
     
     protected abstract update(): void;
+
+
+    public getDataPointsCollection(latest: boolean, amount: number, collection: string = 'default'): DataPoints {
+        // Get the data points collection
+        const dataPoints = this.dataPointsCollection[collection];
+        if (!dataPoints) {
+            console.warn(`[LineGraphRepresentation] No data points found for collection key '${collection}'`);
+            return [];
+        }
+
+        // Return the requested data points
+        if (latest) {
+            return dataPoints.slice(-amount);
+        } else {
+            return dataPoints.slice(0, amount);
+        }
+    }
+
+    public getAllCollectionKeys(): string[] {
+        return Object.keys(this.dataPointsCollection);
+    }
 }
 
 // #region LineGraph Representation
@@ -108,6 +129,8 @@ class LineGraphRepresentation extends GraphicalRepresentation {
     private xAxisMinLabel!: HTMLSpanElement;
     private yAxisLabels!: HTMLDivElement;
     private infoStats!: HTMLDivElement;
+    private collectionButtonsContainer!: HTMLDivElement;
+    private collectionButtons!: { [collectionKey: string]: HTMLButtonElement };
     
     // Graph configuration
     private title: string;
@@ -117,6 +140,8 @@ class LineGraphRepresentation extends GraphicalRepresentation {
     private timeWindow: number; // in seconds
 
     private collectionBeingInspected: string | null = null;
+    private collectionVisibility: { [collectionKey: string]: boolean } = {};
+    private collectionVisibilityBeforeInspection: { [collectionKey: string]: boolean } = {};
 
     // Data Point Display
     private dataPointsDisplayMinTime: number;
@@ -153,8 +178,9 @@ class LineGraphRepresentation extends GraphicalRepresentation {
         this.dataPointsDisplayMinTime = 0;
         this.dataPointsDisplayMaxTime = timeWindow;
 
-        // Initialize polylines map
+        // Initialize polylines map and collection buttons
         this.polylines = {};
+        this.collectionButtons = {};
 
         // Initialize default style settings
         this.styleSettings = {
@@ -168,6 +194,13 @@ class LineGraphRepresentation extends GraphicalRepresentation {
             console.log(`[LineGraphRepresentation] Initializing collection '${collectionKey}' with style:`, collections[collectionKey]);
             this.styleSettings.collectionLineStyles[collectionKey] = collections[collectionKey];
             this.dataPointsCollection[collectionKey] = [];
+            this.collectionVisibility[collectionKey] = true; // All collections visible by default
+        }
+
+        // Initialize inspected collection to the first one
+        const firstCollectionKey = Object.keys(collections)[0];
+        if (firstCollectionKey) {
+            this.collectionBeingInspected = firstCollectionKey;
         }
 
         // Initialize line graph HTML in DOM
@@ -303,11 +336,31 @@ class LineGraphRepresentation extends GraphicalRepresentation {
         const infoTitle = document.createElement('h3');
         infoTitle.textContent = 'Information';
         
+        // Create collection buttons container
+        this.collectionButtonsContainer = document.createElement('div');
+        this.collectionButtonsContainer.className = 'collection-buttons';
+        this.collectionButtonsContainer.style.display = 'grid';
+        this.collectionButtonsContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
+        this.collectionButtonsContainer.style.gap = '4px';
+        this.collectionButtonsContainer.style.marginBottom = '10px';
+        
+        // Only show buttons if there are multiple collections
+        const collectionCount = Object.keys(this.dataPointsCollection).length;
+        if (collectionCount > 1) {
+            // Create a button for each collection
+            for (const collectionKey in this.dataPointsCollection) {
+                this.createCollectionButton(collectionKey);
+            }
+        } else {
+            // Hide the container if there's only one collection
+            this.collectionButtonsContainer.style.display = 'none';
+        }
+        
         this.infoStats = document.createElement('div');
         this.infoStats.className = 'info-stats';
         
         // Create 6 info items
-        const infoLabels = ['Max', 'Min', 'Avg', 'Current', 'Delay', 'Duration'];
+        const infoLabels = ['Max', 'Min', 'Avg', 'Current', 'Time Delta', 'Duration'];
         for (const label of infoLabels) {
             const infoItem = document.createElement('div');
             infoItem.className = 'info-item';
@@ -327,6 +380,7 @@ class LineGraphRepresentation extends GraphicalRepresentation {
         }
         
         graphInfo.appendChild(infoTitle);
+        graphInfo.appendChild(this.collectionButtonsContainer);
         graphInfo.appendChild(this.infoStats);
         
         // Assemble the graph row
@@ -344,6 +398,118 @@ class LineGraphRepresentation extends GraphicalRepresentation {
         polyline.setAttribute('vector-effect', 'non-scaling-stroke')
         this.polylines[collectionKey] = polyline;
         return polyline;
+    }
+
+    private createCollectionButton(collectionKey: string): void {
+        const button = document.createElement('button');
+        button.className = 'collection-button';
+        button.textContent = collectionKey;
+        button.style.cursor = 'pointer';
+        button.style.border = '1px solid #555';
+        button.style.borderRadius = '4px';
+        button.style.backgroundColor = '#2a2a2a';
+        button.style.color = '#ffffff';
+        button.style.padding = '4px 8px';
+        button.style.fontSize = '12px';
+        button.style.transition = 'background-color 0.2s';
+        button.style.boxSizing = 'border-box';
+        
+        // Get the line style color for this collection
+        const lineStyle = this.styleSettings.collectionLineStyles[collectionKey];
+        if (lineStyle) {
+            button.style.borderLeftColor = lineStyle.color;
+            button.style.borderLeftWidth = '3px';
+        }
+        
+        // Right click: toggle visibility
+        button.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            this.toggleCollectionVisibility(collectionKey);
+            this.updateCollectionButtonAppearance(collectionKey);
+        });
+        
+        // Left click: set as inspected collection
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            // Restore previous inspected collection's original visibility
+            if (this.collectionBeingInspected !== null && this.collectionBeingInspected !== collectionKey) {
+                const previousKey = this.collectionBeingInspected;
+                const originalVisibility = this.collectionVisibilityBeforeInspection[previousKey];
+                if (originalVisibility !== undefined) {
+                    this.collectionVisibility[previousKey] = originalVisibility;
+                    const previousPolyline = this.polylines[previousKey];
+                    if (previousPolyline) {
+                        previousPolyline.style.display = originalVisibility ? '' : 'none';
+                    }
+                }
+            }
+            
+            // Save current visibility before making it inspected
+            if (this.collectionBeingInspected !== collectionKey) {
+                this.collectionVisibilityBeforeInspection[collectionKey] = this.collectionVisibility[collectionKey];
+            }
+            
+            this.collectionBeingInspected = collectionKey;
+            
+            // Always make the inspected collection visible
+            if (!this.collectionVisibility[collectionKey]) {
+                this.collectionVisibility[collectionKey] = true;
+                const polyline = this.polylines[collectionKey];
+                if (polyline) {
+                    polyline.style.display = '';
+                }
+            }
+            
+            this.updateAllCollectionButtonsAppearance();
+            this.update(); // Update to show new stats
+        });
+        
+        this.collectionButtons[collectionKey] = button;
+        this.collectionButtonsContainer.appendChild(button);
+        this.updateCollectionButtonAppearance(collectionKey);
+    }
+
+    private toggleCollectionVisibility(collectionKey: string): void {
+        // Don't allow hiding the inspected collection
+        if (this.collectionBeingInspected === collectionKey && this.collectionVisibility[collectionKey]) {
+            return; // Cannot hide the inspected collection
+        }
+        
+        this.collectionVisibility[collectionKey] = !this.collectionVisibility[collectionKey];
+        const polyline = this.polylines[collectionKey];
+        if (polyline) {
+            polyline.style.display = this.collectionVisibility[collectionKey] ? '' : 'none';
+        }
+    }
+
+    private updateCollectionButtonAppearance(collectionKey: string): void {
+        const button = this.collectionButtons[collectionKey];
+        if (!button) return;
+        
+        const isVisible = this.collectionVisibility[collectionKey];
+        const isInspected = this.collectionBeingInspected === collectionKey;
+        
+        // Update button style based on state
+        if (isInspected) {
+            button.style.backgroundColor = '#7a7a7aff';
+            button.style.fontWeight = 'bold';
+        } else {
+            button.style.backgroundColor = '#2a2a2a';
+            button.style.fontWeight = 'normal';
+        }
+        
+        if (!isVisible) {
+            button.style.opacity = '0.5';
+        } else {
+            button.style.opacity = '1';
+        }
+    }
+
+    private updateAllCollectionButtonsAppearance(): void {
+        for (const collectionKey in this.collectionButtons) {
+            this.updateCollectionButtonAppearance(collectionKey);
+        }
     }
 
     protected update(): void {
@@ -388,10 +554,12 @@ class LineGraphRepresentation extends GraphicalRepresentation {
             this.xAxisLabel.textContent = this.dataPointsDisplayMaxTime.toFixed(1);
         }
 
-        // Set graph inspection to default if only one collection exists
-        const collectionKeys = Object.keys(this.dataPointsCollection);
-        if (collectionKeys.length === 1 || true) {
-            this.collectionBeingInspected = collectionKeys[0];
+        // Set graph inspection to default if only one collection exists and none is selected
+        if (this.collectionBeingInspected === null) {
+            const collectionKeys = Object.keys(this.dataPointsCollection);
+            if (collectionKeys.length > 0) {
+                this.collectionBeingInspected = collectionKeys[0];
+            }
         }
 
         // Update the line for each data collection and its visual style
@@ -402,6 +570,9 @@ class LineGraphRepresentation extends GraphicalRepresentation {
 
         // Update the x-axis position
         this.updateXAxisPosition();
+        
+        // Update button appearances to reflect current state
+        this.updateAllCollectionButtonsAppearance();
     }
 
     /**
@@ -431,7 +602,8 @@ class LineGraphRepresentation extends GraphicalRepresentation {
         }
 
         // Calculate min & max y-values
-        const yValues = dataPoints.map(p => p.y);
+        const dataPointsSorted = dataPoints.slice().sort((a, b) => a.x - b.x);
+        const yValues = dataPointsSorted.map(p => p.y);
         const max = Math.max(...yValues);
         const min = Math.min(...yValues);
 
@@ -463,9 +635,9 @@ class LineGraphRepresentation extends GraphicalRepresentation {
             // Calculate other statistics of the collection
             const avg = yValues.reduce((a, b) => a + b, 0) / yValues.length;
             const current = yValues[yValues.length - 1];
-            const delay = (dataPoints.length >= 1 ? dataPoints[dataPoints.length - 1].x : 0) - (dataPoints.length >= 2 ? dataPoints[dataPoints.length - 2].x : 0);
-            const duration = dataPoints.length > 0 
-                ? dataPoints[dataPoints.length - 1].x - dataPoints[0].x 
+            const delay = (dataPointsSorted.length >= 1 ? dataPointsSorted[dataPointsSorted.length - 1].x : 0) - (dataPointsSorted.length >= 2 ? dataPointsSorted[dataPointsSorted.length - 2].x : 0);
+            const duration = dataPointsSorted.length > 0 
+                ? dataPointsSorted[dataPointsSorted.length - 1].x - dataPointsSorted[0].x 
                 : 0;
             
             // Update info stats
@@ -473,7 +645,7 @@ class LineGraphRepresentation extends GraphicalRepresentation {
             this.updateInfoStat('min', `${min.toFixed(1)} ${this.unit}`);
             this.updateInfoStat('avg', `${avg.toFixed(1)} ${this.unit}`);
             this.updateInfoStat('current', `${current.toFixed(1)} ${this.unit}`);
-            this.updateInfoStat('delay', `${delay.toFixed(3)}s`);
+            this.updateInfoStat('time delta', `${delay.toFixed(3)}s`);
             this.updateInfoStat('duration', `${duration.toFixed(1)}s`);
         }
 
@@ -483,7 +655,7 @@ class LineGraphRepresentation extends GraphicalRepresentation {
         // Handle edge case where all points have the same time
         if (timeRange === 0) {
             // Plot all points at x=0 (left side)
-            const svgPoints = dataPoints.map(point => {
+            const svgPoints = dataPointsSorted.map(point => {
                 const x = 0;
                 const y = 100 - ((point.y - this.yMin) / (this.yMax - this.yMin)) * 100;
                 return `${x.toFixed(2)},${y.toFixed(2)}`;
@@ -493,15 +665,15 @@ class LineGraphRepresentation extends GraphicalRepresentation {
         }
 
         // Get closest out-of-bounds points to display range
-        const { beforeIndex, afterIndex } = this.getClosestOutOfBoundsPointIndexices(dataPoints);
+        const { beforeIndex, afterIndex } = this.getClosestOutOfBoundsPointIndexices(dataPointsSorted);
 
         // Convert data points that will be displayed to SVG coordinates
-        const svgPoints = dataPoints.map(point => {
+        const svgPoints = dataPointsSorted.map(point => {
             // Do not display the point if it's outside the current time window AND not the closest OOBP to the visible point
             if (point.x < this.dataPointsDisplayMinTime || point.x > this.dataPointsDisplayMaxTime) 
             {
-                if (beforeIndex !== null && dataPoints[beforeIndex] === point
-                    && afterIndex !== null && dataPoints[afterIndex] === point) 
+                if (beforeIndex !== null && dataPointsSorted[beforeIndex] === point
+                    && afterIndex !== null && dataPointsSorted[afterIndex] === point) 
                     return null;
             }
 
@@ -663,6 +835,14 @@ class LineGraphRepresentation extends GraphicalRepresentation {
         if (lineStyle.dashArray) {
             polyline.setAttribute('stroke-dasharray', lineStyle.dashArray);
         }
+    }
+
+    public setOverflowY(overflowMode: LineGraphYOverflowMode): void {
+        this.styleSettings.yOverflowMode = overflowMode;
+    }
+
+    public setOverflowX(overflowMode: LineGraphXOverflowMode): void {
+        this.styleSettings.xOverflowMode = overflowMode;
     }
 }
 
