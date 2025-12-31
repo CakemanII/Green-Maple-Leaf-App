@@ -1,26 +1,32 @@
 declare const TelemetryReceiver: any;
 
-class LiveTelemetryManager {
-    private static instance: LiveTelemetryManager;
-    public static get INSTANCE(): LiveTelemetryManager { return LiveTelemetryManager.instance; }
+class LiveDisplayUpdater {
+    private static instance: LiveDisplayUpdater;
+    public static get INSTANCE(): LiveDisplayUpdater { return LiveDisplayUpdater.instance; }
 
     private graphsDictionary: { [key: string]: GraphicalRepresentation } = {};
     private callbacksDictionary: { [key: string]: () => void } = {};
 
     constructor() {
         // Ensure singleton
-        if (LiveTelemetryManager.instance) {
+        if (LiveDisplayUpdater.instance) {
             throw new Error("Use LiveDataManager.INSTANCE to access the singleton instance.");
         }
-        LiveTelemetryManager.instance = this;
+        LiveDisplayUpdater.instance = this;
 
         // Initialization code here
         this.intializeMotionGraphs();
+
+        // Initialize status displays
+        this.initializeStatusDisplays();
         
         // Start listening for data updates
         this.listenForDataUpdates();
     }
 
+    /**
+     * Initializes motion-related graphs.
+     */
     private intializeMotionGraphs(): void {
         const vectorGraphsToCreate: { key: string; title: string; unit: string; yMin: number; yMax: number; scaleY: boolean }[] = [
             { key: 'accel', title: 'Linear Acceleration', unit: 'm/s²', yMin: -1, yMax: 1, scaleY: true },
@@ -62,9 +68,6 @@ class LiveTelemetryManager {
             );
             this.registerGraph(graphInfo.key, graph);
         });
-
-        // Set up derivative/integral callbacks
-        this.setDerivativeIntegralCallback('ang_vel', 'ang_accel', true);  // Derivative of velocity is acceleration
     }
 
     private listenForDataUpdates(): void {
@@ -132,64 +135,18 @@ class LiveTelemetryManager {
         this.graphsDictionary[key] = graph;
     }
 
-    private setDerivativeIntegralCallback(call_key: string, output_key: string, calc_derivative: boolean): void {
-        this.callbacksDictionary[call_key] = () => {
-            this.derivativeIntegralCallback(call_key, output_key, calc_derivative);
-        };
-    } 
-
-    private derivativeIntegralCallback(input_key: string, output_key: string, calc_derivative: boolean): void {
-        // Calculate the derivative or integral for the specified output key
-        const inputGraph: GraphicalRepresentation = this.graphsDictionary[input_key];
-        if (!inputGraph) {
-            console.warn(`[LiveDataManager] No graph found for key '${input_key}' to use to calculate derivative/integral.`);
-            return;
-        }
-
-        // Get the output graph
-        const outputGraph: GraphicalRepresentation = this.graphsDictionary[output_key];
-        if (!outputGraph) {
-            console.warn(`[LiveDataManager] No graph found for key '${output_key}' to store derivative/integral results.`);
-            return;
-        }
-
-        // Calculate derivative or integral for each collection
-        const collectionKeys = inputGraph.getAllCollectionKeys();
-        collectionKeys.forEach(collectionKey => {
-            // Get the data points for this collection
-            const inputDataPoints = inputGraph.getDataPointsCollection(true, 2, collectionKey);
-            const a = inputDataPoints[0]; const b = inputDataPoints[1]; // Last two data points
-
-            // If not enough data points, skip
-            if (!a || !b) {
-                console.warn(`[LiveDataManager] Not enough data points to calculate derivative/integral for key '${input_key}' in collection '${collectionKey}'.`);
-                return;
-            }
-
-            // Calculate time difference
-            const deltaTime = b.x - a.x;
-
-            // Calculate derivative or integral
-            if (calc_derivative) {
-                // Calculate the time inbetween the points
-                const midTime = (a.x + b.x) / 2;
-
-                // Calculate derivative
-                const derivativeValue = DerivativeCalculator.calculate(a.y, b.y, deltaTime);
-                outputGraph.addDataPoint(midTime, derivativeValue, collectionKey);
-            } else {
-                // Get the last integral value if exists
-                const lastOutputDataPoints = outputGraph.getDataPointsCollection(true, 1, collectionKey);
-                const lastIntegralValue = lastOutputDataPoints.length > 0 ? lastOutputDataPoints[0].y : 0;
-                // Calculate integral
-                const integralValue = IntegralCalculator.calculate(lastIntegralValue, a.y, b.y, deltaTime);
-                outputGraph.addDataPoint(b.x, integralValue, collectionKey);
-            }
-        });
+    /**
+     * Initializes status displays.
+     */
+    private initializeStatusDisplays(): void {
+        // Implementation for initializing status displays goes here
+        // ...
     }
+
+    
 }
 
-new LiveTelemetryManager();
+new LiveDisplayUpdater();
 
 type Vector3D = {
     x: number;

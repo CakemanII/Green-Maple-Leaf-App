@@ -1,9 +1,9 @@
 /**
  * Manages telemetry communication within the application.
  */
-class TelemetryCommunicationManager {
-    private static instance: TelemetryCommunicationManager;
-    public static get INSTANCE(): TelemetryCommunicationManager { return TelemetryCommunicationManager.instance; }
+class GlobalTelemetryManager {
+    private static instance: GlobalTelemetryManager;
+    public static get INSTANCE(): GlobalTelemetryManager { return GlobalTelemetryManager.instance; }
 
     private readonly telemetryIframesIDs: string[] = [
         'live_data_tab',
@@ -13,12 +13,17 @@ class TelemetryCommunicationManager {
 
     private dataCache: { [key: string]: { x: number, y: any }[] } = {};
 
+    // List of integrals and derivatives to compute
+    private compute_derivatives_integrals: { input: string, output: string, is_derivative: boolean }[] = [
+        { input: 'ang_vel', output: 'ang_accel', is_derivative: true },
+    ];
+
     constructor() {
         // Ensure singleton
-        if (TelemetryCommunicationManager.instance) {
-            throw new Error("Use TelemetryCommunicationManager.INSTANCE to access the singleton instance.");
+        if (GlobalTelemetryManager.instance) {
+            throw new Error("Use GlobalTelemetryManager.INSTANCE to access the singleton instance.");
         }
-        TelemetryCommunicationManager.instance = this;
+        GlobalTelemetryManager.instance = this;
 
         // Initialize telemetry iframes
         this.telemetryIframesIDs.forEach(iframeID => {
@@ -34,6 +39,9 @@ class TelemetryCommunicationManager {
 
         // Initialize socket communication
         this.initializeSocketCommunication();
+
+        // Setup derivative and integral calculations
+        this.setupDerivativeIntegralCalculations();
     }
 
     
@@ -55,6 +63,9 @@ class TelemetryCommunicationManager {
             if (!this.dataCache[label]) { this.dataCache[label] = []; }
             this.dataCache[label].push({ x: timestamp, y: content });
 
+            // Notify derivative/integral handler of new telemetry data
+            DerivativeIntegralHandler.INSTANCE.onTelemetryDataReceived(label);
+
             // Send data to all telemetry iframes
             this.sendMessageToTelemetryIframes(label, timestamp, content);
 
@@ -69,6 +80,28 @@ class TelemetryCommunicationManager {
         socket.on('disconnect', () => {
             console.log('[LiveDataManager] Disconnected from web server');
         });
+    }
+
+    /**
+     * Sets up derivative and integral calculations for specified telemetry data.
+     */
+    public setupDerivativeIntegralCalculations(): void {
+        this.compute_derivatives_integrals.forEach(item => {
+            DerivativeIntegralHandler.INSTANCE.setDerivativeIntegralCallback(
+                item.input, item.output, item.is_derivative, this.onDerivativeIntegralCalculated.bind(this));
+        });
+    }
+
+    /**
+     * Called when integral / derivative calculations have been performed.
+     */
+    private onDerivativeIntegralCalculated(label: string, timestamp: number, value: any): void {
+        // Cache data
+        if (!this.dataCache[label]) { this.dataCache[label] = []; }
+        this.dataCache[label].push({ x: timestamp, y: value });
+
+        // Send data to all telemetry iframes
+        this.sendMessageToTelemetryIframes(label, timestamp, value);
     }
 
 
@@ -94,18 +127,18 @@ class TelemetryCommunicationManager {
     }
 
     /**
-     * Retrieves the most recent data point for a specific label.
+     * Retrieves the most recent data points for a specific label.
      */
-    public getMostRecentDataPoint(label: string): { x: number, y: any } | null {
+    public getMostRecentDataPoints(label: string, count: number = 1): { x: number, y: any }[] | null {
         const dataPoints = this.dataCache[label];
         if (dataPoints && dataPoints.length > 0) {
-            return dataPoints[dataPoints.length - 1];
+            return dataPoints.slice(-count);
         }
         return null;
     }
 }
 
-new TelemetryCommunicationManager();
+new GlobalTelemetryManager();
 
 /**
  * Managers rocket input communication from the application.

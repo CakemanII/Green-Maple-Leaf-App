@@ -332,14 +332,14 @@ class LiveStatus {
             const mainKey = keyParts[0];
 
             // Retrieve current value from TelemetryCommunicationManager
-            let currentValue = TelemetryCommunicationManager.INSTANCE.getMostRecentDataPoint(mainKey);
+            let currentValue = GlobalTelemetryManager.INSTANCE.getMostRecentDataPoints(mainKey);
             if (!currentValue) {
                 console.warn(`[GlobalStatusesManager] No telemetry data found for key '${mainKey}'`);
                 return false;
             }   
 
             // If there's a sub-key, extract it (e.g., for vector data)
-            currentValue = currentValue.y // Get just the value part of the data point
+            currentValue = currentValue[0].y // Get just the value part of the data point
             const currentValueSub = (keyParts.length > 1 && currentValue) ? (currentValue as any)[keyParts[1]] : currentValue;
 
             if (!currentValue) { return false; } // No data means condition fails
