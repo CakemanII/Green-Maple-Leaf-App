@@ -206,9 +206,63 @@
             color:#6ba3ff;
             font-weight:600;
         }
+
+        /* Status Display Styles */
+        .statuses-container{
+            padding:18px 18px 0 18px;
+            display:flex;
+            gap:12px;
+            flex-wrap:wrap;
+        }
+
+        .status-card{
+            background-color:var(--card);
+            border:1px solid var(--border);
+            border-radius:0.5rem;
+            padding:16px;
+            min-width:200px;
+            max-width:250px;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            text-align:center;
+            gap:12px;
+        }
+
+        .status-name{
+            font-size:1.125rem;
+            color:var(--accent);
+            font-weight:700;
+            margin:0;
+            letter-spacing:0.3px;
+        }
+
+        .status-flag{
+            font-size:0.875rem;
+            color:#6ba3ff;
+            font-weight:600;
+            padding:4px 0;
+            width:100%;
+        }
+
+        .status-image{
+            width:100%;
+            height:150px;
+            background-color:var(--panel);
+            border:1px solid var(--border);
+            border-radius:4px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:3rem;
+        }
     </style>
 </head>
 <body>
+    <div class="statuses-container">
+        <!-- Status cards will be dynamically generated here -->
+    </div>
+
     <div class="graphs-container" id="graphs-container">
         <!-- Graphs will be dynamically generated here -->
     </div>
@@ -217,6 +271,8 @@
     <!-- Socket.IO Client Library -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
+    <script src="../shared/compiled_js/utilities.js"></script>
+
     <!-- Load compiled TypeScript classes (non-module, in dependency order) -->
     <!-- -2. Shared Configuration Reference -->
     <script src="../shared/compiled_js/global_configs_reference.js"></script>
@@ -224,11 +280,13 @@
     <!-- Telemetry Data Receiving -->
     <script src="../shared/compiled_js/global_rocket_communication_reference.js"></script>
 
+    <!-- Statuses Reference -->
+    <script src="../shared/compiled_js/global_statuses_reference.js"></script>
+
     <!-- -1. Shared Prompts Reference -->
     <script src="../shared/compiled_js/prompts.js"></script>
 
-    <!-- Derivative and Integral Calculator -->
-    <script src="./compiled_js/derivative_integral_calculator.js"></script>
+    <script src="./compiled_js/status_representations.js"></script>
 
     <!-- Graph Representations -->
     <script src="./compiled_js/graph_representations.js"></script>

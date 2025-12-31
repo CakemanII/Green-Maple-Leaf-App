@@ -15,7 +15,6 @@ class DerivativeIntegralHandler{
     public setDerivativeIntegralCallback(call_key: string, output_key: string, calc_derivative: boolean, callback: (label: string, timestamp: number, value: any) => void): void {
         this.callbacksDictionary[call_key] = () => {
             const result = this.derivativeIntegralCallback(call_key, output_key, calc_derivative);
-            console.log(`[DerivativeIntegralHandler] Computed ${calc_derivative ? 'derivative' : 'integral'} for key '${call_key}':`, result);
             if (result)
                 callback(result[0], result[1], result[2]);
         };

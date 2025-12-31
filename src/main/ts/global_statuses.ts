@@ -1,3 +1,5 @@
+declare const IFrameCommunicationUitilies: any;
+
 // Types for statuses, flags, and etc.
 
 // Example: Should Parachute be Deployed?
@@ -116,6 +118,12 @@ class GlobalStatusesManager {
     private static instance: GlobalStatusesManager;
     public static get INSTANCE(): GlobalStatusesManager { return GlobalStatusesManager.instance; }
 
+    private readonly statusIframesIDs: string[] = [
+        'live_data_tab',
+        'live_interface_tab',
+    ]
+    private telemetryIframes: HTMLIFrameElement[] = [];
+
     private statuses: Status[] = [];
     private statusEvaluators: { [uuid: string]: LiveStatus } = {};
 
@@ -126,15 +134,38 @@ class GlobalStatusesManager {
         }
         GlobalStatusesManager.instance = this;
 
-        // Initialization code here
+        // Initialize iframe references
+        this.statusIframesIDs.forEach(iframeID => {
+            const iframe = document.getElementById(iframeID) as HTMLIFrameElement;
+            if (iframe) {
+                this.telemetryIframes.push(iframe);
+            }
+            else {
+                console.warn(`Iframe with ID ${iframeID} not found.`);
+            }
+        });
+
         // Load all statuses
         this.statuses = this.loadStatuses();
 
         // Create evaluators for each status
         this.statuses.forEach(status => {
-            this.statusEvaluators[status.UUID] = new LiveStatus(status);
+            this.statusEvaluators[status.UUID] = new LiveStatus(
+                status, 
+                () => {
+                    // Callback to handle status update
+                    this.sendStatusUpdateToIframes(
+                        status.UUID, 
+                        this.statusEvaluators[status.UUID].getActiveFlag().name, 
+                        "" // Placeholder for flag image URL or data
+                    );
+                }
+            );
         });
         console.log(`[GlobalStatusesManager] Loaded ${this.statuses.length} statuses.`);
+
+        // Setup iframe communication
+        this.initializeIFrameCommunication();
     }
 
     /**
@@ -176,6 +207,42 @@ class GlobalStatusesManager {
      * Evaluate all statuses based on updated telemetry/status data.
      */
     public updatedStatusData(status_data: string): void { this.updateAllStatuses('status', status_data); } // re-visit
+
+    /**
+     * Send status update to iframes.
+     */
+    private sendStatusUpdateToIframes(statusUUID: string, flagName: string, flagImage: string): void {
+        // Send message to all status iframes
+        this.telemetryIframes.forEach(iframe => {
+            iframe.contentWindow?.postMessage({ 
+                type: 'statusUpdate',
+                statusUUID: statusUUID,
+                flagName: flagName,
+                flagImage: flagImage 
+            }, '*');
+        });
+    }
+
+    /**
+     * Setup 2-way communication with iframes.
+     */
+    private initializeIFrameCommunication(): void {
+        IFrameCommunicationUitilies.setupMessageReceiverAndResponse(
+            'getAllStatuses', () => {
+                // Compile all statuses with their current active flag names and images
+                const statusesData = this.statuses.map(status => {
+                    const evaluator = this.statusEvaluators[status.UUID];
+                    return {
+                        statusUUID: status.UUID,
+                        statusName: status.name,
+                        currentActiveFlagName: evaluator.getActiveFlag().name,
+                        currentActiveFlagImage: "" // Placeholder for flag image URL or data
+                    };
+                });
+                return statusesData;
+            }
+        );
+    }
 }
 
 /**
@@ -183,15 +250,18 @@ class GlobalStatusesManager {
  */
 class LiveStatus {
     private status: Status;
+    private onStatusUpdateCallback: (() => void);
+
     private activeFlag: Flag;
     public getActiveFlag(): Flag { return this.activeFlag; }
 
     private evaluationTriggers: { telemetry: string[], status: string[] } = { telemetry: [], status: [] };
 
-    constructor(status: Status) {
+    constructor(status: Status, onStatusUpdateCallback: (() => void)) {
         // Initialize status
         this.status = status;
         this.activeFlag = status.defaultFlag;
+        this.onStatusUpdateCallback = onStatusUpdateCallback;
 
         // Initialize evaluation triggers
         this.initializeEvaluationTriggers();
@@ -260,6 +330,7 @@ class LiveStatus {
         if (!this.shouldEvaluate(type, value_type)) {
             return; // No need to evaluate
         }
+        console.log(`[LiveStatus] Evaluating status '${this.status.name}' due to updated ${type} data.`);
 
         // Go through flags in order of priority
         for (const flag of this.status.flags) {
@@ -267,10 +338,16 @@ class LiveStatus {
                 const result = this.evaluateConditionalGroup(flag.primaryConditionalGroup);
                 if (result) {
                     this.activeFlag = flag;
-                    console.log(`[GlobalStatusesManager] Status '${this.status.name}' set to flag '${flag.name}'`);
+                    this.onStatusUpdateCallback!();
                     return; // Exit after first matching flag (This goes in prioirity order)
                 }
             }
+        }
+
+        // If no flags matched, set to default flag
+        if (this.activeFlag.UUID !== this.status.defaultFlag.UUID) {
+            this.activeFlag = this.status.defaultFlag;
+            this.onStatusUpdateCallback!();
         }
     }
 

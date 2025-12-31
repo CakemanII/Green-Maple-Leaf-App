@@ -1,4 +1,5 @@
 declare const TelemetryReceiver: any;
+declare const StatusesReference: any;
 
 class LiveDisplayUpdater {
     private static instance: LiveDisplayUpdater;
@@ -6,6 +7,8 @@ class LiveDisplayUpdater {
 
     private graphsDictionary: { [key: string]: GraphicalRepresentation } = {};
     private callbacksDictionary: { [key: string]: () => void } = {};
+
+    private statusesDictionary: { [key: string]: StatusRepresentation } = {};
 
     constructor() {
         // Ensure singleton
@@ -138,12 +141,32 @@ class LiveDisplayUpdater {
     /**
      * Initializes status displays.
      */
-    private initializeStatusDisplays(): void {
-        // Implementation for initializing status displays goes here
-        // ...
+    private async initializeStatusDisplays(): Promise<void> {
+        // Setup callback 
+        StatusesReference.INSTANCE.setOnStatusUpdateCallback(this.updateStatusDisplay.bind(this));
+
+        // Get all statuses and render their displays
+        const allStatuses = await StatusesReference.INSTANCE.getAllStatuses();
+
+        console.log(`[LiveDisplayUpdater] Initializing ${allStatuses.length} status displays.`);
+        allStatuses.forEach((item: any) => {
+            const representation = new StatusRepresentation(item.statusUUID, item.statusName, item.currentActiveFlagName, item.currentActiveFlagImage);
+            this.statusesDictionary[item.statusUUID] = representation;
+        });
     }
 
-    
+    /**
+     * Update a specific status display.
+     */
+    private updateStatusDisplay(statusUUID: string, flagName: string, flagImage: string): void {
+        // Implementation for updating a specific status display goes here
+        const statusRep = this.statusesDictionary[statusUUID];
+        if (statusRep) {
+            statusRep.updateDisplay(flagName, flagImage);
+        } else {
+            console.warn(`[LiveDisplayUpdater] No status representation found for UUID '${statusUUID}'`);
+        }
+    }
 }
 
 new LiveDisplayUpdater();
