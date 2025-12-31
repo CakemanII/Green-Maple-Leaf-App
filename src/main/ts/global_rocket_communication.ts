@@ -11,6 +11,8 @@ class TelemetryCommunicationManager {
     ]
     private telemetryIframes: HTMLIFrameElement[] = [];
 
+    private dataCache: { [key: string]: { x: number, y: any }[] } = {};
+
     constructor() {
         // Ensure singleton
         if (TelemetryCommunicationManager.instance) {
@@ -49,8 +51,15 @@ class TelemetryCommunicationManager {
             const timestamp = data.timestamp; // Time value for x-axis
             const content = data.content;     // Data value for y-axis
 
+            // Cache data
+            if (!this.dataCache[label]) { this.dataCache[label] = []; }
+            this.dataCache[label].push({ x: timestamp, y: content });
+
             // Send data to all telemetry iframes
             this.sendMessageToTelemetryIframes(label, timestamp, content);
+
+            // Notify global statuses of updated telemetry data
+            GlobalStatusesManager.INSTANCE.updatedTelemetryData(label);
         });
 
         socket.on('connect', () => {
@@ -75,6 +84,24 @@ class TelemetryCommunicationManager {
                 value: value 
             }, '*');
         });
+    }
+
+    /**
+     * Retrieves cached data for a specific label.
+     */
+    public getCachedData(label: string): { x: number, y: any }[] | null {
+        return this.dataCache[label] || null;
+    }
+
+    /**
+     * Retrieves the most recent data point for a specific label.
+     */
+    public getMostRecentDataPoint(label: string): { x: number, y: any } | null {
+        const dataPoints = this.dataCache[label];
+        if (dataPoints && dataPoints.length > 0) {
+            return dataPoints[dataPoints.length - 1];
+        }
+        return null;
     }
 }
 

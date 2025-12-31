@@ -81,9 +81,6 @@ class LiveTelemetryManager {
             // Calculate relative time (elapsed time since first data point)
             const relativeTime = timestamp - firstTimestamp!;
 
-            console.log(`[LiveDataManager] Received data for '${label}':`, content, `at t=${relativeTime.toFixed(2)}s`);
-            console.log(`[LiveDataManager] Available graphs:`, Object.keys(this.graphsDictionary));
-
             // Find the graph with the matching label
             const graph = this.graphsDictionary[label];
             
@@ -142,7 +139,6 @@ class LiveTelemetryManager {
     } 
 
     private derivativeIntegralCallback(input_key: string, output_key: string, calc_derivative: boolean): void {
-        console.log(`[LiveDataManager] Calculating ${calc_derivative ? 'derivative' : 'integral'} for '${input_key}' to store in '${output_key}'`);
         // Calculate the derivative or integral for the specified output key
         const inputGraph: GraphicalRepresentation = this.graphsDictionary[input_key];
         if (!inputGraph) {

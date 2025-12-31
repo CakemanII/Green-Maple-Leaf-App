@@ -191,7 +191,6 @@ class LineGraphRepresentation extends GraphicalRepresentation {
 
         // Initialize collections in data points and provided styles
         for (const collectionKey in collections) {
-            console.log(`[LineGraphRepresentation] Initializing collection '${collectionKey}' with style:`, collections[collectionKey]);
             this.styleSettings.collectionLineStyles[collectionKey] = collections[collectionKey];
             this.dataPointsCollection[collectionKey] = [];
             this.collectionVisibility[collectionKey] = true; // All collections visible by default
