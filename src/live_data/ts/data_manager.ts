@@ -1,16 +1,18 @@
-class LiveDataManager {
-    private static instance: LiveDataManager;
-    public static get INSTANCE(): LiveDataManager { return LiveDataManager.instance; }
+declare const TelemetryReceiver: any;
+
+class LiveTelemetryManager {
+    private static instance: LiveTelemetryManager;
+    public static get INSTANCE(): LiveTelemetryManager { return LiveTelemetryManager.instance; }
 
     private graphsDictionary: { [key: string]: GraphicalRepresentation } = {};
     private callbacksDictionary: { [key: string]: () => void } = {};
 
     constructor() {
         // Ensure singleton
-        if (LiveDataManager.instance) {
+        if (LiveTelemetryManager.instance) {
             throw new Error("Use LiveDataManager.INSTANCE to access the singleton instance.");
         }
-        LiveDataManager.instance = this;
+        LiveTelemetryManager.instance = this;
 
         // Initialization code here
         this.intializeMotionGraphs();
@@ -66,18 +68,11 @@ class LiveDataManager {
     }
 
     private listenForDataUpdates(): void {
-        // Connect to the Socket.IO server
-        const socket = (window as any).io('http://127.0.0.1:5000');
-
         // Track the first timestamp to calculate relative time
         let firstTimestamp: number | null = null;
-
-        // Listen for 'rocket_data' events from the server
-        socket.on('rocket_data', (data: any) => {
-            const label = data.label;         // Graph key/label
-            const timestamp = data.timestamp; // Time value for x-axis
-            const content = data.content;     // Data value for y-axis
-
+        
+        // Listen for telemetry data from parent window
+        new TelemetryReceiver((label: string, timestamp: number, content: any) => {
             // Initialize first timestamp if not set
             if (firstTimestamp === null) {
                 firstTimestamp = timestamp;
@@ -119,14 +114,6 @@ class LiveDataManager {
             } else {
                 console.warn(`[LiveDataManager] No graph found for label '${label}'`);
             }
-        });
-
-        socket.on('connect', () => {
-            console.log('[LiveDataManager] Connected to web server');
-        });
-
-        socket.on('disconnect', () => {
-            console.log('[LiveDataManager] Disconnected from web server');
         });
     }
 
@@ -177,6 +164,12 @@ class LiveDataManager {
             const inputDataPoints = inputGraph.getDataPointsCollection(true, 2, collectionKey);
             const a = inputDataPoints[0]; const b = inputDataPoints[1]; // Last two data points
 
+            // If not enough data points, skip
+            if (!a || !b) {
+                console.warn(`[LiveDataManager] Not enough data points to calculate derivative/integral for key '${input_key}' in collection '${collectionKey}'.`);
+                return;
+            }
+
             // Calculate time difference
             const deltaTime = b.x - a.x;
 
@@ -200,7 +193,7 @@ class LiveDataManager {
     }
 }
 
-new LiveDataManager();
+new LiveTelemetryManager();
 
 type Vector3D = {
     x: number;

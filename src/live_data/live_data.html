@@ -30,19 +30,6 @@
             box-sizing:border-box;
         }
 
-        .page-header{
-            padding:12px 18px;
-            border-bottom:1px solid var(--border);
-            background-color:var(--card);
-        }
-
-        .page-title{
-            margin:0;
-            font-size:1.2rem;
-            font-weight:600;
-            color:#ffffff;
-        }
-
         .graphs-container{
             padding:18px;
         }
@@ -222,10 +209,6 @@
     </style>
 </head>
 <body>
-    <div class="page-header">
-        <h1 class="page-title">Live Data</h1>
-    </div>
-
     <div class="graphs-container" id="graphs-container">
         <!-- Graphs will be dynamically generated here -->
     </div>
@@ -237,6 +220,9 @@
     <!-- Load compiled TypeScript classes (non-module, in dependency order) -->
     <!-- -2. Shared Configuration Reference -->
     <script src="../shared/compiled_js/global_configs_reference.js"></script>
+
+    <!-- Telemetry Data Receiving -->
+    <script src="../shared/compiled_js/global_rocket_communication_reference.js"></script>
 
     <!-- -1. Shared Prompts Reference -->
     <script src="../shared/compiled_js/prompts.js"></script>
