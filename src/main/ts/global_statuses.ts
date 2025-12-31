@@ -23,18 +23,20 @@ declare const IFrameCommunicationUitilies: any;
                 // Not: True
                 // Condition: Parachute is already Deployed
 
-const ExampleStatus: Status = {
+const ExampleStatus1: Status = {
     UUID: "statustemptemp",
     name: "Should Parachute be Deployed?",
     defaultFlag: {
         name: "No, Do Not Deploy Parachute",
         UUID: "defaultflagtemp",
+        imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp\\do_not_deploy_parachute.png",
         primaryConditionalGroup: null,
     },
     flags: [
         {
             UUID: "flagtemp123",
             name: "Yes, Deploy Parachute",
+            imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp\\parachute_deploy.png",
             primaryConditionalGroup: {
                 type: 'AND',
                 not: false,
@@ -53,7 +55,7 @@ const ExampleStatus: Status = {
                         not: false,
                         condition: {
                             telemetryKey: 'accel.y',
-                            operator: 'LT',
+                            operator: 'LTOE',
                             value: 0
                         }
                     },
@@ -79,7 +81,97 @@ const ExampleStatus: Status = {
             }
         }
     ]
-}
+};
+
+
+const ExampleStatus2: Status = {
+    UUID: "statustemptemp2",
+    name: "Impact Detection",
+    defaultFlag: {
+        name: "No Critical Impact Detected",
+        UUID: "defaultflagtemp2",
+        imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\all-good.png",
+        primaryConditionalGroup: null,
+    },
+    flags: [
+        {
+            UUID: "flagtemp1234",
+            name: "Terminal Velocity Reached, It's Over Twin",
+            imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\its_over.jpg",
+            primaryConditionalGroup: {
+                type: 'AND',
+                not: false,
+                embededConditionalGroups: [
+                    {
+                        type: 'CONDITION',
+                        not: false,
+                        condition: {
+                            telemetryKey: 'vel.y',
+                            operator: 'LTOE',
+                            value: -50
+                        }
+                    },
+                    {
+                        type: 'CONDITION',
+                        not: false,
+                        condition: {
+                            telemetryKey: 'accel.y',
+                            operator: 'GTOE',
+                            value: -0.1
+                        }
+                    },
+                    {
+                        type: 'CONDITION',
+                        not: false,
+                        condition: {
+                            telemetryKey: 'accel.y',
+                            operator: 'LTOE',
+                            value: 0
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            UUID: "flagtemp123",
+            name: "Yes, Critical Impact Detected",
+            imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\critical.png",
+            primaryConditionalGroup: {
+                type: 'AND',
+                not: false,
+                embededConditionalGroups: [
+                    {
+                        type: 'CONDITION',
+                        not: false,
+                        condition: {
+                            telemetryKey: 'vel.y',
+                            operator: 'LTOE',
+                            value: -50
+                        }
+                    },
+                    {
+                        type: 'CONDITION',
+                        not: false,
+                        condition: {
+                            telemetryKey: 'accel.y',
+                            operator: 'LTOE',
+                            value: 0
+                        }
+                    },
+                    {
+                        type: 'CONDITION',
+                        not: false,
+                        condition: {
+                            telemetryKey: 'dps_alt',
+                            operator: 'LT',
+                            value: 200
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+};
 
 type Status = {
     UUID: string;
@@ -91,6 +183,7 @@ type Status = {
 type Flag = {
     UUID: string;
     name: string;
+    imagePath: string
     primaryConditionalGroup: ConditionalGroup | null;
 }
 
@@ -154,10 +247,11 @@ class GlobalStatusesManager {
                 status, 
                 () => {
                     // Callback to handle status update
+                    const activeFlag = this.statusEvaluators[status.UUID].getActiveFlag();
                     this.sendStatusUpdateToIframes(
                         status.UUID, 
-                        this.statusEvaluators[status.UUID].getActiveFlag().name, 
-                        "" // Placeholder for flag image URL or data
+                        activeFlag.name, 
+                        activeFlag.imagePath
                     );
                 }
             );
@@ -174,7 +268,8 @@ class GlobalStatusesManager {
     private loadStatuses(): Status[] {
         // Implementation to retrieve all statuses
         return [
-            ExampleStatus // temporary example
+            ExampleStatus1, // temporary example
+            ExampleStatus2
         ];
     }
 
@@ -232,11 +327,12 @@ class GlobalStatusesManager {
                 // Compile all statuses with their current active flag names and images
                 const statusesData = this.statuses.map(status => {
                     const evaluator = this.statusEvaluators[status.UUID];
+                    const activeFlag = evaluator.getActiveFlag();
                     return {
                         statusUUID: status.UUID,
                         statusName: status.name,
-                        currentActiveFlagName: evaluator.getActiveFlag().name,
-                        currentActiveFlagImage: "" // Placeholder for flag image URL or data
+                        currentActiveFlagName: activeFlag.name,
+                        currentActiveFlagImage: activeFlag.imagePath
                     };
                 });
                 return statusesData;
@@ -330,7 +426,6 @@ class LiveStatus {
         if (!this.shouldEvaluate(type, value_type)) {
             return; // No need to evaluate
         }
-        console.log(`[LiveStatus] Evaluating status '${this.status.name}' due to updated ${type} data.`);
 
         // Go through flags in order of priority
         for (const flag of this.status.flags) {

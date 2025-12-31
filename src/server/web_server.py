@@ -38,6 +38,34 @@ def serve_preferences():
 def serve_shared(path):
     return send_from_directory(SHARED_DIR, path)
 
+
+@app.route('/serve_image/<path:filepath>')
+def serve_image(filepath):
+    """Serve any file from the filesystem by absolute path."""
+    print(f"[Web Server] Attempting to serve file: {filepath}")
+    
+    # The filepath comes in with forward slashes, need to handle Windows paths
+    # If it doesn't start with a drive letter, it might be missing from the route parsing
+    if not filepath[1:3] == ':/':
+        # Flask might strip the C: part, try to get it from query params
+        full_path = request.full_path
+        print(f"[Web Server] Full request path: {full_path}")
+    
+    # Convert forward slashes to backslashes for Windows
+    filepath = filepath.replace('/', os.sep)
+    
+    print(f"[Web Server] Normalized filepath: {filepath}")
+    
+    # Check if file exists
+    if os.path.isfile(filepath):
+        directory = os.path.dirname(filepath)
+        filename = os.path.basename(filepath)
+        print(f"[Web Server] File found! Serving from {directory}")
+        return send_from_directory(directory, filename)
+    
+    print(f"[Web Server] File not found: {filepath}")
+    return f'File not found: {filepath}', 404
+
 @app.route('/<path:path>')
 def serve_static(path):
     # Try main, geofence_editor, preferences in order
@@ -46,7 +74,6 @@ def serve_static(path):
         if os.path.isfile(file_path):
             return send_from_directory(folder, path)
     return 'File not found', 404
-
 #endregion
 
 #region configuration saving & loading routes

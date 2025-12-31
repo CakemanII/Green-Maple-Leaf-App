@@ -48,9 +48,13 @@ class StatusRepresentation {
         this.statusFlag = statusFlag;
 
         // Create status image
-        const statusImage = document.createElement('div');
+        const statusImage = document.createElement('img');
         statusImage.className = 'status-image';
-        statusImage.textContent = this.defaultFlagImage;
+        statusImage.style.width = '100%';
+        statusImage.style.height = '100%';
+        statusImage.style.objectFit = 'contain';
+        // Convert absolute path to server route
+        statusImage.src = this.convertPathToServerRoute(this.defaultFlagImage);
         this.statusImage = statusImage;
 
         // Append elements to status card
@@ -69,8 +73,18 @@ class StatusRepresentation {
         if (this.statusFlag) {
             this.statusFlag.textContent = flagName;
         }
-        if (this.statusImage) {
-            this.statusImage.textContent = flagImage;
+        if (this.statusImage && this.statusImage instanceof HTMLImageElement) {
+            this.statusImage.src = this.convertPathToServerRoute(flagImage);
         }
+    }
+
+    /**
+     * Converts an absolute file path to a server route.
+     */
+    private convertPathToServerRoute(absolutePath: string): string {
+        // Normalize backslashes to forward slashes
+        const normalizedPath = absolutePath.replace(/\\/g, '/');
+        // Use path parameter
+        return `http://127.0.0.1:5000/serve_image/${normalizedPath}`;
     }
 }
