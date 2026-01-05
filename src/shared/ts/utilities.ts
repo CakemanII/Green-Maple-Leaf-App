@@ -16,6 +16,24 @@ class GeneralUtilities
             return v.toString(16);
         });
     }
+
+    /**
+     * Takes in a color a returns are darkened version of it (in RGB format).
+     */
+    public static darkenRGBColor(rgb_color: string, factor: number = 0.8): string {
+        // Extract RGB components
+        const rgbMatch = rgb_color.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+        if (!rgbMatch) {
+            console.warn(`[GeneralUtilities] Invalid RGB color format: ${rgb_color}`);
+            return rgb_color; // Return original if format is invalid
+        }
+
+        let r = Math.floor(parseInt(rgbMatch[1]) * factor);
+        let g = Math.floor(parseInt(rgbMatch[2]) * factor);
+        let b = Math.floor(parseInt(rgbMatch[3]) * factor);
+
+        return `rgb(${r}, ${g}, ${b})`;
+    }
 }
 
 class IFrameCommunicationUitilies

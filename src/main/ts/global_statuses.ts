@@ -198,6 +198,7 @@ type ConditionalGroup = {
     type: 'AND' | 'OR' | 'CONDITION';
     embededConditionalGroups?: ConditionalGroup[] | null;
     condition?: TelemetryCondition | StatusCondition | null;
+    editorColor?: string;
 }
 
 type TelemetryCondition = {

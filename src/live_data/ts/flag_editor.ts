@@ -25,6 +25,7 @@ const ExampleStatus3: Status = {
             imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\its_over.jpg",
             primaryConditionalGroup: {
                 type: 'AND',
+                editorColor: 'rgba(11, 58, 146, 1)',
                 not: false,
                 embededConditionalGroups: [
                     {
@@ -56,6 +57,7 @@ const ExampleStatus3: Status = {
                     },
                     {
                         type: 'AND',
+                        editorColor: 'rgb(231, 76, 60)',
                         not: false,
                         embededConditionalGroups: [
                             {
@@ -256,6 +258,10 @@ class FlagCreator {
         conditionRow.className = 'condition-row';
         conditionRow.setAttribute('condition-type', 'telemetry');
         
+        // Generate random color for the condition
+        const colors = ['rgb(245, 166, 35)', 'rgb(107, 163, 255)', 'rgb(231, 76, 60)', 'rgb(46, 204, 113)', 'rgb(155, 89, 182)'];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        
         conditionRow.innerHTML = `
             <select class="condition-select" style="flex:1;">
                 ${this.conditionTelemetryOptionsHTML}
@@ -273,6 +279,7 @@ class FlagCreator {
                 <option value="NLTOE">!≤</option>
             </select>
             <input type="number" step="1" class="condition-value-input" placeholder="Value..." value="0" />
+            <div class="color-indicator" style="background-color:${randomColor};" title="Click to change color"></div>
         `;
         
         // Insert before the button-row
@@ -286,6 +293,22 @@ class FlagCreator {
             conditionBody.appendChild(conditionRow);
         }
 
+        // Make the border change with the color indicator
+        const colorIndicator = conditionRow.querySelector('.color-indicator') as HTMLDivElement;
+        colorIndicator.addEventListener('click', () => {
+            // Cycle through colors (temp)
+            const currentColor = colorIndicator.style.backgroundColor;
+            console.log(colorIndicator.style.backgroundColor);
+            let currentIndex = colors.indexOf(currentColor);
+            console.log(currentIndex);
+            currentIndex = (currentIndex + 1) % colors.length;
+            const newColor = colors[currentIndex];
+            colorIndicator.style.backgroundColor = newColor;
+
+            // Set the colors
+            this.updateConditionalGroupStyle(conditionRow);
+        });
+
         return conditionRow;
     }
 
@@ -296,6 +319,10 @@ class FlagCreator {
         const conditionRow = document.createElement('div');
         conditionRow.className = 'condition-row';
         conditionRow.setAttribute('condition-type', 'status');
+        
+        // Generate random color for the condition
+        const colors = ['rgb(245, 166, 35)', 'rgb(107, 163, 255)', 'rgb(231, 76, 60)', 'rgb(46, 204, 113)', 'rgb(155, 89, 182)'];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
         
         conditionRow.innerHTML = `
             <select class="condition-select">
@@ -312,6 +339,7 @@ class FlagCreator {
                 <option value="flag2">Warning</option>
                 <option value="flag3">Critical</option>
             </select>
+            <div class="color-indicator" style="background-color:${randomColor};" title="Click to change color"></div>
         `;
         
         // Insert before the button-row
@@ -325,6 +353,22 @@ class FlagCreator {
             conditionBody.appendChild(conditionRow);
         }
 
+        // Make the border change with the color indicator
+        const colorIndicator = conditionRow.querySelector('.color-indicator') as HTMLDivElement;
+        colorIndicator.addEventListener('click', () => {
+            // Cycle through colors (temp)
+            const currentColor = colorIndicator.style.backgroundColor;
+            console.log(colorIndicator.style.backgroundColor);
+            let currentIndex = colors.indexOf(currentColor);
+            console.log(currentIndex);
+            currentIndex = (currentIndex + 1) % colors.length;
+            const newColor = colors[currentIndex];
+            colorIndicator.style.backgroundColor = newColor;
+
+            // Set the colors
+            this.updateConditionalGroupStyle(conditionRow);
+        });
+
         return conditionRow;
     }
 
@@ -336,14 +380,13 @@ class FlagCreator {
         conditionGroup.className = 'condition-group';
         
         // Generate random color for the new group
-        const colors = ['#f5a623', '#6ba3ff', '#e74c3c', '#2ecc71', '#9b59b6', '#f39c12'];
-        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        const colors = ['rgb(245, 166, 35)', 'rgb(107, 163, 255)', 'rgb(231, 76, 60)', 'rgb(46, 204, 113)', 'rgb(155, 89, 182)'];
         
         conditionGroup.innerHTML = `
             <div class="condition-header">
                 <button class="toggle-btn" data-toggle="not">Not</button>
                 <input type="text" class="condition-name-input" placeholder="Group Name..." value="Conditional Group" />
-                <div class="color-indicator" style="background-color:${randomColor};" title="Click to change color"></div>
+                <div class="color-indicator" style="background-color:${colors[0]};" title="Click to change color"></div>
                 <button class="toggle-btn active" data-toggle="and" id="and-or-btn">And</button>
             </div>
             <div class="condition-body">
@@ -367,7 +410,34 @@ class FlagCreator {
             conditionBody.appendChild(conditionGroup);
         }
 
+        // Make the border change with the color indicator
+        const colorIndicator = conditionGroup.querySelector('.color-indicator') as HTMLDivElement;
+        colorIndicator.addEventListener('click', () => {
+            // Cycle through colors (temp)
+            const currentColor = colorIndicator.style.backgroundColor;
+            console.log(colorIndicator.style.backgroundColor);
+            let currentIndex = colors.indexOf(currentColor);
+            console.log(currentIndex);
+            currentIndex = (currentIndex + 1) % colors.length;
+            const newColor = colors[currentIndex];
+            colorIndicator.style.backgroundColor = newColor;
+
+            // Set the colors
+            this.updateConditionalGroupStyle(conditionGroup);
+        });
+
         return conditionGroup;
+    }
+
+    /**
+     * Update the style of a conditional group based on its color indicator
+     */
+    private updateConditionalGroupStyle(conditionalGroup: HTMLDivElement): void {
+        const colorIndicator = conditionalGroup.querySelector('.color-indicator') as HTMLDivElement;
+
+        const currentColor = colorIndicator.style.backgroundColor;
+        conditionalGroup.style.backgroundColor = GeneralUtilities.darkenRGBColor(currentColor, 0.45);
+        conditionalGroup.style.borderColor = currentColor;
     }
 
     /**
@@ -466,11 +536,16 @@ class FlagCreator {
         const groupNameInput = groupElement.querySelector('.condition-name-input') as HTMLInputElement;
         const groupName = groupNameInput ? groupNameInput.value : 'Conditional Group';
 
+        // Get group color
+        const colorIndicator = groupElement.querySelector('.color-indicator') as HTMLDivElement;
+        const groupColor = colorIndicator ? colorIndicator.style.backgroundColor : null;
+
         // Initialize the main ConditionalGroup object
         const mainConditionalGroup: ConditionalGroup = {
             not: isNot,
             type: logicalOperator,
             name: groupName,
+            editorColor: groupColor,
             embededConditionalGroups: null, // Will Change
         }
 
@@ -684,6 +759,13 @@ class FlagCreator {
         // Set group name
         const groupNameInput = conditionGroupElement.querySelector('.condition-name-input') as HTMLInputElement;
         groupNameInput.value = groupJSON.name || 'Conditional Group';
+
+        // Set group color (if any)
+        if (groupJSON.editorColor) {
+            const colorIndicator = conditionGroupElement.querySelector('.color-indicator') as HTMLDivElement;
+            colorIndicator.style.backgroundColor = groupJSON.editorColor;
+            this.updateConditionalGroupStyle(conditionGroupElement);
+        }
 
         // Do not continue if there is nothing to iterate through
         if (!groupJSON.embededConditionalGroups) { return; }
