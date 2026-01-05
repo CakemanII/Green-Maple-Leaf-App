@@ -129,32 +129,35 @@ class GeoeditFileManager {
             const results: GeoeditFileData = await this.getActiveGeoeditFileUUID(this.activeFileUUID);
             const name: string = results["metadata"]["name"];
 
-            this.saveCurrentToGeoeditFile(name); 
+            await this.saveCurrentToGeoeditFile(name); 
             return; 
         }
         
-        // Get name of new geoedit file from user.
-        MapEditorUITextInputDialog.show(
-            "Save Geoedit File", 
-            "Enter a name for the new geoedit file:",
-            (inputName: string) => {
-                // Create new UUID for the file.
-                this.activeFileUUID = Utils.createUUIDv4();
-                // Save the file.
-                this.saveCurrentToGeoeditFile(inputName);
-            },
-            (inputName: string) => {
-                // Verify the input name is valid (non-empty).
-                return inputName.trim().length > 0 ? true : "Please enter a valid file name.";
-            }
-        );
+        // Get name of new geoedit file from user - wrap in Promise
+        return new Promise<void>((resolve) => {
+            MapEditorUITextInputDialog.show(
+                "Save Geoedit File", 
+                "Enter a name for the new geoedit file:",
+                async (inputName: string) => {
+                    // Create new UUID for the file.
+                    this.activeFileUUID = Utils.createUUIDv4();
+                    // Save the file.
+                    await this.saveCurrentToGeoeditFile(inputName);
+                    resolve();
+                },
+                (inputName: string) => {
+                    // Verify the input name is valid (non-empty).
+                    return inputName.trim().length > 0 ? true : "Please enter a valid file name.";
+                }
+            );
+        });
     }
 
     /**
      * Generates and saves the current geoedit file to the server.
      * Returns 
      */
-    private saveCurrentToGeoeditFile(name: string): void {
+    private async saveCurrentToGeoeditFile(name: string): Promise<void> {
         // Get all regions
         const allRegionDatas = MapRegionDataManager.INSTANCE.getAllRegionDatas();
 
@@ -162,22 +165,23 @@ class GeoeditFileManager {
         const fileContent: string = this.generateGeoeditFileContent(allRegionDatas, name);
 
         // Send the file content to the server to save
-        fetch('/save_geoedit', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: fileContent
-        })
-        .then(response => {
+        try {
+            const response = await fetch('/save_geoedit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: fileContent
+            });
+            
             if (!response.ok) {
                 throw new Error("Failed to save geoedit file.");
             }
             console.log("Geoedit file saved successfully.");
-        })
-        .catch(error => {
+        } catch (error) {
             console.error("Error saving geoedit file:", error);
-        });
+            throw error;
+        }
     }
 
 

@@ -1,4 +1,5 @@
 declare const MapEditorUIFileListDialog: any;
+declare const TabMenu: any;
 
 class MapEditorUI {
     private static instance: MapEditorUI;
@@ -93,7 +94,7 @@ class MapEditorUI {
         // Initialize create region buttons
         this.initializeCreateRegionButtons();
         // Initialize save/load geoedit buttons
-        this.initializeSaveLoadGeoeditButtons(); 
+        this.initializeTabMenu(); 
         // Initialize footer
         this.initalizeFooter();
 
@@ -218,32 +219,40 @@ class MapEditorUI {
         });
     }
 
-    private initializeSaveLoadGeoeditButtons(): void {
-        // Save Geoedit Button
-        this.saveGeoeditButton = document.getElementById(MapEditorUI.saveGeoeditButtonID) as HTMLButtonElement;
-        this.saveGeoeditButton.addEventListener('click', async () => {
-            await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile(false);
-        });
+    private initializeTabMenu(): void {
+        // Initialize the tab menu
+        new TabMenu(
+            {
+                "save": async () => {
+                    await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile(false);
+                    return true; // Close menu after selection
+                },
+                "save-as": async () => {
+                    await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile(true);
+                    return true; // Close menu after selection
+                },
+                "load": async () => {
+                    // Show the prompt dialog for selecting a geoedit file
+                    let finished = false;
+                    let decision = false;
+                    MapEditorUIFileListDialog.show(
+                        await GeoeditFileManager.Instance.fetchAvailableGeoeditFiles(),
+                        async (uuid: string) => {
+                            await GeoeditFileManager.Instance.loadGeoeditFile(uuid);
+                            finished = true; decision = true;
+                        },
+                        () => { finished = true; }
+                    );
 
-        // Save as Geoedit Button
-        this.saveAsGeoeditButtonID = document.getElementById(MapEditorUI.saveAsGeoeditButtonID) as HTMLButtonElement;
-        this.saveAsGeoeditButtonID.addEventListener('click', async () => {
-            await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile(true);
-        });
+                    // Wait for finished to be true 
+                    while (!finished) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
 
-        // Load Geoedit Button
-        this.loadGeoeditButton = document.getElementById(MapEditorUI.loadGeoeditButtonID) as HTMLButtonElement;
-        // Ensure the file list dialog class is available
-        // @ts-ignore
-        this.loadGeoeditButton.addEventListener('click', async () => {
-            // Show the prompt dialog for selecting a geoedit file
-            MapEditorUIFileListDialog.show(
-                await GeoeditFileManager.Instance.fetchAvailableGeoeditFiles(),
-                async (uuid: string) => {
-                    await GeoeditFileManager.Instance.loadGeoeditFile(uuid);
-                }
-            );
-        });
+                    return decision; // Close menu after selection
+                },
+            }
+        );
     }
     // #endregion
 

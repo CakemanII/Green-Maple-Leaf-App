@@ -11,7 +11,8 @@ class MapEditorUIFileListDialog {
      */
     public static show(
         files: Array<{ name: string, lastModified: string, fileSize: number, UUID: string }>,
-        onConfirmSelection: (uuid: string) => void
+        onConfirmSelection: (uuid: string) => void,
+        onCancel?: () => void
     ): void {
         // Overlay
         const overlay = document.createElement('div');
@@ -185,7 +186,7 @@ class MapEditorUIFileListDialog {
             font-weight: 700;
             cursor: pointer;
         `;
-        closeBtn.onclick = () => { document.body.removeChild(overlay); document.removeEventListener('keydown', escapeHandler); };
+        closeBtn.onclick = () => { document.body.removeChild(overlay); document.removeEventListener('keydown', escapeHandler); if (onCancel) onCancel(); };
 
         footer.appendChild(confirmBtn);
         footer.appendChild(closeBtn);
@@ -199,6 +200,7 @@ class MapEditorUIFileListDialog {
             if (e.key === 'Escape') {
                 document.body.removeChild(overlay);
                 document.removeEventListener('keydown', escapeHandler);
+                if (onCancel) onCancel();
             }
         };
         document.addEventListener('keydown', escapeHandler);

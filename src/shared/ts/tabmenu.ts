@@ -97,10 +97,10 @@ class TabMenu {
             // Attach click listener to the button
             buttonElement.addEventListener('click', async () => {
                 // Execute the corresponding function and await response
-                this.menuSelectionFunctions[buttonKey]().then((shouldCloseMenu) => {
-                    // Close menu if indicated
-                    if (shouldCloseMenu) this.closeMenu();
-                });
+                const shouldCloseMenu = await this.menuSelectionFunctions[buttonKey]();
+                
+                // Close menu if indicated
+                if (shouldCloseMenu) this.closeMenu();
             });
         });
 

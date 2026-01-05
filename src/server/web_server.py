@@ -11,6 +11,7 @@ SRC_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MAIN_DIR: str = os.path.join(SRC_DIR, 'main')
 GEOFENCE_EDITOR_DIR: str = os.path.join(SRC_DIR, 'geofence_editor')
 LIVE_DATA_DIR: str = os.path.join(SRC_DIR, 'live_data')
+STATUS_EDITOR_DIR: str = os.path.join(SRC_DIR, 'status_editor')
 PREFERENCES_DIR: str = os.path.join(SRC_DIR, 'preferences')
 SHARED_DIR: str = os.path.join(SRC_DIR, 'shared')
 
@@ -25,6 +26,10 @@ def serve_index():
 @app.route('/geofence_editor.html')
 def serve_geofence():
     return send_from_directory(GEOFENCE_EDITOR_DIR, 'geofence_editor.html')
+
+@app.route('/status_editor.html')
+def serve_status_editor():
+    return send_from_directory(STATUS_EDITOR_DIR, 'status_editor.html')
 
 @app.route('/live_data.html')
 def serve_live_data():

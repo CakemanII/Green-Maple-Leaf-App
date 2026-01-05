@@ -1016,6 +1016,69 @@
         .info-color-swatch:hover {
             border-color: #888888;
         }
+
+        /* Tab Menu Styles */
+        .tab-menu {
+            display: none;
+            position: fixed;
+            background-color: #0d0d0d;
+            border: 2px solid #404040;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            min-width: 180px;
+            overflow: hidden;
+        }
+
+        .tab-menu-options-container {
+            display: flex;
+            flex-direction: column;
+            padding: 4px;
+            gap: 2px;
+        }
+
+        .tab-menu-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background-color: transparent;
+            border: none;
+            border-radius: 4px;
+            color: #9ca3af;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: left;
+            font-family: inherit;
+        }
+
+        .tab-menu-option:hover {
+            background-color: #3a3a3a;
+            color: #ffffff;
+        }
+
+        .tab-menu-option:active {
+            background-color: #4a4a4a;
+            color: #ffffff;
+        }
+
+        .tab-menu-option .menu-icon {
+            font-size: 1.125rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            opacity: 0.9;
+        }
+
+        .tab-menu-option .menu-text {
+            flex: 1;
+            letter-spacing: 0.2px;
+        }
     </style>
 </head>
 <body>
@@ -1162,25 +1225,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Test Section -->
-             <div class="panel-section" id="sidebar-save-load-test-container">
-                <div class="section-content">
-                    <div class="section-header">
-                        <i class="fas fa-plus-circle"></i>
-                        <span>SAVE & LOAD TEST</span>
-                    </div>
-                    <button class="region-button rectangle" id="btn-save-geoedit-data">
-                        <span>Save</span>
-                    </button>
-                    <button class="region-button rectangle" id="btn-save-as-geoedit-data">
-                        <span>Save as</span>
-                    </button>
-                    <button class="region-button rectangle" id="btn-load-geoedit-data">
-                        <span>Load</span>
-                    </button>
-                </div>
-            </div>
         </section>
 
         <section id="editor-container">
@@ -1201,6 +1245,21 @@
             </div>
         </section>
     </main>
+
+    <!-- Tab Menu -->
+    <div id="tab-menu" class="tab-menu">
+        <div id="tab-menu-options-container" class="tab-menu-options-container">
+            <button class="tab-menu-option" data-menu-key="save">
+                <span class="menu-text">Save</span>
+            </button>
+            <button class="tab-menu-option" data-menu-key="save-as">
+                <span class="menu-text">Save as</span>
+            </button>
+            <button class="tab-menu-option" data-menu-key="load">
+                <span class="menu-text">Load</span>
+            </button>
+        </div>
+    </div>
     
     <!-- Load compiled TypeScript classes (non-module, in dependency order) -->
     <!-- -2. Shared Configuration Reference -->
@@ -1208,6 +1267,9 @@
 
     <!-- -1. Shared Prompts Reference -->
     <script src="../shared/compiled_js/prompts.js"></script>
+
+    <!-- Shared Tab Menu -->
+    <script src="../shared/compiled_js/tabmenu.js"></script>
 
     <!-- 0. Load and Save Geoedit -->
     <script src="./compiled_js/geofence_filing.js"></script>
