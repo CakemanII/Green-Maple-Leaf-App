@@ -97,9 +97,6 @@ const ExampleStatus3: Status = {
 
 
 
-
-
-
 class FlagCreator {
     private static instance: FlagCreator
     public static get INSTANCE(): FlagCreator { return FlagCreator.instance; }
