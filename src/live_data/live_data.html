@@ -94,6 +94,21 @@
         </div>
     </div>
 
+    <!-- Tab Menu -->
+    <div id="tab-menu" class="tab-menu">
+        <div id="tab-menu-options-container" class="tab-menu-options-container">
+            <button class="tab-menu-option" data-menu-key="load-status-collection">
+                <span class="menu-text">Load Status Collection</span>
+            </button>
+            <button class="tab-menu-option" data-menu-key="create-flag">
+                <span class="menu-text">Create Flag</span>
+            </button>
+            <button class="tab-menu-option" data-menu-key="download">
+                <span class="menu-text">Download</span>
+            </button>
+        </div>
+    </div>
+
     <!-- Socket.IO Client Library -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
@@ -112,6 +127,9 @@
     <!-- -1. Shared Prompts Reference -->
     <script src="../shared/compiled_js/prompts.js"></script>
 
+    <!-- Tab Menu -->
+    <script src="../shared/compiled_js/tabmenu.js"></script>
+
     <!-- Status Representations -->
     <script src="./compiled_js/status_representations.js"></script>
 
@@ -123,5 +141,24 @@
 
     <!-- Status Creator -->
     <script src="./compiled_js/flag_editor.js"></script>
+
+    <script>
+        const tabMenu = new TabMenu(
+            {
+                "test": async () => {
+                    console.log("Test menu option selected");
+                    return true; // Close menu after selection
+                },
+                "save": async () => {
+                    console.log("Save menu option selected");
+                    return false;
+                },
+                "download": async () => {
+                    console.log("Download menu option selected");
+                    return true;
+                },
+            }
+        );
+    </script>
 </body>
 </html>

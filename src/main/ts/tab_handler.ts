@@ -74,9 +74,14 @@ class TabHandler {
      */
     private onTabButtonClick(tabKey: string): void {
         if (this.activeTabKey === tabKey) {
-            // Trigger secondary menus or actions if needed
+            // Get the tab button position.
+            const tabBtnElement = this.tabs[tabKey].button;
+            const tabButtonRect = tabBtnElement?.getBoundingClientRect();
+            const tabBLButtonPositionX: number = tabButtonRect ? tabButtonRect.left + window.scrollX : 0;
+
+            // Trigger secondary menus or actions if already activated
             this.tabs[tabKey].content!.contentWindow!.postMessage(
-                { type: 'activateMenu' }, 
+                { type: 'toggle_tab_menu', tabButtonPositionX: tabBLButtonPositionX }, 
                 '*'
             );
         }
@@ -108,6 +113,7 @@ class TabHandler {
     private deactivateTab(tabKey: string): void {
         const tabEntry = this.tabs[tabKey];
         tabEntry.content?.classList.remove('active');
+        tabEntry.content?.contentWindow?.postMessage({ type: 'close_tab_menu' }, '*');
         tabEntry.button?.classList.remove('active');
     }
 }
