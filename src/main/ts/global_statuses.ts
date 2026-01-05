@@ -29,6 +29,7 @@ const ExampleStatus1: Status = {
     defaultFlag: {
         name: "No, Do Not Deploy Parachute",
         UUID: "defaultflagtemp",
+        description: "",
         imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp\\do_not_deploy_parachute.png",
         primaryConditionalGroup: null,
     },
@@ -36,6 +37,7 @@ const ExampleStatus1: Status = {
         {
             UUID: "flagtemp123",
             name: "Yes, Deploy Parachute",
+            description: "Parachute Deployment Conditions Met",
             imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp\\parachute_deploy.png",
             primaryConditionalGroup: {
                 type: 'AND',
@@ -90,6 +92,7 @@ const ExampleStatus2: Status = {
     defaultFlag: {
         name: "No Critical Impact Detected",
         UUID: "defaultflagtemp2",
+        description: "",
         imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\all-good.png",
         primaryConditionalGroup: null,
     },
@@ -97,6 +100,7 @@ const ExampleStatus2: Status = {
         {
             UUID: "flagtemp1234",
             name: "Terminal Velocity Reached, It's Over Twin",
+            description: "Rocket has reached terminal velocity indicating free-fall impact.",
             imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\its_over.jpg",
             primaryConditionalGroup: {
                 type: 'AND',
@@ -135,6 +139,7 @@ const ExampleStatus2: Status = {
         {
             UUID: "flagtemp123",
             name: "Yes, Critical Impact Detected",
+            description: "Rocket impact conditions met indicating critical impact.",
             imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\critical.png",
             primaryConditionalGroup: {
                 type: 'AND',
@@ -183,6 +188,7 @@ type Status = {
 type Flag = {
     UUID: string;
     name: string;
+    description: string;
     imagePath: string
     primaryConditionalGroup: ConditionalGroup | null;
 }
@@ -196,14 +202,14 @@ type ConditionalGroup = {
 
 type TelemetryCondition = {
     telemetryKey: string; // Key to check in some global data source
-    operator: 'E' | 'NE' | 'GT' | 'NGT' | 'LT' | 'NLT' | 'GTOE' | 'NLTOE' | 'LTOE' | 'NLTOE';
+    operator: 'E' | 'NE' | 'GT' | 'NGT' | 'LT' | 'NLT' | 'GTOE' | 'NLGOE' | 'LTOE' | 'NLTOE';
     value: any; // Value to compare against
 }
 
 type StatusCondition = {
     statusUUID: string; // UUID of the status to check
-    flagUUID: string;   // UUID of the flag to check
     shouldBeActive: boolean; // Whether the flag should be active or not
+    flagUUID: string;   // UUID of the flag to check
 }
 
 
