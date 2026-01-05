@@ -169,7 +169,6 @@ class FlagCreator {
 
         // Open the prompt for testing
         this.populateHTMLWithFlagJSON(ExampleStatus3['flags'][0]);
-        this.openFlagCreationPrompt();
     }
 
     // #region Setup and Initialization

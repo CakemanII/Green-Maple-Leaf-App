@@ -23,6 +23,235 @@ body {
     box-sizing:border-box;
 }
 
+/* Status Editor Main Container */
+.status-editor-container {
+    width: 100%;
+    height: 100vh;
+    padding: 24px;
+    overflow: hidden;
+}
+
+.collections-container {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* Scrollbar styling */
+.collections-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.collections-container::-webkit-scrollbar-track {
+    background: var(--bg);
+}
+
+.collections-container::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+.collections-container::-webkit-scrollbar-thumb:hover {
+    background: #404040;
+}
+
+/* Status Collection Box */
+.status-collection {
+    background-color: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.collection-header {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--border);
+}
+
+.collection-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0 0 8px 0;
+    letter-spacing: 0.3px;
+}
+
+.collection-description {
+    font-size: 0.875rem;
+    color: var(--muted);
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Statuses Container (horizontal scroll) */
+.statuses-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-x: visible;
+    overflow-y: visible;
+    padding-bottom: 12px;
+    align-items: flex-start;
+    min-height: 150px;
+    width: 100%;
+}
+
+.statuses-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.statuses-container::-webkit-scrollbar-track {
+    background: var(--card);
+    border-radius: 4px;
+}
+
+.statuses-container::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+.statuses-container::-webkit-scrollbar-thumb:hover {
+    background: #404040;
+}
+
+
+
+
+
+/* Individual Status */
+.status {
+    background-color: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: border-color 0.2s, transform 0.2s;
+}
+
+.status:hover {
+    border-color: var(--accent);
+}
+
+.status-name {
+    font-size: 0.96rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0;
+    text-align: left;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    cursor: grab;
+    white-space: nowrap;
+}
+
+.status-name:active {
+    cursor: grabbing;
+}
+
+/* Flags Container (horizontal stack) */
+.flags-container {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    min-height: 120px;
+    flex: 1;
+    overflow-x: auto;
+    padding: 4px;
+}
+
+.flags-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.flags-container::-webkit-scrollbar-track {
+    background: var(--bg);
+    border-radius: 3px;
+}
+
+.flags-container::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+.flags-container::-webkit-scrollbar-thumb:hover {
+    background: #404040;
+}
+
+/* Individual Flag */
+.flag {
+    background-color: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s;
+    cursor: grab;
+    width: 120px;
+    height: 120px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.flag:hover {
+    border-color: var(--accent);
+    background-color: #151515;
+    box-shadow: 0 4px 8px rgba(107, 163, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+.flag:active {
+    cursor: grabbing;
+}
+
+.flag-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 0;
+    text-align: center;
+    user-select: none;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    width: 100%;
+}
+
+.flag-image {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    overflow: hidden;
+    pointer-events: none;
+    flex-shrink: 0;
+}
+
+.flag-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
 /* Flag Creation Modal Styles */
 .modal-overlay{
     display:none;
