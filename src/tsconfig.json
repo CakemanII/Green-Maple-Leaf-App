@@ -20,6 +20,7 @@
     { "path": "./live_data" },
     { "path": "./preferences" },
     { "path": "./settings" },
-    { "path": "./shared" }
+    { "path": "./shared" },
+    { "path": "./status_editor" }
   ]
 }

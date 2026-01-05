@@ -2,6 +2,7 @@ class TabHandler {
     private static readonly TAB_IDS: Record<string, { tabId: string; buttonId: string }> = {
         liveInterface:   { tabId: 'live_interface_tab',   buttonId: 'live_interface_tab_button' },
         liveData:        { tabId: 'live_data_tab',        buttonId: 'live_data_tab_button' },
+        statusEditor:    { tabId: 'status_editor_tab',     buttonId: 'status_editor_tab_button' },
         geofenceEditor:  { tabId: 'geofence_editor_tab',  buttonId: 'geofence_editor_tab_button' },
         preferences:     { tabId: 'preferences_tab',      buttonId: 'preferences_tab_button' },
         settings:        { tabId: 'settings_tab',         buttonId: 'settings_tab_button' },
@@ -33,6 +34,11 @@ class TabHandler {
             liveData: { 
                 content: document.getElementById(TabHandler.TAB_IDS.liveData.tabId) as HTMLIFrameElement, 
                 button: document.getElementById(TabHandler.TAB_IDS.liveData.buttonId) as HTMLButtonElement 
+            },
+
+            statusEditor: {
+                content: document.getElementById(TabHandler.TAB_IDS.statusEditor.tabId) as HTMLIFrameElement,
+                button: document.getElementById(TabHandler.TAB_IDS.statusEditor.buttonId) as HTMLButtonElement
             },
 
             geofenceEditor: { 
