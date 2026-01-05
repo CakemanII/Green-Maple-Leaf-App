@@ -600,7 +600,13 @@ class FlagCreator {
                 not: false,
                 type: 'CONDITION',
                 condition: null, // Will Change
+                editorColor: null, // Will Change
             };
+
+            // Get group color
+            const colorIndicator = row.querySelector('.color-indicator') as HTMLDivElement;
+            const groupColor = colorIndicator ? colorIndicator.style.backgroundColor : null;
+            embededGroup.editorColor = groupColor;
 
             // Determine what type of condition it is
             const conditionType = row.getAttribute('condition-type');
@@ -812,12 +818,18 @@ class FlagCreator {
         const selectElement = conditionRowElement.querySelector('.condition-select') as HTMLSelectElement;
         const operatorElement = conditionRowElement.querySelector('.condition-operator') as HTMLSelectElement;
         const valueElement = conditionRowElement.querySelector('.condition-value-input') as HTMLInputElement;
+        const colorIndicator = conditionRowElement.querySelector('.color-indicator') as HTMLDivElement;
 
         // Populate values
         const telemetryCondition = conditionGroupJSON.condition as TelemetryCondition;
         selectElement.value = telemetryCondition.telemetryKey;
         operatorElement.value = telemetryCondition.operator;
         valueElement.value = telemetryCondition.value.toString();
+        // Set color indicator (if any)
+        if (conditionGroupJSON.editorColor) {
+            colorIndicator.style.backgroundColor = conditionGroupJSON.editorColor;
+            this.updateConditionalGroupStyle(conditionRowElement);
+        }
     }
 
     /**
@@ -833,12 +845,18 @@ class FlagCreator {
         const statusSelectElement = conditionRowElement.querySelectorAll('.condition-select')[0] as HTMLSelectElement;
         const operatorElement = conditionRowElement.querySelector('.condition-operator') as HTMLSelectElement;
         const flagSelectElement = conditionRowElement.querySelectorAll('.condition-select')[1] as HTMLSelectElement;
+        const colorIndicator = conditionRowElement.querySelector('.color-indicator') as HTMLDivElement;
 
         // Populate values
         const statusCondition = conditionGroupJSON.condition as StatusCondition;
         statusSelectElement.value = statusCondition.statusUUID;
         operatorElement.value = statusCondition.shouldBeActive ? 'is' : 'isnot';
         flagSelectElement.value = statusCondition.flagUUID;
+        // Set color indicator (if any)
+        if (conditionGroupJSON.editorColor) {
+            colorIndicator.style.backgroundColor = conditionGroupJSON.editorColor;
+            this.updateConditionalGroupStyle(conditionRowElement);
+        }
     }
     // #endregion
 
