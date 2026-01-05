@@ -4,8 +4,95 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Status Editor</title>
+    <link rel="stylesheet" href="css/status_editor.css">
 </head>
 <body>
+<!-- Flag Creation Modal -->
+    <div class="modal-overlay" id="flag-creation-prompt">
+        <div class="flag-creation-modal">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h2 class="modal-title">Flag Editor</h2>
+                <button class="modal-close-btn" id="flag-creation-close-btn">×</button>
+            </div>
 
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <!-- Basic Information Section -->
+                <div class="modal-section">
+                    <div class="form-grid-split">
+                        <div class="form-left">
+                            <h3 class="section-title">Basic Information</h3>
+                            <div class="form-group">
+                                <label class="form-label">Name</label>
+                                <input type="text" class="form-input" maxlength="75" placeholder="Enter flag name..." id="flag-title-input"/>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-textarea" maxlength="2000" placeholder="Enter description..." id="flag-description-input"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" id="flag-status-select">
+                                    <option value="">Select a status...</option>
+                                    <option value="status1">Parachute Deployment</option>
+                                    <option value="status2">Engine Status</option>
+                                    <option value="new">+ Create New Status</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Image</label>
+                                <button class="file-upload-btn" id="flag-image-input"> <!--Temp-->
+                                    📁 Choose File
+                                </button>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Audio</label>
+                                <button class="file-upload-btn" id="flag-audio-input"> <!--Temp-->
+                                    📁 Choose File
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-right">
+                            <h3 class="section-title">Preview</h3>
+                            <div class="preview-box" id="flag-image-preview">
+                                <span>Image preview will appear here</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conditional Statements Section -->
+                <div class="modal-section">
+                    <h3 class="section-title">Flag Conditionals</h3>
+                    <div class="conditions" id="flag-conditions-container">
+                        <div class="condition-body">
+                            <!-- Conditional Groups will be dynamically added here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer Actions -->
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="flag-creation-cancel-btn">Cancel</button>
+                <button class="btn btn-primary" id="save-flag-btn">Create Flag</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shared Utilities -->
+    <script src="../shared/compiled_js/utilities.js"></script>
+
+    <!-- Global Configurations Reference -->
+    <script src="../shared/compiled_js/global_statuses_reference.js"></script>
+
+    <!-- Status Creator -->
+    <script src="./compiled_js/flag_editor.js"></script>
 </body>
 </html>
