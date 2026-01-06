@@ -1,6 +1,8 @@
 /// <reference types="leaflet" />
+import * as L from "leaflet";
 
-const MAP_LAYER_INDICES: { [key: string]: [number, number] | number } = {
+
+export const MAP_LAYER_INDICES: { [key: string]: [number, number] | number } = {
     MAPBASE: 200,
     REGIONS: [201, 1999],
     REGION_HANDLE_GUIDES: 2000,
@@ -8,7 +10,7 @@ const MAP_LAYER_INDICES: { [key: string]: [number, number] | number } = {
     REGION_HANDLES: 2002,
 };
 
-class InteractiveMap
+export class InteractiveMap
 {
     public static mapInstance: L.Map;
     private readonly HOME_LATITUDE: number = 0;

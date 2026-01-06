@@ -1,7 +1,10 @@
+import { DerivativeIntegralHandler } from "./derivative_integral_handling.js";
+import { GlobalStatusesManager } from './global_statuses.js';
+
 /**
  * Manages telemetry communication within the application.
  */
-class GlobalTelemetryManager {
+export class GlobalTelemetryManager {
     private static instance: GlobalTelemetryManager;
     public static get INSTANCE(): GlobalTelemetryManager { return GlobalTelemetryManager.instance; }
 
@@ -143,7 +146,7 @@ new GlobalTelemetryManager();
 /**
  * Managers rocket input communication from the application.
  */
-class RocketInputCommunicationManager {
+export class RocketInputCommunicationManager {
     private static instance: RocketInputCommunicationManager
     public static get INSTANCE(): RocketInputCommunicationManager { return RocketInputCommunicationManager.instance; }
 

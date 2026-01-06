@@ -5,5 +5,9 @@
     "rootDir": "./ts",
     "composite": true
   },
-  "include": ["ts/**/*"]
+  "include": ["ts/**/*"],
+  "moduleResolution": "nodenext",
+  "references": [
+    { "path": "../shared" }
+  ]
 }

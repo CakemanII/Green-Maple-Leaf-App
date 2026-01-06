@@ -1,10 +1,4 @@
-type Vector3D = {
-    x: number;
-    y: number;
-    z: number;
-};
-
-class GeneralUtilities
+export class GeneralUtilities
 {
     /**
      * Generates a UUID string.
@@ -36,7 +30,7 @@ class GeneralUtilities
     }
 }
 
-class IFrameCommunicationUitilies
+export class IFrameCommunicationUitilies
 {
     /**
      * Sends a message to a specific iframe.

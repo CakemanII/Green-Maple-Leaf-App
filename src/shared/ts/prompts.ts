@@ -1,9 +1,7 @@
-// ...existing code...
-// ...existing code...
 /**
  * Large file list dialog for displaying geoedit files with metadata
  */
-class MapEditorUIFileListDialog {
+export class MapEditorUIFileListDialog {
     /**
      * Show a large file list dialog
      * @param files - Array of file metadata objects
@@ -209,7 +207,7 @@ class MapEditorUIFileListDialog {
 /**
  * Simple confirmation dialog utility class
  */
-class MapEditorUIConfirmDialog {
+export class MapEditorUIConfirmDialog {
     /**
      * Show a confirmation dialog
      * @param title - Dialog title
@@ -379,7 +377,7 @@ class MapEditorUIConfirmDialog {
 /**
  * Simple confirmation dialog utility class
  */
-class MapEditorUITextInputDialog {
+export class MapEditorUITextInputDialog {
     /**
      * Show a confirmation dialog
      */

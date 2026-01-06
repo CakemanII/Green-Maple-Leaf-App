@@ -1260,37 +1260,48 @@
             </button>
         </div>
     </div>
+
+    <!-- Color Picker Modal -->
+    <div class="color-picker-modal" id="color-picker-modal">
+        <div class="color-picker-content">
+            <input type="color" class="color-picker-wheel" id="color-picker-wheel" value="#ff7800">
+            <div class="color-picker-input-container">
+                <input type="text" class="color-picker-hex-input" id="color-picker-hex-input" placeholder="#000000">
+                <button class="color-picker-confirm-btn" id="color-picker-confirm-btn">Confirm</button>
+            </div>
+        </div>
+    </div>
     
     <!-- Load compiled TypeScript classes (non-module, in dependency order) -->
     <!-- -2. Shared Configuration Reference -->
-    <script src="../shared/compiled_js/global_configs_reference.js"></script>
+    <script type="module" src="../shared/compiled_js/global_configs_reference.js"></script>
 
     <!-- -1. Shared Prompts Reference -->
-    <script src="../shared/compiled_js/prompts.js"></script>
+    <script type="module" src="../shared/compiled_js/prompts.js"></script>
 
     <!-- Shared Tab Menu -->
-    <script src="../shared/compiled_js/tabmenu.js"></script>
+    <script type="module" src="../shared/compiled_js/tabmenu.js"></script>
 
     <!-- 0. Load and Save Geoedit -->
-    <script src="./compiled_js/geofence_filing.js"></script>
+    <script type="module" src="./compiled_js/geofence_filing.js"></script>
 
     <!-- 1. Base map -->
-    <script src="./compiled_js/interactable_map/map.js"></script>
+    <script type="module" src="./compiled_js/interactable_map/map.js"></script>
     
     <!-- 2. Anchor point (needed by editor) -->
-    <script src="./compiled_js/interactable_map/anchor_point.js"></script>
+    <script type="module" src="./compiled_js/interactable_map/anchor_point.js"></script>
     
     <!-- 3. Region classes (needed by editor) -->
-    <script src="./compiled_js/interactable_map/region.js"></script>
+    <script type="module" src="./compiled_js/interactable_map/region.js"></script>
     
     <!-- 4. Editor tools (needed by main editor) -->
-    <script src="./compiled_js/interactable_map/map_region_editor_tools.js"></script>
+    <script type="module" src="./compiled_js/interactable_map/map_region_editor_tools.js"></script>
     
     <!-- 5. Main editor (uses all above) -->
-    <script src="./compiled_js/interactable_map/map_region_editor.js"></script>
+    <script type="module" src="./compiled_js/interactable_map/map_region_editor.js"></script>
 
     <!-- 6. Editor UI  -->
-    <script src="./compiled_js/editor_ui/editior_ui.js"></script>
+    <script type="module" src="./compiled_js/editor_ui/editor_ui.js"></script>
      
     
     <script>
@@ -1304,16 +1315,5 @@
             console.log('MapRegionEditor initialized successfully');
         });
     </script>
-
-    <!-- Color Picker Modal -->
-    <div class="color-picker-modal" id="color-picker-modal">
-        <div class="color-picker-content">
-            <input type="color" class="color-picker-wheel" id="color-picker-wheel" value="#ff7800">
-            <div class="color-picker-input-container">
-                <input type="text" class="color-picker-hex-input" id="color-picker-hex-input" placeholder="#000000">
-                <button class="color-picker-confirm-btn" id="color-picker-confirm-btn">Confirm</button>
-            </div>
-        </div>
-    </div>
 </body>
 </html>

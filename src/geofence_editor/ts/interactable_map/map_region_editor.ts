@@ -1,5 +1,16 @@
 /// <reference types="leaflet" />
-declare const PreferencesReference: any;
+import * as L from "leaflet";
+import {MapRegionEditorTool, MapRegionEditorTranslateTool, MapRegionEditorRotateTool, MapRegionEditorScaleTool, 
+    MapRegionEditorAddAnchorTool, MapRegionEditorAddHandlesTool, MapRegionEditorDeleteTool, MapRegionEditorConvertToFreeformTool, ToolType
+} from './map_region_editor_tools.js';
+import { MapEditorUI, MapEditorUILayerManager, MapEditorUIRegionInfoManager } from "../editor_ui/editior_ui.js";
+import { AnchorPoint } from "./anchor_point.js";
+import { InteractiveMap, MAP_LAYER_INDICES } from "./map.js";
+import { FrontendAnchorData, MapRegion, RegionData, RegionType, MapRectangleRegion, MapCircleRegion, MapFreeformRegion } from "./region.js";
+import { GeoeditFileData } from "../geofence_filing.js";
+
+import { PreferencesReference } from "../../../shared/ts/global_configs_reference.js";
+import { GeneralUtilities } from "../../../shared/ts/utilities";
 // Now you can use PreferencesReference directly in this file
 
 class Visuals {
@@ -27,7 +38,7 @@ class Visuals {
 /**
  * Main class for the map region editor.
  */
-class MapRegionEditor
+export class MapRegionEditor
 {
     private static instance: MapRegionEditor;
     public static get INSTANCE(): MapRegionEditor { return MapRegionEditor.instance; }
@@ -294,7 +305,7 @@ class MapRegionEditor
 /**
  * Class to manage anchor points within the map region editor.
  */
-class MapRegionAnchorManager
+export class MapRegionAnchorManager
 {
     private static instance: MapRegionAnchorManager;
     public static get INSTANCE(): MapRegionAnchorManager { return MapRegionAnchorManager.instance; }
@@ -919,7 +930,7 @@ class MapRegionAnchorManager
 /**
  * Class to manage regions within the map region editor.
  */
-class MapRegionRegionManager 
+export class MapRegionRegionManager 
 {
     private static instance: MapRegionRegionManager;
     public static get INSTANCE(): MapRegionRegionManager { return MapRegionRegionManager.instance; }
@@ -1372,7 +1383,7 @@ class MapRegionRegionManager
 /**
  * Class for managing conversions from region to region data and etc.
  */
-class MapRegionDataManager
+export class MapRegionDataManager
 {
     private static instance: MapRegionDataManager;
     public static get INSTANCE(): MapRegionDataManager { return MapRegionDataManager.instance; }
@@ -1472,7 +1483,7 @@ class MapRegionDataManager
  * Instanitated when user starts creating a new region.
  * Removed when region creation is complete or cancelled.
  */
-class MapRegionCreatorEditorHandler
+export class MapRegionCreatorEditorHandler
 {
     private regionType: RegionType; // Type of region being created
     public get RegionType(): RegionType { return this.regionType; }
@@ -1817,7 +1828,7 @@ class MapRegionCreatorEditorHandler
                 StrokeOpacity: this.regionStyle.defaultStrokeOpacity,
             },
 
-            UUID: Utils.createUUIDv4(),
+            UUID: GeneralUtilities.generateUUID(),
             LayerIndex: MapRegionDataManager.INSTANCE.getAllRegionDatas().length,
 
             RegionType: this.regionType,
@@ -1858,7 +1869,7 @@ class MapRegionCreatorEditorHandler
 /**
  * Class to track the state of modifier keys (Ctrl, Shift, Alt, Delete).
  */
-class MapRegionEditorKeyStates
+export class MapRegionEditorKeyStates
 {
     private static instance: MapRegionEditorKeyStates;
     public static get INSTANCE(): MapRegionEditorKeyStates { return MapRegionEditorKeyStates.instance; }
@@ -1943,23 +1954,6 @@ class MapRegionEditorKeyStates
             } else if (e.key === 'z') {
                 this.zPressed = false;
             }
-        });
-    }
-}
-
-/**
- * Utility class with helper functions.
- */
-class Utils 
-{
-    /**
-     * Create UUIDv4 string
-     */
-    public static createUUIDv4(): string {
-        // Generate a random UUIDv4 string
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
         });
     }
 }

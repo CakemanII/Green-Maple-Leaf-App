@@ -1,4 +1,4 @@
-class TabHandler {
+export class TabHandler {
     private static readonly TAB_IDS: Record<string, { tabId: string; buttonId: string }> = {
         liveInterface:   { tabId: 'live_interface_tab',   buttonId: 'live_interface_tab_button' },
         liveData:        { tabId: 'live_data_tab',        buttonId: 'live_data_tab_button' },

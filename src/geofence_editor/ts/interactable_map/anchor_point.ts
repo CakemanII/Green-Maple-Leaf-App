@@ -1,9 +1,12 @@
 /// <reference types="leaflet" />
+import * as L from 'leaflet';
+import { InteractiveMap } from './map.js';
+import { MapRegionAnchorManager } from './map_region_editor.js';
 
 /**
  * Anchor Point Object for Interactable Map!
  */
-class AnchorPoint {
+export class AnchorPoint {
     private static MAIN_VISUAL: L.Icon = L.icon({
         iconUrl: 'assets/icons/map_line_handle_icon.png',
         iconSize: [32, 32], // adjust as needed

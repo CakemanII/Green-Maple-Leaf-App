@@ -1,7 +1,12 @@
 /// <reference types="leaflet" />
-declare const MapEditorUIConfirmDialog: any;
+import { AnchorPoint } from "./anchor_point.js";
+import { MapEditorUIConfirmDialog } from "../../../shared/ts/prompts.js";
+import { MapRegionEditor, MapRegionRegionManager, MapRegionEditorKeyStates, MapRegionDataManager, MapRegionAnchorManager } from "../interactable_map/map_region_editor.js";
+import * as L from "leaflet";
+import { InteractiveMap } from "./map.js";
+import { RegionType, FrontendAnchorData } from "./region.js";
 
-enum ToolType
+export enum ToolType
 {
     Move,
     Rotate,
@@ -12,7 +17,7 @@ enum ToolType
     AddHandles
 }
 
-abstract class MapRegionEditorTool {
+export abstract class MapRegionEditorTool {
     public abstract readonly ToolType: ToolType;
 
     constructor() {}
@@ -70,7 +75,7 @@ abstract class MapRegionEditorTool {
 /**
  * Map Region Editor Translate tool (Move Tool)
  */
-class MapRegionEditorTranslateTool extends MapRegionEditorTool {    
+export class MapRegionEditorTranslateTool extends MapRegionEditorTool {    
     public override readonly ToolType: ToolType = ToolType.Move;
 
     constructor() { super();}
@@ -201,7 +206,7 @@ class MapRegionEditorTranslateTool extends MapRegionEditorTool {
 /**
  * Map Region Editor Rotate tool (Rotate Tool)
  */
-class MapRegionEditorRotateTool extends MapRegionEditorTool {
+export class MapRegionEditorRotateTool extends MapRegionEditorTool {
     public override readonly ToolType: ToolType = ToolType.Rotate;
 
     private lastAnchorMoved: AnchorPoint | null; // The last anchor point that was moved (used to calculate distance from pivot)
@@ -396,7 +401,7 @@ class MapRegionEditorRotateTool extends MapRegionEditorTool {
 /**
  * Map Region Editor Scale tool (Scale Tool)
  */
-class MapRegionEditorScaleTool extends MapRegionEditorTool {    
+export class MapRegionEditorScaleTool extends MapRegionEditorTool {    
     public override readonly ToolType: ToolType = ToolType.Scale;
 
     private lastAnchorMoved: AnchorPoint | null; // The last anchor point that was moved (used to track when new drag starts)
@@ -698,7 +703,7 @@ class MapRegionEditorScaleTool extends MapRegionEditorTool {
 /**
  * Map Region Editor Add Anchor tool (Add Anchor Tool)
  */
-class MapRegionEditorAddAnchorTool extends MapRegionEditorTool {    
+export class MapRegionEditorAddAnchorTool extends MapRegionEditorTool {    
     public override readonly ToolType: ToolType = ToolType.AddAnchor;
 
     private readonly anchorHandleDistance = 1.5; // Distance for new anchor handles 
@@ -830,7 +835,7 @@ class MapRegionEditorAddAnchorTool extends MapRegionEditorTool {
 /**
  * Add Handles Tool - Adds missing handles to selected anchors
  */
-class MapRegionEditorAddHandlesTool extends MapRegionEditorTool {
+export class MapRegionEditorAddHandlesTool extends MapRegionEditorTool {
     public override readonly ToolType: ToolType = ToolType.AddHandles;
 
     public execute() {
@@ -944,7 +949,7 @@ class MapRegionEditorAddHandlesTool extends MapRegionEditorTool {
 /**
  * Delete Region Tool - Handles region deletion with confirmation
  */
-class MapRegionEditorDeleteTool extends MapRegionEditorTool {    
+export class MapRegionEditorDeleteTool extends MapRegionEditorTool {    
     public override readonly ToolType: ToolType = ToolType.Delete;
 
     private removed: boolean = false;
@@ -983,7 +988,7 @@ class MapRegionEditorDeleteTool extends MapRegionEditorTool {
 /**
  * Convert to Freeform Tool - Converts Rectangle/Circle regions to Freeform
  */
-class MapRegionEditorConvertToFreeformTool extends MapRegionEditorTool {    
+export class MapRegionEditorConvertToFreeformTool extends MapRegionEditorTool {    
     public override readonly ToolType: ToolType = ToolType.ConvertToFreeform;
 
     private removed: boolean = false;

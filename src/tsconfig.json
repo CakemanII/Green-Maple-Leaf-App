@@ -22,5 +22,5 @@
     { "path": "./settings" },
     { "path": "./shared" },
     { "path": "./status_editor" }
-  ]
+  ],
 }

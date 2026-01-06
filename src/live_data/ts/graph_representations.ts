@@ -1,10 +1,10 @@
-type DataPoints = Array<{ x: number; y: number }>;
-type DataPointsCollection = { [collectionKey: string]: DataPoints }
+export type DataPoints = Array<{ x: number; y: number }>;
+export type DataPointsCollection = { [collectionKey: string]: DataPoints }
 
 /**
  * Abstract class representing a generic graph.
  */
-abstract class GraphicalRepresentation {
+export abstract class GraphicalRepresentation {
     protected static GRAPHS_CONTAINER_ID: string = "graphs-container"
 
     protected dataPointsCollection: DataPointsCollection;
@@ -86,7 +86,7 @@ abstract class GraphicalRepresentation {
 /**
  * Enums for linear graph x-axis overflow modes.
  */
-enum LineGraphXOverflowMode {
+export enum LineGraphXOverflowMode {
     ScaleAxis,
     ShiftGraph,
     None
@@ -95,19 +95,19 @@ enum LineGraphXOverflowMode {
 /**
  * Enums for linear graph y-axis overflow modes.
  */
-enum LineGraphYOverflowMode {
+export enum LineGraphYOverflowMode {
     ScaleAxis,
     None
 }
 
-type LineStyle = {
+export type LineStyle = {
     color: string;
     width: number;
     dashArray?: string;
     opacity: number;
 }
 
-type LineGraphStyleSettings = {
+export type LineGraphStyleSettings = {
     // Overflow Modes
     xOverflowMode: LineGraphXOverflowMode;
     yOverflowMode: LineGraphYOverflowMode;
@@ -119,7 +119,7 @@ type LineGraphStyleSettings = {
 /**
  * Class representing a line graph.
  */
-class LineGraphRepresentation extends GraphicalRepresentation {
+export class LineGraphRepresentation extends GraphicalRepresentation {
     // DOM element references
     private graphRow!: HTMLDivElement;
     private graphTitle!: HTMLHeadingElement;

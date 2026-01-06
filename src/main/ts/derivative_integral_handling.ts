@@ -1,4 +1,6 @@
-class DerivativeIntegralHandler{
+import { GlobalTelemetryManager } from "./global_rocket_communication.js";
+
+export class DerivativeIntegralHandler{
     private static instance: DerivativeIntegralHandler
     public static get INSTANCE(): DerivativeIntegralHandler { return DerivativeIntegralHandler.instance; }
 

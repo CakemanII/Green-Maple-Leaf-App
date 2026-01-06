@@ -1,7 +1,12 @@
-declare const MapEditorUIFileListDialog: any;
-declare const TabMenu: any;
+import { MapEditorUIFileListDialog } from "../../../shared/ts/prompts.js";
+import { TabMenu } from "../../../shared/ts/tabmenu.js";
+import { GeoeditFileManager } from "../geofence_filing.js";
+import { InteractiveMap } from "../interactable_map/map.js";
+import { ToolType, MapRegionEditorAddHandlesTool, MapRegionEditorConvertToFreeformTool, MapRegionEditorDeleteTool } from "../interactable_map/map_region_editor_tools.js";
+import { MapRegionEditor, MapRegionRegionManager, MapRegionEditorKeyStates, MapRegionDataManager } from "../interactable_map/map_region_editor.js";
+import { RegionType, RegionData } from "../interactable_map/region.js";
 
-class MapEditorUI {
+export class MapEditorUI {
     private static instance: MapEditorUI;
     public static get INSTANCE(): MapEditorUI { return MapEditorUI.instance; }
 
@@ -422,7 +427,7 @@ class MapEditorUI {
 /**
  * Custom color picker with gradient square and hue slider
  */
-class MapEditorUIColorPicker {
+export class MapEditorUIColorPicker {
     private modal: HTMLDivElement;
     private canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
@@ -811,7 +816,7 @@ class MapEditorUIColorPicker {
     }
 }
 
-class MapEditorUIRegionInfoManager {
+export class MapEditorUIRegionInfoManager {
     private static instance: MapEditorUIRegionInfoManager;
     public static get INSTANCE(): MapEditorUIRegionInfoManager { return MapEditorUIRegionInfoManager.instance; }
 
@@ -1055,7 +1060,7 @@ class MapEditorUIRegionInfoManager {
 /**
  * Handles highlighting regions on the map when hovering over UI elements.
  */
-class MapRegionHightlightingHandler {
+export class MapRegionHightlightingHandler {
     private static instance: MapRegionHightlightingHandler;
     public static get INSTANCE(): MapRegionHightlightingHandler { return MapRegionHightlightingHandler.instance; }
 
@@ -1164,7 +1169,7 @@ class MapRegionHightlightingHandler {
     }
 }
 
-class MapEditorUILayerManager {
+export class MapEditorUILayerManager {
     private static instance: MapEditorUILayerManager;
     public static get INSTANCE(): MapEditorUILayerManager { return MapEditorUILayerManager.instance; }
 

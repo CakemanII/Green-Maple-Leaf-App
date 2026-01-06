@@ -1,3 +1,6 @@
+import { GeoeditFileManager } from "../geofence_filing.js";
+import { MapEditorUIFileListDialog } from "../../../shared/ts/prompts.js";
+
 class TabMenuUI {
     // Element IDs
     private static readonly TAB_MENU_CONTAINER_ID: string = "tab-menu";

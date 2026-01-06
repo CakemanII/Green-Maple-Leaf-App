@@ -1,4 +1,6 @@
-class StatusesReference {
+import { IFrameCommunicationUitilies } from "./utilities.js";
+
+export class StatusesReference {
     private static instance: StatusesReference;
     public static get INSTANCE(): StatusesReference { return StatusesReference.instance; }
 

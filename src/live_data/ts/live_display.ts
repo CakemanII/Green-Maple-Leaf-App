@@ -1,5 +1,7 @@
-declare const TelemetryReceiver: any;
-declare const StatusesReference: any;
+import { TelemetryReceiver } from '../../shared/ts/global_rocket_communication_reference.js';
+import { StatusesReference } from '../../shared/ts/global_statuses_reference.js';
+import { GraphicalRepresentation, LineGraphRepresentation, LineGraphXOverflowMode, LineGraphYOverflowMode } from './graph_representations.js';
+import { StatusRepresentation } from './status_representations.js';
 
 class LiveDisplayUpdater {
     private static instance: LiveDisplayUpdater;

@@ -1,4 +1,4 @@
-class TelemetryReceiver {
+export class TelemetryReceiver {
     private onReceiveTelemetry: (label: string, timestamp: number, value: any) => void;
 
     constructor(onReceiveTelemetry: (label: string, timestamp: number, value: any) => void) {

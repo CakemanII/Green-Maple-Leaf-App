@@ -1,13 +1,16 @@
-declare const MapEditorUITextInputDialog: any;
+import { MapEditorUITextInputDialog } from "../../shared/ts/prompts.js";
+import { MapRegionRegionManager, MapRegionDataManager } from "./interactable_map/map_region_editor.js";
+import { RegionData } from "./interactable_map/region.js";
+import { GeneralUtilities } from "../../shared/ts/utilities.js";
 
-type GeofenceFileMetadata = {
+export type GeofenceFileMetadata = {
     UUID: string;
     name: string;
     lastModified: string;
     fileSize: number;
 }
 
-type GeoeditFileData = {
+export type GeoeditFileData = {
     metadata: GeofenceFileMetadata;
     regions: RegionData[];
 }
@@ -15,7 +18,7 @@ type GeoeditFileData = {
 /**
  * Classes for managing geoedit files.
  */
-class GeoeditFileManager {
+export class GeoeditFileManager {
     private static instance: GeoeditFileManager;
     public static get Instance(): GeoeditFileManager { return this.instance }
 
@@ -140,7 +143,7 @@ class GeoeditFileManager {
                 "Enter a name for the new geoedit file:",
                 async (inputName: string) => {
                     // Create new UUID for the file.
-                    this.activeFileUUID = Utils.createUUIDv4();
+                    this.activeFileUUID = GeneralUtilities.generateUUID();
                     // Save the file.
                     await this.saveCurrentToGeoeditFile(inputName);
                     resolve();
@@ -219,7 +222,7 @@ class GeoeditFileManager {
 /**
  * Classes for managing geofence files.
  */
-class GeofenceFileManager {
+export class GeofenceFileManager {
 
 }
 

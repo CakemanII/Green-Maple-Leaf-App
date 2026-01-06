@@ -1,13 +1,9 @@
 /// <reference types="leaflet" />
 /// <reference types="leaflet-curve" />
-
-// Declare L.StripePattern from leaflet-stripe-pattern plugin
-declare namespace L {
-    class StripePattern extends L.Layer {
-        constructor(options: any);
-        addTo(map: L.Map): this;
-    }
-}
+import { InteractiveMap, MAP_LAYER_INDICES } from './map.js';
+import * as L from 'leaflet';
+import { MapRegionDataManager, MapRegionRegionManager } from './map_region_editor.js';
+import { MapRegionHightlightingHandler } from '../editor_ui/editior_ui.js';
 
 // Type definition for backend anchor data
 type BackendAnchorData = Array<{ 
@@ -16,7 +12,7 @@ type BackendAnchorData = Array<{
     relOutgoingHandlePos: L.LatLng | null 
 }>;
 
-type FrontendAnchorData = Array<{
+export type FrontendAnchorData = Array<{
     anchorPos: L.LatLng, 
     relIncomingHandlePos: L.LatLng | null, 
     relOutgoingHandlePos: L.LatLng | null 
@@ -25,13 +21,13 @@ type FrontendAnchorData = Array<{
 /**
  * Region types used throughout the editor.
  */
-enum RegionType {
+export enum RegionType {
     Rectangle,
     Circle,
     Freeform
 }
 
-type RegionData = {
+export type RegionData = {
     UUID?: string;
     LayerIndex?: number; // 0 is top, most visible layer
     General: {
@@ -55,7 +51,7 @@ type RegionData = {
 /**
  * Base class for map regions.
  */
-abstract class MapRegion 
+export abstract class MapRegion 
 {
     public abstract readonly regionType: RegionType; 
 
@@ -97,6 +93,7 @@ abstract class MapRegion
 
     private lastStyleState: object; // Last applied style state
 
+    // @ts-ignore
     private stripes: L.StripePattern | null; // Stripe pattern for restricted regions
     private fillPattern: any | null; // Fill pattern for the region
     private borderThickness: number;
@@ -419,6 +416,7 @@ abstract class MapRegion
             this.stripes = null;
         }
 
+        // @ts-ignore
         this.stripes = new L.StripePattern({
             weight: 5, // stripe width
             spaceWeight: 12, // space between stripes
@@ -555,7 +553,7 @@ abstract class MapRegion
 /**
  * Freeform Region (Any number of points)
  */
-class MapFreeformRegion extends MapRegion
+export class MapFreeformRegion extends MapRegion
 {
     public override readonly regionType: RegionType = RegionType.Freeform;
 
@@ -578,7 +576,7 @@ class MapFreeformRegion extends MapRegion
 /**
  * Rectangle Region (4 control points)
  */
-class MapRectangleRegion extends MapRegion
+export class MapRectangleRegion extends MapRegion
 {  
     public override readonly regionType: RegionType = RegionType.Rectangle;
 
@@ -611,7 +609,7 @@ class MapRectangleRegion extends MapRegion
 /**
  * Circle Region (Perfect circle /w 2 control points (and centralized point))  
  */ 
-class MapCircleRegion extends MapRegion
+export class MapCircleRegion extends MapRegion
 {
     public override readonly regionType: RegionType = RegionType.Circle;
 

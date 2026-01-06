@@ -1,4 +1,4 @@
-class StatusRepresentation {
+export class StatusRepresentation {
     private statusFlag: HTMLElement | null = null;
     private statusImage: HTMLElement | null = null;
 

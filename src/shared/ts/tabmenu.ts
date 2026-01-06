@@ -1,4 +1,4 @@
-class TabMenu {
+export class TabMenu {
     private tabMenuElement!: HTMLElement;
     
     private menuSelectionFunctions!: { [key: string]: () => Promise<boolean> };

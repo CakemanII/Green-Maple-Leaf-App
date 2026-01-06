@@ -1,4 +1,4 @@
-class Preferences
+export class Preferences
 {
     private static instance: Preferences;
     public static get Instance(): Preferences { return this.instance; }

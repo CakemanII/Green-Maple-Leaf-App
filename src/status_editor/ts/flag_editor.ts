@@ -1,10 +1,6 @@
-declare type Flag = any;
-declare type Status = any;
-declare type ConditionalGroup = any;
-declare type TelemetryCondition = any;
-declare type StatusCondition = any;
-
-declare const GeneralUtilities: any;
+// Imports
+import { GeneralUtilities } from '../../shared/ts/utilities.js';
+import { Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition } from '../../shared/ts/types.js';
 
 
 const ExampleStatus3: Status = {
@@ -97,9 +93,9 @@ const ExampleStatus3: Status = {
 
 
 
-class FlagCreator {
-    private static instance: FlagCreator
-    public static get INSTANCE(): FlagCreator { return FlagCreator.instance; }
+export class FlagEditor {
+    private static instance: FlagEditor
+    public static get INSTANCE(): FlagEditor { return FlagEditor.instance; }
 
     // Conditional Row Telemetry Input Dictionary
     private static readonly TELEMETRY_OPTIONS_DICTIONARY: { [key: string]: string } = {
@@ -133,10 +129,10 @@ class FlagCreator {
 
     constructor() {
         // Ensure singleton
-        if (FlagCreator.instance) {
-            throw new Error("Use FlagCreator.INSTANCE to access the singleton instance.");
+        if (FlagEditor.instance) {
+            throw new Error("Use FlagEditor.INSTANCE to access the singleton instance.");
         }
-        FlagCreator.instance = this;
+        FlagEditor.instance = this;
 
         // Get UI elements
         this.flagCreationPromptElement = document.getElementById('flag-creation-prompt') as HTMLDivElement;
@@ -236,8 +232,8 @@ class FlagCreator {
      */
     private generateTelemetryOptionsHTML(): string {
         let optionsHTML = '<option value="" selected>Select Telemetry...</option>';
-        for (const key in FlagCreator.TELEMETRY_OPTIONS_DICTIONARY) {
-            const displayName = FlagCreator.TELEMETRY_OPTIONS_DICTIONARY[key];
+        for (const key in FlagEditor.TELEMETRY_OPTIONS_DICTIONARY) {
+            const displayName = FlagEditor.TELEMETRY_OPTIONS_DICTIONARY[key];
             optionsHTML += `<option value="${key}">${displayName}</option>`;
         }
         return optionsHTML;
@@ -482,9 +478,9 @@ class FlagCreator {
     /**
      * Edit existing flag
      */
-    public editExistingFlag(flag: Flag): void {
+    public editExistingFlag(collectionUUID: string, statusUUID: string, flagUUID: string): void {
         // Populate and open prompt
-        this.populateHTMLWithFlagJSON(flag);
+        //this.populateHTMLWithFlagJSON(flag);
         this.openFlagCreationPrompt();
     }
 
@@ -534,7 +530,7 @@ class FlagCreator {
 
         // Get group color
         const colorIndicator = groupElement.querySelector('.color-indicator') as HTMLDivElement;
-        const groupColor = colorIndicator ? colorIndicator.style.backgroundColor : null;
+        const groupColor: string | undefined = colorIndicator ? colorIndicator.style.backgroundColor : undefined;
 
         // Initialize the main ConditionalGroup object
         const mainConditionalGroup: ConditionalGroup = {
@@ -595,13 +591,13 @@ class FlagCreator {
             const embededGroup: ConditionalGroup = {
                 not: false,
                 type: 'CONDITION',
-                condition: null, // Will Change
-                editorColor: null, // Will Change
+                condition: undefined, // Will Change
+                editorColor: undefined, // Will Change
             };
 
             // Get group color
             const colorIndicator = row.querySelector('.color-indicator') as HTMLDivElement;
-            const groupColor = colorIndicator ? colorIndicator.style.backgroundColor : null;
+            const groupColor: string | undefined = colorIndicator ? colorIndicator.style.backgroundColor : undefined;
             embededGroup.editorColor = groupColor;
 
             // Determine what type of condition it is
@@ -615,7 +611,7 @@ class FlagCreator {
                 // Build TelemetryCondition
                 const telemetryCondition: TelemetryCondition = {
                     telemetryKey: selectElement.value,
-                    operator: operatorElement.value,
+                    operator: operatorElement.value as TelemetryCondition['operator'],
                     value: parseFloat(valueElement.value)
                 };
 
@@ -888,4 +884,4 @@ class FlagCreator {
     }
 }
 
-new FlagCreator();
+new FlagEditor();

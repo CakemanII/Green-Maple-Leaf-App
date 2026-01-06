@@ -1,4 +1,6 @@
-declare const IFrameCommunicationUitilies: any;
+import { IFrameCommunicationUitilies } from '../../shared/ts/utilities';
+import { StatusCollection, Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition } from '../../shared/ts/types';
+import { GlobalTelemetryManager } from './global_rocket_communication.js';
 
 // Types for statuses, flags, and etc.
 
@@ -178,43 +180,8 @@ const ExampleStatus2: Status = {
     ]
 };
 
-type Status = {
-    UUID: string;
-    name: string;
-    defaultFlag: Flag;
-    flags: Flag[]; // Ordered by priority (index 0 being highest priority)
-}
 
-type Flag = {
-    UUID: string;
-    name: string;
-    description: string;
-    imagePath: string
-    primaryConditionalGroup: ConditionalGroup | null;
-}
-
-type ConditionalGroup = {
-    not: boolean;
-    type: 'AND' | 'OR' | 'CONDITION';
-    embededConditionalGroups?: ConditionalGroup[] | null;
-    condition?: TelemetryCondition | StatusCondition | null;
-    editorColor?: string;
-}
-
-type TelemetryCondition = {
-    telemetryKey: string; // Key to check in some global data source
-    operator: 'E' | 'NE' | 'GT' | 'NGT' | 'LT' | 'NLT' | 'GTOE' | 'NLGOE' | 'LTOE' | 'NLTOE';
-    value: any; // Value to compare against
-}
-
-type StatusCondition = {
-    statusUUID: string; // UUID of the status to check
-    shouldBeActive: boolean; // Whether the flag should be active or not
-    flagUUID: string;   // UUID of the flag to check
-}
-
-
-class GlobalStatusesManager {
+export class GlobalStatusesManager {
     private static instance: GlobalStatusesManager;
     public static get INSTANCE(): GlobalStatusesManager { return GlobalStatusesManager.instance; }
 

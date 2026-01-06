@@ -1,4 +1,4 @@
-class JSONFileManager {
+export class JSONFileManager {
     // Configuration path of the JSON file
     private configFilePath: string;
     // Parent directory to save geofence files
