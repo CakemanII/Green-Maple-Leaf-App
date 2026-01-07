@@ -1,10 +1,16 @@
-import { GlobalTelemetryManager } from "./global_rocket_communication.js";
+import type { GlobalTelemetryManager } from "./global_rocket_communication.js";
 
-export class DerivativeIntegralHandler{
+export class DerivativeIntegralHandler {
     private static instance: DerivativeIntegralHandler
     public static get INSTANCE(): DerivativeIntegralHandler { return DerivativeIntegralHandler.instance; }
 
     private callbacksDictionary: { [key: string]: () => void } = {};
+    
+    // Lazy getter to avoid circular dependency
+    private get telemetryManager(): GlobalTelemetryManager {
+        // Use dynamic import to break circular dependency
+        return (globalThis as any).GlobalTelemetryManager?.INSTANCE;
+    }
 
     constructor() {
         // Ensure singleton
@@ -24,7 +30,7 @@ export class DerivativeIntegralHandler{
 
     private derivativeIntegralCallback(input_key: string, output_key: string, calc_derivative: boolean): [string, number, any] | null {
         // Get all data from a specific input key
-        const inputData = GlobalTelemetryManager.INSTANCE.getMostRecentDataPoints(input_key, 2);
+        const inputData = this.telemetryManager?.getMostRecentDataPoints(input_key, 2);
         if (!inputData || inputData.length < 2) {
             console.warn(`[DerivativeIntegralHandler] Not enough data to calculate derivative/integral for key '${input_key}'.`);
             return null;
@@ -65,7 +71,7 @@ export class DerivativeIntegralHandler{
             }
         } else {
             // Get the last integral value if exists
-            const lastOutputDataPoint = GlobalTelemetryManager.INSTANCE.getMostRecentDataPoints(output_key, 1);
+            const lastOutputDataPoint = this.telemetryManager?.getMostRecentDataPoints(output_key, 1);
             const lastIntegralValue = lastOutputDataPoint && lastOutputDataPoint.length > 0 ? lastOutputDataPoint[0].y : 0;
             
             if (isVector3D) {

@@ -1,9 +1,10 @@
 /// <reference types="leaflet" />
 /// <reference types="leaflet-curve" />
+declare const L: typeof import('leaflet');
+
 import { InteractiveMap, MAP_LAYER_INDICES } from './map.js';
-import * as L from 'leaflet';
 import { MapRegionDataManager, MapRegionRegionManager } from './map_region_editor.js';
-import { MapRegionHightlightingHandler } from '../editor_ui/editior_ui.js';
+import { MapRegionHightlightingHandler } from '../editor_ui/editor_ui.js';
 
 // Type definition for backend anchor data
 type BackendAnchorData = Array<{ 

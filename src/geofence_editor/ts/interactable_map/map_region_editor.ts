@@ -1,16 +1,17 @@
 /// <reference types="leaflet" />
-import * as L from "leaflet";
+declare const L: typeof import('leaflet');
+
 import {MapRegionEditorTool, MapRegionEditorTranslateTool, MapRegionEditorRotateTool, MapRegionEditorScaleTool, 
     MapRegionEditorAddAnchorTool, MapRegionEditorAddHandlesTool, MapRegionEditorDeleteTool, MapRegionEditorConvertToFreeformTool, ToolType
 } from './map_region_editor_tools.js';
-import { MapEditorUI, MapEditorUILayerManager, MapEditorUIRegionInfoManager } from "../editor_ui/editior_ui.js";
+import { MapEditorUI, MapEditorUILayerManager, MapEditorUIRegionInfoManager } from "../editor_ui/editor_ui.js";
 import { AnchorPoint } from "./anchor_point.js";
 import { InteractiveMap, MAP_LAYER_INDICES } from "./map.js";
 import { FrontendAnchorData, MapRegion, RegionData, RegionType, MapRectangleRegion, MapCircleRegion, MapFreeformRegion } from "./region.js";
 import { GeoeditFileData } from "../geofence_filing.js";
 
-import { PreferencesReference } from "../../../shared/ts/global_configs_reference.js";
-import { GeneralUtilities } from "../../../shared/ts/utilities";
+import { PreferencesReference } from "../../../shared/compiled_js/global_configs_reference.js";
+import { GeneralUtilities } from "../../../shared/compiled_js/utilities.js";
 // Now you can use PreferencesReference directly in this file
 
 class Visuals {
@@ -1957,3 +1958,5 @@ export class MapRegionEditorKeyStates
         });
     }
 }
+
+new MapRegionEditor();

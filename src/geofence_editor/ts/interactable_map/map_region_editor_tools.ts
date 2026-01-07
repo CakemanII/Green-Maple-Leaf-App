@@ -1,8 +1,9 @@
 /// <reference types="leaflet" />
+declare const L: typeof import('leaflet');
+
 import { AnchorPoint } from "./anchor_point.js";
-import { MapEditorUIConfirmDialog } from "../../../shared/ts/prompts.js";
+import { MapEditorUIConfirmDialog } from "../../../shared/compiled_js/prompts.js";
 import { MapRegionEditor, MapRegionRegionManager, MapRegionEditorKeyStates, MapRegionDataManager, MapRegionAnchorManager } from "../interactable_map/map_region_editor.js";
-import * as L from "leaflet";
 import { InteractiveMap } from "./map.js";
 import { RegionType, FrontendAnchorData } from "./region.js";
 

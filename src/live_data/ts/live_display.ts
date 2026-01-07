@@ -1,5 +1,5 @@
-import { TelemetryReceiver } from '../../shared/ts/global_rocket_communication_reference.js';
-import { StatusesReference } from '../../shared/ts/global_statuses_reference.js';
+import { TelemetryReceiver } from '../../shared/compiled_js/global_rocket_communication_reference.js';
+import { StatusesReference } from '../../shared/compiled_js/global_statuses_reference.js';
 import { GraphicalRepresentation, LineGraphRepresentation, LineGraphXOverflowMode, LineGraphYOverflowMode } from './graph_representations.js';
 import { StatusRepresentation } from './status_representations.js';
 

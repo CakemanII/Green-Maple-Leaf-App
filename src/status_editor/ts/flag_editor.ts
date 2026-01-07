@@ -1,6 +1,6 @@
 // Imports
-import { GeneralUtilities } from '../../shared/ts/utilities.js';
-import { Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition } from '../../shared/ts/types.js';
+import { GeneralUtilities } from '../../shared/compiled_js/utilities.js';
+import { Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition, StatusCollection } from '../../shared/compiled_js/types.js';
 
 
 const ExampleStatus3: Status = {
@@ -241,6 +241,44 @@ export class FlagEditor {
     // #endregion
 
 
+
+    private async getStatusCollectionFileData(collectionUUID: string): Promise<StatusCollection> {
+        // Get the file contents from the server.
+        const response = await fetch(`/get_status_collection?uuid=${encodeURIComponent(collectionUUID)}`,
+            { method: 'GET' });
+
+        if (!response.ok) {
+            throw new Error(`Failed to load status collection file with UUID: ${collectionUUID}`);
+        }
+
+        const fileContents: string = await response.text();
+
+        // Parse the file contents.
+        const statusCollectionData: StatusCollection = this.parseStatusCollectionData(fileContents);
+        return statusCollectionData;
+    }
+
+    private parseStatusCollectionData(fileContents: string): StatusCollection {
+        // Parse the JSON content
+        const data: any = JSON.parse(fileContents);
+
+        // Verify and process region data as needed
+        const isValid = this.verifyData(data);
+        if (!isValid) {
+            throw new Error("Invalid geoedit file format.");
+        }
+
+        return data as StatusCollection;
+    }
+
+    private verifyData(data: any): boolean {
+        // Check if StatusCollection structure is valid
+        if (data && typeof data === "object" && Array.isArray(data.statuses)) {
+            return true;
+        }
+        return false;
+    }
+
     // #region DOM Manipulation
     /**
      * Add a telemetry condition row to the specified condition body
@@ -478,12 +516,28 @@ export class FlagEditor {
     /**
      * Edit existing flag
      */
-    public editExistingFlag(collectionUUID: string, statusUUID: string, flagUUID: string): void {
-        // Populate and open prompt
-        //this.populateHTMLWithFlagJSON(flag);
+    public async editExistingFlag(collectionUUID: string, statusUUID: string, flagUUID: string): Promise<void> {
+        // Get the status collection data
+        const statusCollectionData: StatusCollection = await this.getStatusCollectionFileData(collectionUUID);
+
+        // Find the status
+        const statusToEdit = statusCollectionData.statuses.find(status => status.UUID === statusUUID);
+        if (!statusToEdit) {
+            throw new Error(`Status with UUID ${statusUUID} not found in collection ${collectionUUID}`);
+        }
+
+        // Find the flag
+        const flagToEdit = statusToEdit.flags.find(flag => flag.UUID === flagUUID);
+        if (!flagToEdit) {
+            throw new Error(`Flag with UUID ${flagUUID} not found in status ${statusUUID}`);
+        }
+
+        // Populate the prompt with the flag data
+        this.populateHTMLWithFlagJSON(flagToEdit);
+
+        // Open the prompt
         this.openFlagCreationPrompt();
     }
-
 
     // #region Translate HTML to JSON
     private translateHTMLInputToFlagJSON(): Flag {

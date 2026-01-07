@@ -1,4 +1,5 @@
-import { StatusCollection, Status, Flag } from '../../shared/ts/types.js';
+import { StatusCollection, Status, Flag } from '../../shared/compiled_js/types.js';
+import { FlagEditor } from './flag_editor.js';
 
 const ExampleStatus4: Status = {
     UUID: "statustemptemp2",
@@ -90,7 +91,7 @@ const ExampleStatus4: Status = {
 
 const ExampleStatusCollection: StatusCollection = {
     "name": "Example Collection",
-    "UUID": "collectiontemp1234",
+    "UUID": "test123",
     "description": "This is an example status collection.",
     "statuses": [
         ExampleStatus4, ExampleStatus4, ExampleStatus4
@@ -282,6 +283,11 @@ export class CollectionEditor {
         cogButton.title = 'Flag Settings';
         cogButton.innerHTML = cogSVG;
         flag.appendChild(cogButton);
+
+        // Setup button event
+        cogButton.addEventListener('click', () => {
+            this.displayFlagCogMenu(flag);
+        });
         
         // Add flag to status container
         statusFlagContainer.appendChild(flag);
@@ -359,18 +365,23 @@ export class CollectionEditor {
     /**
      * Display menu from flag cog button click.
      */
-    private displayFlagCogMenu(flagElement: HTMLDivElement, cogButton: HTMLButtonElement): void {
+    private displayFlagCogMenu(flagElement: HTMLDivElement): void {
         // Find flag UUID
         const flagUUID = flagElement.getAttribute('data-uuid') as string;
         // Find status UUID
         const statusElement = flagElement.closest('.status') as HTMLDivElement;
+        const statusUUID = statusElement.getAttribute('data-uuid') as string;
         // Find collection UUID
         const collectionElement = flagElement.closest('.status-collection') as HTMLDivElement;
-        // Display menu (implementation not shown)
+        const collectionUUID = collectionElement.getAttribute('data-uuid') as string;
+        // Display menu
+        new Promise<void>((resolve) => {
+            FlagEditor.INSTANCE.editExistingFlag(collectionUUID, statusUUID, flagUUID);
+            resolve();
+        });
     }
 
     // #endregion
-
 
     // #region Drag and Dropping
     /**

@@ -143,6 +143,9 @@ export class GlobalTelemetryManager {
 
 new GlobalTelemetryManager();
 
+// Expose to global scope for breaking circular dependency
+(globalThis as any).GlobalTelemetryManager = GlobalTelemetryManager;
+
 /**
  * Managers rocket input communication from the application.
  */

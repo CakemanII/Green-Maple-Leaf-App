@@ -2,8 +2,7 @@ from flask import Flask, send_from_directory, request, jsonify
 from flask_socketio import SocketIO, emit
 import os
 
-from preferences_file_manager import PreferencesFileManager
-from geofence_file_manager import GeoFenceFileManager
+from file_handler import FileHandler
 from radio_communication_buffer import RadioCommunicationBuffer, TimeStamped
 from radio_communication_simulation_server import RadioComsSimulationServer
 
@@ -43,7 +42,6 @@ def serve_preferences():
 def serve_shared(path):
     return send_from_directory(SHARED_DIR, path)
 
-
 @app.route('/serve_image/<path:filepath>')
 def serve_image(filepath):
     """Serve any file from the filesystem by absolute path."""
@@ -73,51 +71,66 @@ def serve_static(path):
     return 'File not found', 404
 #endregion
 
-#region configuration saving & loading routes
+#region Preferences Data Routes
 @app.route('/save_config', methods=['POST'])
 def save_config():
-    print('Raw data:', request.data)
     data = request.get_json(silent=True)
     if not data:
         return ('No JSON data provided', 400)
-    success: bool = PreferencesFileManager.save_preferences(data)
+    success: bool = FileHandler.save_file(data, r"C:\Users\tyler\OneDrive\Desktop\Green Maple Leaf App\preferences.json")
     return ('', 200) if success else ('Error saving preferences', 500)
-
 
 @app.route('/load_config', methods=['GET'])
 def load_config():
     # Return current preferences data
-    preferences_data = PreferencesFileManager.get_preferences_data()
+    preferences_data = FileHandler.load_file(r"C:\Users\tyler\OneDrive\Desktop\Green Maple Leaf App\preferences.json")
     return preferences_data, 200
 
+#endregion
+
+#region Status Collection Data Routes
+@app.route('/save_status_collection', methods=['POST'])
+def save_status_collection_file():
+    data: object = request.get_json(silent=True)
+    success: bool = FileHandler.save_file(data, f'saves/status_collections/{data["UUID"]}.scollection')
+    return ('', 200) if success else ('Error saving status collection file', 500)
+
+@app.route('/get_status_collection', methods=['GET'])
+def get_status_collection_file():
+    uuid: str = request.args.get('uuid', '')
+    status_collection_data = FileHandler.load_file(f'saves/status_collections/{uuid}.scollection')
+    if status_collection_data is None:
+        return (None, 404)
+    return status_collection_data, 200
+
+@app.route('/get_list_status_collections', methods=['GET'])
+def list_status_collection_files():
+    status_collection_list = FileHandler.list_files_in_directory('saves/status_collections', '.scollection')
+    return {'files': status_collection_list}, 200
 #endregion
 
 #region Geofence Data Routes
 @app.route('/save_geoedit', methods=['POST'])
 def save_geoedit_file():
     data: object = request.get_json(silent=True)
-    success: bool = GeoFenceFileManager.save_geoedit_file(data)
+    success: bool = FileHandler.save_file(data, f'saves/geofence/{data["metadata"]["UUID"]}.geoedit')
     return ('', 200) if success else ('Error saving geofence file', 500)
-
 
 @app.route('/get_geoedit', methods=['GET'])
 def get_geoedit_file():
     uuid: str = request.args.get('uuid', '')
-    geoedit_data = GeoFenceFileManager.get_geoedit_file(uuid)
+    geoedit_data = FileHandler.load_file(f'saves/geofence/{uuid}.geoedit')
     if geoedit_data is None:
         return (None, 404)
     return geoedit_data, 200
 
 @app.route('/get_list_geoedits', methods=['GET'])
 def list_geoedit_files():
-    geoedit_list = GeoFenceFileManager.list_geoedit_files()
-    print(geoedit_list)
+    geoedit_list = FileHandler.list_files_in_directory('saves/geofence', '.geoedit')
     return {'files': geoedit_list}, 200
 #endregion
 
-#region Live Rocket Info Routes
-
-# Store the latest rocket data for web clients
+#region Store the latest rocket data for web clients
 def send_rocket_data_to_webserver(label: str, data: TimeStamped[object]):
     """
     Callback function to receive rocket data from RadioCommunicationBuffer.

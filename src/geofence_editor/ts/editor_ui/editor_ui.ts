@@ -1,5 +1,5 @@
-import { MapEditorUIFileListDialog } from "../../../shared/ts/prompts.js";
-import { TabMenu } from "../../../shared/ts/tabmenu.js";
+import { MapEditorUIFileListDialog } from "../../../shared/compiled_js/prompts.js";
+import { TabMenu } from "../../../shared/compiled_js/tabmenu.js";
 import { GeoeditFileManager } from "../geofence_filing.js";
 import { InteractiveMap } from "../interactable_map/map.js";
 import { ToolType, MapRegionEditorAddHandlesTool, MapRegionEditorConvertToFreeformTool, MapRegionEditorDeleteTool } from "../interactable_map/map_region_editor_tools.js";

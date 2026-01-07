@@ -1,13 +1,1 @@
-{
-    "appearance_theme": "Dark",
-    "default_region_creation_border_color": "#fef049",
-    "default_region_creation_border_opacity": "1",
-    "default_region_creation_color": "#ff0000",
-    "default_region_creation_opacity": "1",
-    "default_region_creation_restriction": "Unrestricted",
-    "default_region_creation_visibility": "Visible",
-    "general_map_view_type": "Street",
-    "geofence_map_view_type": "Auto",
-    "invalid_region_color_setting": "#9898e7",
-    "primary_color": "#e2f849"
-}
+{"appearance_theme": "Light", "default_region_creation_border_color": "#fef049", "default_region_creation_border_opacity": "1", "default_region_creation_color": "#ff0000", "default_region_creation_opacity": "1", "default_region_creation_restriction": "Unrestricted", "default_region_creation_visibility": "Visible", "general_map_view_type": "Street", "geofence_map_view_type": "Auto", "invalid_region_color_setting": "#9898e7", "primary_color": "#e2f849"}

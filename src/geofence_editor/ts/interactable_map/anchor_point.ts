@@ -1,5 +1,6 @@
 /// <reference types="leaflet" />
-import * as L from 'leaflet';
+declare const L: typeof import('leaflet');
+
 import { InteractiveMap } from './map.js';
 import { MapRegionAnchorManager } from './map_region_editor.js';
 

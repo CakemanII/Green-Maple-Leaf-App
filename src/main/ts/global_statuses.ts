@@ -1,5 +1,5 @@
-import { IFrameCommunicationUitilies } from '../../shared/ts/utilities';
-import { StatusCollection, Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition } from '../../shared/ts/types';
+import { IFrameCommunicationUitilies } from '../../shared/compiled_js/utilities.js';
+import { StatusCollection, Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition } from '../../shared/compiled_js/types.js';
 import { GlobalTelemetryManager } from './global_rocket_communication.js';
 
 // Types for statuses, flags, and etc.

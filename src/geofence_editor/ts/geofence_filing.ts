@@ -1,7 +1,7 @@
-import { MapEditorUITextInputDialog } from "../../shared/ts/prompts.js";
+import { MapEditorUITextInputDialog } from "../../shared/compiled_js/prompts.js";
 import { MapRegionRegionManager, MapRegionDataManager } from "./interactable_map/map_region_editor.js";
 import { RegionData } from "./interactable_map/region.js";
-import { GeneralUtilities } from "../../shared/ts/utilities.js";
+import { GeneralUtilities } from "../../shared/compiled_js/utilities.js";
 
 export type GeofenceFileMetadata = {
     UUID: string;

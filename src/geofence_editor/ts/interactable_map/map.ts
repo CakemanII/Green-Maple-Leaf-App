@@ -1,5 +1,5 @@
 /// <reference types="leaflet" />
-import * as L from "leaflet";
+declare const L: typeof import('leaflet');
 
 
 export const MAP_LAYER_INDICES: { [key: string]: [number, number] | number } = {
@@ -45,3 +45,4 @@ export class InteractiveMap
 
 // Make class available globally for browser
 (window as any).InteractiveMap = InteractiveMap;
+new InteractiveMap();
