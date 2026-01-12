@@ -98,6 +98,528 @@ const ExampleStatusCollection: StatusCollection = {
     ]
 };
 
+/**
+ * Edit Collection Info Dialog
+ */
+class EditCollectionInfoDialog {
+    /**
+     * Show an edit collection info dialog
+     * @param initialName - Initial collection name value
+     * @param initialDescription - Initial description value
+     * @param initialSize - Derived size value (read-only)
+     * @param initialStatusCount - Derived status count value (read-only)
+     * @param onSave - Callback when user saves (receives name, description)
+     * @param onCancel - Optional callback when user cancels
+     */
+    public static show(
+        initialName: string = '',
+        initialDescription: string = '',
+        initialSize: string = '',
+        initialStatusCount: number = 0,
+        onSave: (name: string, description: string) => void,
+        onCancel?: () => void
+    ): void {
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
+
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            padding: 24px;
+            min-width: 450px;
+            max-width: 550px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        `;
+
+        // Create title
+        const titleEl = document.createElement('h3');
+        titleEl.textContent = 'Collection Info Editing';
+        titleEl.style.cssText = `
+            margin: 0 0 20px 0;
+            color: white;
+            font-size: 20px;
+            font-weight: 600;
+        `;
+
+        // Create form fields
+        const formContainer = document.createElement('div');
+        formContainer.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 24px;
+        `;
+
+        // Collection Name field
+        const nameLabel = document.createElement('label');
+        nameLabel.textContent = 'Collection Name:';
+        nameLabel.style.cssText = `
+            color: #cccccc;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        `;
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = initialName;
+        nameInput.placeholder = 'Enter collection name...';
+        nameInput.style.cssText = `
+            padding: 10px 12px;
+            border: 1px solid #555555;
+            border-radius: 4px;
+            background-color: #3a3a3a;
+            color: white;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+        `;
+
+        // Description field
+        const descriptionLabel = document.createElement('label');
+        descriptionLabel.textContent = 'Description:';
+        descriptionLabel.style.cssText = `
+            color: #cccccc;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        `;
+
+        const descriptionInput = document.createElement('textarea');
+        descriptionInput.value = initialDescription;
+        descriptionInput.placeholder = 'Enter description...';
+        descriptionInput.rows = 3;
+        descriptionInput.style.cssText = `
+            padding: 10px 12px;
+            border: 1px solid #555555;
+            border-radius: 4px;
+            background-color: #3a3a3a;
+            color: white;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+            resize: vertical;
+            font-family: inherit;
+        `;
+
+        // Size field (derived, read-only)
+        const sizeLabel = document.createElement('label');
+        sizeLabel.textContent = 'Size: (Derived)';
+        sizeLabel.style.cssText = `
+            color: #cccccc;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        `;
+
+        const sizeDisplay = document.createElement('div');
+        sizeDisplay.textContent = initialSize;
+        sizeDisplay.style.cssText = `
+            padding: 10px 12px;
+            border: 1px solid #555555;
+            border-radius: 4px;
+            background-color: #1a1a1a;
+            color: #888888;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+        `;
+
+        // Status count field (derived, read-only)
+        const statusCountLabel = document.createElement('label');
+        statusCountLabel.textContent = 'Status count: (Derived)';
+        statusCountLabel.style.cssText = `
+            color: #cccccc;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        `;
+
+        const statusCountDisplay = document.createElement('div');
+        statusCountDisplay.textContent = initialStatusCount.toString();
+        statusCountDisplay.style.cssText = `
+            padding: 10px 12px;
+            border: 1px solid #555555;
+            border-radius: 4px;
+            background-color: #1a1a1a;
+            color: #888888;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+        `;
+
+        // Add fields to form container
+        const nameFieldContainer = document.createElement('div');
+        nameFieldContainer.appendChild(nameLabel);
+        nameFieldContainer.appendChild(nameInput);
+
+        const descriptionFieldContainer = document.createElement('div');
+        descriptionFieldContainer.appendChild(descriptionLabel);
+        descriptionFieldContainer.appendChild(descriptionInput);
+
+        const sizeFieldContainer = document.createElement('div');
+        sizeFieldContainer.appendChild(sizeLabel);
+        sizeFieldContainer.appendChild(sizeDisplay);
+
+        const statusCountFieldContainer = document.createElement('div');
+        statusCountFieldContainer.appendChild(statusCountLabel);
+        statusCountFieldContainer.appendChild(statusCountDisplay);
+
+        formContainer.appendChild(nameFieldContainer);
+        formContainer.appendChild(descriptionFieldContainer);
+        formContainer.appendChild(sizeFieldContainer);
+        formContainer.appendChild(statusCountFieldContainer);
+
+        // Create button container
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = `
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        `;
+
+        // Create Cancel button
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = 'Cancel';
+        cancelButton.style.cssText = `
+            padding: 10px 24px;
+            background-color: #3a3a3a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        `;
+        cancelButton.onmouseover = () => { cancelButton.style.backgroundColor = '#4a4a4a'; };
+        cancelButton.onmouseout = () => { cancelButton.style.backgroundColor = '#3a3a3a'; };
+
+        // Create Save button
+        const saveButton = document.createElement('button');
+        saveButton.textContent = 'Save';
+        saveButton.style.cssText = `
+            padding: 10px 24px;
+            background-color: #6ba3ff;
+            color: #181a1b;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        `;
+        saveButton.onmouseover = () => { saveButton.style.backgroundColor = '#5a92ee'; };
+        saveButton.onmouseout = () => { saveButton.style.backgroundColor = '#6ba3ff'; };
+
+        // Assemble dialog
+        buttonContainer.appendChild(cancelButton);
+        buttonContainer.appendChild(saveButton);
+        dialog.appendChild(titleEl);
+        dialog.appendChild(formContainer);
+        dialog.appendChild(buttonContainer);
+        overlay.appendChild(dialog);
+
+        // Close function
+        const closeDialog = () => {
+            document.body.removeChild(overlay);
+            document.removeEventListener('keydown', escapeHandler);
+        };
+
+        // Event handlers
+        const escapeHandler = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                closeDialog();
+                if (onCancel) onCancel();
+            }
+        };
+
+        cancelButton.addEventListener('click', () => {
+            closeDialog();
+            if (onCancel) onCancel();
+        });
+
+        saveButton.addEventListener('click', () => {
+            closeDialog();
+            onSave(nameInput.value, descriptionInput.value);
+        });
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeDialog();
+                if (onCancel) onCancel();
+            }
+        });
+
+        document.addEventListener('keydown', escapeHandler);
+
+        // Add to DOM
+        document.body.appendChild(overlay);
+
+        // Focus on name input
+        setTimeout(() => nameInput.focus(), 0);
+    }
+}
+
+/**
+ * Edit Status Info Dialog
+ */
+class EditStatusInfoDialog {
+    /**
+     * Show an edit status info dialog
+     * @param initialName - Initial name value
+     * @param initialDescription - Initial description value
+     * @param initialCollection - Initial collection value
+     * @param onSave - Callback when user saves (receives name, description, collection)
+     * @param onCancel - Optional callback when user cancels
+     */
+    public static show(
+        initialName: string = '',
+        initialDescription: string = '',
+        initialCollection: string = '',
+        onSave: (name: string, description: string, collection: string) => void,
+        onCancel?: () => void
+    ): void {
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
+
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            padding: 24px;
+            min-width: 450px;
+            max-width: 550px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        `;
+
+        // Create title
+        const titleEl = document.createElement('h3');
+        titleEl.textContent = 'Edit Status Info';
+        titleEl.style.cssText = `
+            margin: 0 0 20px 0;
+            color: white;
+            font-size: 20px;
+            font-weight: 600;
+        `;
+
+        // Create form fields
+        const formContainer = document.createElement('div');
+        formContainer.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 24px;
+        `;
+
+        // Name field
+        const nameLabel = document.createElement('label');
+        nameLabel.textContent = 'Name';
+        nameLabel.style.cssText = `
+            color: #cccccc;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        `;
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = initialName;
+        nameInput.placeholder = 'Enter name...';
+        nameInput.style.cssText = `
+            padding: 10px 12px;
+            border: 1px solid #555555;
+            border-radius: 4px;
+            background-color: #3a3a3a;
+            color: white;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+        `;
+
+        // Description field
+        const descriptionLabel = document.createElement('label');
+        descriptionLabel.textContent = 'Description';
+        descriptionLabel.style.cssText = `
+            color: #cccccc;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        `;
+
+        const descriptionInput = document.createElement('textarea');
+        descriptionInput.value = initialDescription;
+        descriptionInput.placeholder = 'Enter description...';
+        descriptionInput.rows = 3;
+        descriptionInput.style.cssText = `
+            padding: 10px 12px;
+            border: 1px solid #555555;
+            border-radius: 4px;
+            background-color: #3a3a3a;
+            color: white;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+            resize: vertical;
+            font-family: inherit;
+        `;
+
+        // Collection field
+        const collectionLabel = document.createElement('label');
+        collectionLabel.textContent = 'Collection';
+        collectionLabel.style.cssText = `
+            color: #cccccc;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        `;
+
+        const collectionInput = document.createElement('input');
+        collectionInput.type = 'text';
+        collectionInput.value = initialCollection;
+        collectionInput.placeholder = 'Enter collection...';
+        collectionInput.style.cssText = `
+            padding: 10px 12px;
+            border: 1px solid #555555;
+            border-radius: 4px;
+            background-color: #3a3a3a;
+            color: white;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+        `;
+
+        // Add fields to form container
+        const nameFieldContainer = document.createElement('div');
+        nameFieldContainer.appendChild(nameLabel);
+        nameFieldContainer.appendChild(nameInput);
+
+        const descriptionFieldContainer = document.createElement('div');
+        descriptionFieldContainer.appendChild(descriptionLabel);
+        descriptionFieldContainer.appendChild(descriptionInput);
+
+        const collectionFieldContainer = document.createElement('div');
+        collectionFieldContainer.appendChild(collectionLabel);
+        collectionFieldContainer.appendChild(collectionInput);
+
+        formContainer.appendChild(nameFieldContainer);
+        formContainer.appendChild(descriptionFieldContainer);
+        formContainer.appendChild(collectionFieldContainer);
+
+        // Create button container
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = `
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        `;
+
+        // Create Cancel button
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = 'Cancel';
+        cancelButton.style.cssText = `
+            padding: 10px 24px;
+            background-color: #3a3a3a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        `;
+        cancelButton.onmouseover = () => { cancelButton.style.backgroundColor = '#4a4a4a'; };
+        cancelButton.onmouseout = () => { cancelButton.style.backgroundColor = '#3a3a3a'; };
+
+        // Create Save button
+        const saveButton = document.createElement('button');
+        saveButton.textContent = 'Save';
+        saveButton.style.cssText = `
+            padding: 10px 24px;
+            background-color: #6ba3ff;
+            color: #181a1b;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        `;
+        saveButton.onmouseover = () => { saveButton.style.backgroundColor = '#5a92ee'; };
+        saveButton.onmouseout = () => { saveButton.style.backgroundColor = '#6ba3ff'; };
+
+        // Assemble dialog
+        buttonContainer.appendChild(cancelButton);
+        buttonContainer.appendChild(saveButton);
+        dialog.appendChild(titleEl);
+        dialog.appendChild(formContainer);
+        dialog.appendChild(buttonContainer);
+        overlay.appendChild(dialog);
+
+        // Close function
+        const closeDialog = () => {
+            document.body.removeChild(overlay);
+            document.removeEventListener('keydown', escapeHandler);
+        };
+
+        // Event handlers
+        const escapeHandler = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                closeDialog();
+                if (onCancel) onCancel();
+            }
+        };
+
+        cancelButton.addEventListener('click', () => {
+            closeDialog();
+            if (onCancel) onCancel();
+        });
+
+        saveButton.addEventListener('click', () => {
+            closeDialog();
+            onSave(nameInput.value, descriptionInput.value, collectionInput.value);
+        });
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeDialog();
+                if (onCancel) onCancel();
+            }
+        });
+
+        document.addEventListener('keydown', escapeHandler);
+
+        // Add to DOM
+        document.body.appendChild(overlay);
+
+        // Focus on name input
+        setTimeout(() => nameInput.focus(), 0);
+    }
+}
+
 
 export class CollectionEditor {
     private static instance: CollectionEditor;
@@ -200,6 +722,24 @@ export class CollectionEditor {
         cogButton.title = 'Collection Settings';
         cogButton.innerHTML = cogSVG;
         collectionName.appendChild(cogButton);
+
+        // Setup cog button event
+        cogButton.addEventListener('click', () => {
+            EditCollectionInfoDialog.show(
+                name,
+                description,
+                '125 KB',
+                5,
+                (name, description) => {
+                    // Handle save
+                    console.log('Saved:', name, description);
+                },
+                () => {
+                    // Handle cancel (optional)
+                    console.log('Cancelled');
+                }
+            );
+        });
         
         return collection;
     }
@@ -237,6 +777,19 @@ export class CollectionEditor {
         cogButton.title = 'Status Settings';
         cogButton.innerHTML = cogSVG;
         statusName.appendChild(cogButton);
+
+        // Setup cog button event
+        cogButton.addEventListener('click', () => {
+            EditStatusInfoDialog.show(
+                name,
+                'Initial Description', 
+                'Initial Collection',
+                (name, description, collection) => {
+                    // Handle save - called when user clicks Save
+                    console.log('Saved:', name, description, collection);
+                },
+            );
+        });
         
         // Add status to collection
         collectionStatusContainer.appendChild(status);
