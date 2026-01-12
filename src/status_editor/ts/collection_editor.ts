@@ -663,16 +663,16 @@ export class CollectionEditor {
         const statusesContainer = collectionElement.querySelector('.statuses-container') as HTMLDivElement;
         collectionJSON.statuses.forEach((statusJSON: Status) => {
             // Create status
-            const statusElement = this.initializeStatusElement(statusesContainer, statusJSON.UUID, statusJSON.name);
+            const statusElement = this.initializeStatusElement(statusesContainer, collectionJSON.UUID, statusJSON.UUID, statusJSON.name);
 
             // Create default flag
             const flagsContainer = statusElement.querySelector('.flags-container') as HTMLDivElement;
-            this.initializeFlagElement(flagsContainer, statusJSON.defaultFlag.UUID, statusJSON.defaultFlag.name, true);
+            this.initializeFlagElement(flagsContainer, collectionJSON.UUID, statusJSON.UUID, statusJSON.defaultFlag.UUID, statusJSON.defaultFlag.name, true);
 
             // Create flags
             statusJSON.flags.forEach((flagJSON: Flag) => {
                 // Create flag
-                this.initializeFlagElement(flagsContainer, flagJSON.UUID, flagJSON.name, false);
+                this.initializeFlagElement(flagsContainer, collectionJSON.UUID, statusJSON.UUID, flagJSON.UUID, flagJSON.name, false);
             });
         });
     }
@@ -681,25 +681,59 @@ export class CollectionEditor {
     /**
      * Initialize a status collection in the DOM.
      */
-    private initializeStatusCollection(UUID: string, name: string, description: string): HTMLDivElement {
+    private initializeStatusCollection(collectionUUID: string, name: string, description: string): HTMLDivElement {
         const collection = document.createElement('div');
         this.collectionsContainer.appendChild(collection);
         collection.className = 'status-collection';
-        collection.setAttribute('data-uuid', UUID);
+        collection.setAttribute('data-collection-uuid', collectionUUID);
         
         // Create collection header
         const header = document.createElement('div');
         header.className = 'collection-header';
         
+        // Create header top row (name and buttons container)
+        const headerTopRow = document.createElement('div');
+        headerTopRow.className = 'collection-header-top';
+        
         const collectionName = document.createElement('h2');
         collectionName.className = 'collection-name';
         collectionName.textContent = name;
+        
+        // Create button container for save and revert
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'collection-header-buttons';
+        
+        // Create Revert button
+        const revertButton = document.createElement('button');
+        revertButton.className = 'collection-action-btn revert-btn';
+        revertButton.textContent = 'Revert';
+        revertButton.title = 'Revert changes';
+        revertButton.onclick = () => {
+            console.log('Revert clicked for collection:', collectionUUID);
+            // Add your revert logic here
+        };
+        
+        // Create Save button
+        const saveButton = document.createElement('button');
+        saveButton.className = 'collection-action-btn save-btn';
+        saveButton.textContent = 'Save';
+        saveButton.title = 'Save collection';
+        saveButton.onclick = () => {
+            console.log('Save clicked for collection:', collectionUUID);
+            // Add your save logic here
+        };
+        
+        buttonContainer.appendChild(revertButton);
+        buttonContainer.appendChild(saveButton);
+        
+        headerTopRow.appendChild(collectionName);
+        headerTopRow.appendChild(buttonContainer);
         
         const descriptionElement = document.createElement('p');
         descriptionElement.className = 'collection-description';
         descriptionElement.textContent = description;
         
-        header.appendChild(collectionName);
+        header.appendChild(headerTopRow);
         header.appendChild(descriptionElement);
         
         // Create statuses container
@@ -747,10 +781,11 @@ export class CollectionEditor {
     /**
      * Initialize a status in the DOM.
      */
-    private initializeStatusElement(collectionStatusContainer: HTMLDivElement, UUID: string, name: string): HTMLDivElement {
+    private initializeStatusElement(collectionStatusContainer: HTMLDivElement, collectionUUID: string, statusUUID: string, name: string): HTMLDivElement {
         const status = document.createElement('div');
         status.className = 'status';
-        status.setAttribute('data-uuid', UUID);
+        status.setAttribute('data-status-uuid', statusUUID);
+        status.setAttribute('data-collection-uuid', collectionUUID);
         
         // Create status name
         const statusName = document.createElement('h3');
@@ -800,10 +835,12 @@ export class CollectionEditor {
     /**
      * Initialize a flag in the DOM.
      */
-    private initializeFlagElement(statusFlagContainer: HTMLDivElement, UUID: string, name: string, isDefault: boolean): HTMLDivElement {
+    private initializeFlagElement(statusFlagContainer: HTMLDivElement, collectionUUID: string, statusUUID: string, flagUUID: string, name: string, isDefault: boolean): HTMLDivElement {
         const flag = document.createElement('div');
         flag.className = 'flag';
-        flag.setAttribute('data-uuid', UUID);
+        flag.setAttribute('data-collection-uuid', collectionUUID);
+        flag.setAttribute('data-status-uuid', statusUUID);
+        flag.setAttribute('data-flag-uuid', flagUUID);
         flag.setAttribute('data-default-flag', isDefault ? 'true' : 'false');
         
         // Create flag name
@@ -919,14 +956,10 @@ export class CollectionEditor {
      * Display menu from flag cog button click.
      */
     private displayFlagCogMenu(flagElement: HTMLDivElement): void {
-        // Find flag UUID
-        const flagUUID = flagElement.getAttribute('data-uuid') as string;
-        // Find status UUID
-        const statusElement = flagElement.closest('.status') as HTMLDivElement;
-        const statusUUID = statusElement.getAttribute('data-uuid') as string;
-        // Find collection UUID
-        const collectionElement = flagElement.closest('.status-collection') as HTMLDivElement;
-        const collectionUUID = collectionElement.getAttribute('data-uuid') as string;
+        // Get UUIDs
+        const flagUUID = flagElement.getAttribute('data-flag-uuid') as string;
+        const statusUUID = flagElement.getAttribute('data-status-uuid') as string;
+        const collectionUUID = flagElement.getAttribute('data-collection-uuid') as string;
         // Display menu
         new Promise<void>((resolve) => {
             FlagEditor.INSTANCE.editExistingFlag(collectionUUID, statusUUID, flagUUID);

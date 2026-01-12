@@ -40,7 +40,7 @@ body {
 
 /* Status Editor Main Container */
 .status-editor-container {
-    width: 100%;
+    width: 97.5%;
     height: 100vh;
     padding: 24px;
     overflow: hidden;
@@ -92,15 +92,68 @@ body {
     border-bottom: 2px solid var(--border);
 }
 
+.collection-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
 .collection-name {
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--accent);
-    margin: 0 0 8px 0;
+    margin: 0;
     letter-spacing: 0.3px;
     display: flex;
     align-items: center;
     gap: 12px;
+}
+
+.collection-header-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.collection-action-btn {
+    padding: 8px 16px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: var(--card);
+    color: white;
+}
+
+.collection-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.save-btn {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: #181a1b;
+}
+
+.save-btn:hover {
+    background-color: #5a92ee;
+    border-color: #5a92ee;
+}
+
+.revert-btn {
+    background-color: var(--card);
+    border-color: var(--border);
+    color: #ff6b6b;
+}
+
+.revert-btn:hover {
+    background-color: #ff6b6b;
+    border-color: #ff6b6b;
+    color: white;
 }
 
 /* Settings Cog Button */
@@ -201,11 +254,13 @@ body {
     border: 2px solid var(--border);
     border-radius: 8px;
     padding: 12px;
-    width: 100%;
+    width: fit-content;
+    min-width: 280px;
+    max-width: 98.5%;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    transition: border-color 0.2s, transform 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.2s, transform 0.15s ease, box-shadow 0.15s ease, width 0.3s ease;
     position: relative;
 }
 

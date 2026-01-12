@@ -126,6 +126,11 @@ export class FlagEditor {
 
     // Active Flag Being Created/Edited
     private currentFlag: Flag | null = null;
+    private currentFlagStatusUUID: string | null = null;
+    private currentFlagCollectionUUID: string | null = null;
+
+    // Flag Changes tracker
+    private flagChanges: {collection_uuid: string, status_uuid: string, flag: Flag}[] = [];
 
     constructor() {
         // Ensure singleton
@@ -155,7 +160,7 @@ export class FlagEditor {
         this.flagCreationCancelBtnElement.addEventListener('click', () => this.closeFlagCreationPrompt());
 
         // Setup save button event
-        this.saveFlagBtnElement.addEventListener('click', () => this.saveCurrentFlag());
+        this.saveFlagBtnElement.addEventListener('click', () => this.confirmChangesToFlag());
 
         // Setup condition button events using event delegation
         this.setupConditionButtonEvents();
@@ -244,7 +249,7 @@ export class FlagEditor {
 
     private async getStatusCollectionFileData(collectionUUID: string): Promise<StatusCollection> {
         // Get the file contents from the server.
-        const response = await fetch(`/get_status_collection?uuid=${encodeURIComponent(collectionUUID)}`,
+        const response = await fetch(`/status_collection/get?uuid=${encodeURIComponent(collectionUUID)}`,
             { method: 'GET' });
 
         if (!response.ok) {
@@ -474,6 +479,10 @@ export class FlagEditor {
      * Clear all input fields in the flag creation prompt.
      */
     private resetPrompt(): void {
+        // Reset variables
+        this.currentFlagCollectionUUID = null;
+        this.currentFlagStatusUUID = null;
+
         // Reset the current flag
         this.currentFlag = null;
 
@@ -517,6 +526,15 @@ export class FlagEditor {
      * Edit existing flag
      */
     public async editExistingFlag(collectionUUID: string, statusUUID: string, flagUUID: string): Promise<void> {
+        // Set current variables
+        this.currentFlagCollectionUUID = collectionUUID;
+        this.currentFlagStatusUUID = statusUUID;
+
+        let flagToEdit: Flag;
+
+        // Check if the flag has already been locally edited.
+        // ...
+
         // Get the status collection data
         const statusCollectionData: StatusCollection = await this.getStatusCollectionFileData(collectionUUID);
 
@@ -527,7 +545,7 @@ export class FlagEditor {
         }
 
         // Find the flag
-        const flagToEdit = statusToEdit.flags.find(flag => flag.UUID === flagUUID);
+        flagToEdit = statusToEdit.flags.find(flag => flag.UUID === flagUUID) as Flag;
         if (!flagToEdit) {
             throw new Error(`Flag with UUID ${flagUUID} not found in status ${statusUUID}`);
         }
@@ -751,7 +769,6 @@ export class FlagEditor {
 
     // #endregion
 
-
     // #region Translate JSON to HTML
     private populateHTMLWithFlagJSON(flag: Flag): void {
         // Clear existing contents
@@ -906,16 +923,37 @@ export class FlagEditor {
     }
     // #endregion
 
+    // #region Tracking Changes And Confirming Changes
     /**
      * Called when saving flag being created/edited
      */
-    private saveCurrentFlag(): void {
+    private confirmChangesToFlag(): void {
         // Translate HTML inputs to Flag JSON
         const flagJSON = this.translateHTMLInputToFlagJSON();
-        console.log("Saving Flag JSON:", flagJSON);
+        
+        // Check if the flag has already been edited (is in the flagChanges array)
+        // Editing existing flag
+        const existingIndex = this.flagChanges.findIndex(
+            changedFlag => (
+                changedFlag.status_uuid === this.currentFlagStatusUUID &&
+                changedFlag.flag.UUID === this.currentFlag!.UUID &&
+                changedFlag.collection_uuid === this.currentFlagCollectionUUID
+            )
+        );
 
-        // Further processing and saving logic here
-        // ...
+        if (existingIndex !== -1) {
+            // Update existing change
+            this.flagChanges[existingIndex].flag = flagJSON;
+        }
+        else
+        {
+            // Add new change
+            this.flagChanges.push({
+                collection_uuid: this.currentFlagCollectionUUID!,
+                status_uuid: this.currentFlagStatusUUID!,
+                flag: flagJSON
+            });
+        }
 
         // Reset the prompt to be safe
         this.resetPrompt();
@@ -936,6 +974,7 @@ export class FlagEditor {
             this.saveFlagBtnElement.textContent = 'Create Flag';
         }
     }
+    // #endregion
 }
 
 new FlagEditor();
