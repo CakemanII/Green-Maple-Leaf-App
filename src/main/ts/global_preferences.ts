@@ -59,7 +59,7 @@ export class Preferences
      * Load preferences from the server.
      */
     private loadPreferencesFromServer(): void {
-        fetch('/load_config')
+        fetch('/config/load')
             .then(response => response.json())
             .then(data => {
                 this.currentPreferences = data;
@@ -74,7 +74,7 @@ export class Preferences
      * Save current preferences to the server.
      */
     private savePreferencesToServer(): void {
-        fetch('/save_config', {
+        fetch('/config/save', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

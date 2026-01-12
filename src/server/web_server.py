@@ -72,7 +72,7 @@ def serve_static(path):
 #endregion
 
 #region Preferences Data Routes
-@app.route('/save_config', methods=['POST'])
+@app.route('/config/save', methods=['POST'])
 def save_config():
     data = request.get_json(silent=True)
     if not data:
@@ -80,7 +80,7 @@ def save_config():
     success: bool = FileHandler.save_file(data, r"C:\Users\tyler\OneDrive\Desktop\Green Maple Leaf App\preferences.json")
     return ('', 200) if success else ('Error saving preferences', 500)
 
-@app.route('/load_config', methods=['GET'])
+@app.route('/config/load', methods=['GET'])
 def load_config():
     # Return current preferences data
     preferences_data = FileHandler.load_file(r"C:\Users\tyler\OneDrive\Desktop\Green Maple Leaf App\preferences.json")
@@ -89,13 +89,13 @@ def load_config():
 #endregion
 
 #region Status Collection Data Routes
-@app.route('/save_status_collection', methods=['POST'])
+@app.route('/status_collection/save', methods=['POST'])
 def save_status_collection_file():
     data: object = request.get_json(silent=True)
     success: bool = FileHandler.save_file(data, f'saves/status_collections/{data["UUID"]}.scollection')
     return ('', 200) if success else ('Error saving status collection file', 500)
 
-@app.route('/get_status_collection', methods=['GET'])
+@app.route('/status_collection/get', methods=['GET'])
 def get_status_collection_file():
     uuid: str = request.args.get('uuid', '')
     status_collection_data = FileHandler.load_file(f'saves/status_collections/{uuid}.scollection')
@@ -103,20 +103,20 @@ def get_status_collection_file():
         return (None, 404)
     return status_collection_data, 200
 
-@app.route('/get_list_status_collections', methods=['GET'])
+@app.route('/status_collection/list', methods=['GET'])
 def list_status_collection_files():
     status_collection_list = FileHandler.list_files_in_directory('saves/status_collections', '.scollection')
     return {'files': status_collection_list}, 200
 #endregion
 
 #region Geofence Data Routes
-@app.route('/save_geoedit', methods=['POST'])
+@app.route('/geofence/save', methods=['POST'])
 def save_geoedit_file():
     data: object = request.get_json(silent=True)
     success: bool = FileHandler.save_file(data, f'saves/geofence/{data["metadata"]["UUID"]}.geoedit')
     return ('', 200) if success else ('Error saving geofence file', 500)
 
-@app.route('/get_geoedit', methods=['GET'])
+@app.route('/geofence/get', methods=['GET'])
 def get_geoedit_file():
     uuid: str = request.args.get('uuid', '')
     geoedit_data = FileHandler.load_file(f'saves/geofence/{uuid}.geoedit')
@@ -124,7 +124,7 @@ def get_geoedit_file():
         return (None, 404)
     return geoedit_data, 200
 
-@app.route('/get_list_geoedits', methods=['GET'])
+@app.route('/geofence/list', methods=['GET'])
 def list_geoedit_files():
     geoedit_list = FileHandler.list_files_in_directory('saves/geofence', '.geoedit')
     return {'files': geoedit_list}, 200
