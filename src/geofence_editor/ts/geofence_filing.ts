@@ -92,7 +92,7 @@ export class GeoeditFileManager {
      * Fetches a list of available geoedit files from the server.
      */
     public async fetchAvailableGeoeditFiles(): Promise<GeofenceFileMetadata[]> {
-        const response = await fetch('/geofence/list', { method: 'GET' });
+        const response = await fetch('/geofence/list_metadatas', { method: 'GET' });
 
         // Check for successful response
         if (!response.ok) {
@@ -102,7 +102,7 @@ export class GeoeditFileManager {
         // Parse the response JSON
         const data: any = await response.json();
         // Return the list of geoedit file metadata
-        return data.files as GeofenceFileMetadata[];
+        return data.metadatas as GeofenceFileMetadata[];
     }
 
     //#endregion

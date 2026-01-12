@@ -124,10 +124,16 @@ def get_geoedit_file():
         return (None, 404)
     return geoedit_data, 200
 
-@app.route('/geofence/list', methods=['GET'])
+@app.route('/geofence/list_metadatas', methods=['GET'])
 def list_geoedit_files():
+    # Get list of all .geoedit files in saves/geofences
     geoedit_list = FileHandler.list_files_in_directory('saves/geofence', '.geoedit')
-    return {'files': geoedit_list}, 200
+
+    # Get only the metadata for each file
+    metadata_list: list[object] = []
+    for file_data in geoedit_list:
+        metadata_list.append(file_data['metadata'])
+    return {'metadatas': metadata_list}, 200
 #endregion
 
 #region Store the latest rocket data for web clients
