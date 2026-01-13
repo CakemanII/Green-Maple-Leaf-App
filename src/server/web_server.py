@@ -1,6 +1,11 @@
 from flask import Flask, send_from_directory, request, jsonify
 from flask_socketio import SocketIO, emit
 import os
+import mimetypes
+
+# Ensure .js files are served with correct MIME type
+mimetypes.add_type('application/javascript', '.js')
+mimetypes.add_type('text/javascript', '.mjs')
 
 from file_handler import FileHandler
 from radio_communication_buffer import RadioCommunicationBuffer, TimeStamped
@@ -16,6 +21,8 @@ SHARED_DIR: str = os.path.join(SRC_DIR, 'shared')
 
 app = Flask(__name__, static_folder=None)
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+radio_buffer: RadioCommunicationBuffer
 
 #region Initial File Serving Routes
 @app.route('/')
@@ -135,6 +142,34 @@ def list_geoedit_files():
         metadata_list.append(file_data['metadata'])
     return {'metadatas': metadata_list}, 200
 #endregion
+
+#region Active / Disable Rocket Communication Server Routes
+@app.route('/radio_rocket_comms_server/activate', methods=['POST'])
+def activate_radio_rocket_comms_server():
+    # Activate server if not already active
+    global radio_buffer
+    radio_buffer.start()
+    return ('', 200)
+
+@app.route('/radio_rocket_comms_server/deactivate', methods=['POST'])
+def deactivate_radio_rocket_comms_server():
+    # Deactivate server if active
+    global radio_buffer
+    radio_buffer.stop()
+    return ('', 200)
+
+@app.route('/radio_rocket_comms_server/get_status', methods=['GET'])
+def get_radio_rocket_comms_server_status():
+    # Return the status of the radio communication server
+    global radio_buffer
+    status = "active" if radio_buffer._thread.is_alive() else "inactive"
+    return {'status': status}, 200
+
+@app.route('/radio_rocket_comms_server/get_runtime', methods=['GET'])
+def get_radio_rocket_comms_runtime():
+    # Return the current internal buffer of the radio communication buffer
+    global radio_buffer
+    return {'internal_buffer': radio_buffer.get_server_runtime()}, 200
 
 #region Store the latest rocket data for web clients
 def send_rocket_data_to_webserver(label: str, data: TimeStamped[object]):

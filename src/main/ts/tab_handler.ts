@@ -15,6 +15,7 @@ export class TabHandler {
 
     private static instance: TabHandler | undefined;
     public static Instance(): TabHandler | undefined { return this.instance; }
+    public static get INSTANCE(): TabHandler | undefined { return this.instance; }
 
     constructor() {
         // Singleton pattern - prevent multiple instances
@@ -121,6 +122,43 @@ export class TabHandler {
         tabEntry.content?.classList.remove('active');
         tabEntry.content?.contentWindow?.postMessage({ type: 'close_tab_menu' }, '*');
         tabEntry.button?.classList.remove('active');
+    }
+
+    /**
+     * Disable / Enable a tab.
+     */
+    public setTabEnabled(tabKey: string, enabled: boolean): void {
+        // Ensure the tab exists
+        const tabEntry = this.tabs[tabKey];
+        if (!tabEntry) {
+            console.warn(`Tab with key '${tabKey}' does not exist.`);
+            return;
+        }
+
+        // Set the disabled state on the button
+        if (enabled) {
+            tabEntry.button?.removeAttribute('disabled');
+            tabEntry.button?.classList.remove('disabled');
+            return;
+        }
+
+        // If disabling the active tab, switch to another available tab
+        if (this.activeTabKey === tabKey) {
+            for (const otherTabKey in this.tabs) {
+                if (otherTabKey !== tabKey && !this.tabs[otherTabKey].button?.hasAttribute('disabled')) {
+                    this.activateTab(otherTabKey);
+                    break;
+                }
+            }
+        }
+        tabEntry.button?.setAttribute('disabled', 'true');
+        tabEntry.button?.classList.add('disabled');
+
+        // Close any open menus in the disabled tab
+        tabEntry.content?.contentWindow?.postMessage({ type: 'close_tab_menu' }, '*');
+
+        // Hide the disabled tab
+        tabEntry.content?.classList.remove('active');
     }
 }
 

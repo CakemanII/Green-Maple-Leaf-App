@@ -85,9 +85,9 @@ class RadioCommunicationBuffer:
         self.internal_buffer: InternalRadioDataBuffer = {} # Internal data buffer
         self.label_queue: list[str] = [] # For label queue
 
-        # Start the main loop in a separate thread
-        self._thread = threading.Thread(target=self._main, daemon=True)
-        self._thread.start()
+        # Thread will be created when start() is called
+        self._thread = None
+        self._force_shutdown = False
 
         # Initialize the RadioComsManager
         #self.radio_coms_manager = RadioComsServer(on_receive_radio_data=self._receive_data)
@@ -98,7 +98,7 @@ class RadioCommunicationBuffer:
         """
         Main Loop execution for Rocket Communication to the webserver.
         """
-        while True:
+        while not self._force_shutdown:
             time.sleep(self.INTERVAL_DELAY)
             if self._can_send():
                 # Send data from queue
@@ -109,6 +109,39 @@ class RadioCommunicationBuffer:
                             self.on_receive_data(label, data)
                     # Clear the queue
                     self.label_queue = []                    
+
+
+    def start(self):
+        """
+        Start the Radio Communication Buffer and its resources.
+        """
+        # Check if thread is already running
+        if self._thread is not None and self._thread.is_alive():
+            print("[Radio Buffer] Already running")
+            return
+        
+        # Create a new thread
+        self._force_shutdown = False
+        self._thread = threading.Thread(target=self._main, daemon=True)
+        self._thread.start()
+        self.radio_coms_manager.start_server()
+
+
+    def stop(self):
+        """
+        Stop the Radio Communication Buffer and its resources.
+        """
+        self._force_shutdown = True
+        self.radio_coms_manager.stop_server()
+        if self._thread.is_alive():
+            self._thread.join()
+
+
+    def get_server_runtime(self) -> float:
+        """
+        Returns the runtime of the radio communication server in seconds.
+        """
+        return self.radio_coms_manager.get_server_runtime()
 
 
     def _receive_data(self, data: dict):
