@@ -23,6 +23,11 @@ class RadioComsSimulationServer:
         self._register_routes()
         self.server_thread = None
 
+        self._is_active = False
+
+        # Start the server immediately
+        self._start_server()
+
 
     def _register_routes(self):
         @self.app.route("/", methods=["POST"])
@@ -50,43 +55,25 @@ class RadioComsSimulationServer:
 
             return jsonify({"status": "ok"})
 
-        @self.app.route("/shutdown", methods=["POST"])
-        def shutdown():
-            func = request.environ.get('werkzeug.server.shutdown')
-            if func is None:
-                return jsonify({"status": "error", "message": "Not running with the Werkzeug Server"}), 500
-            func()
-            return jsonify({"status": "shutting down"})
-
 
     def _start(self):
         print(f"[SERVER] Listening on http://{self.listen_host}:{self.listen_port}")
         self.app.run(host=self.listen_host, port=self.listen_port)
 
 
-    def start_server(self):
-        # Check if the thread is currently running
-        if self.server_thread is not None and self.server_thread.is_alive():
-            print("[SERVER] Server is already running.")
-            return
+    def _start_server(self):        
         # Create a new thread for each start (threads can only be started once)
         self.server_thread = threading.Thread(target=self._start, daemon=True)
         self.server_thread.start()
         self._start_time = time.time()
 
+    
+    def set_active(self):
+        self._is_active = True
 
-    def stop_server(self):
-        try:
-            # Send shutdown request to the server
-            requests.post(f"http://{self.listen_host}:{self.listen_port}/shutdown", timeout=2)
-        except:
-            pass  # Server might already be stopped
-        
-        # Wait for thread to finish
-        if self.server_thread is not None and self.server_thread.is_alive():
-            print("[SERVER] Waiting for server thread to terminate...")
-            self.server_thread.join()
-            print("[SERVER] Server thread terminated.")
+    def set_inactive(self):        
+        self._is_active = False
+
 
     def get_server_runtime(self) -> float | None:
         """

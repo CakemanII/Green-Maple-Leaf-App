@@ -8,7 +8,7 @@ mimetypes.add_type('application/javascript', '.js')
 mimetypes.add_type('text/javascript', '.mjs')
 
 from file_handler import FileHandler
-from radio_communication_buffer import RadioCommunicationBuffer, TimeStamped
+from server.radio_communication_manager import RadioCommunicationBuffer, TimeStamped
 from radio_communication_simulation_server import RadioComsSimulationServer
 
 SRC_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -144,32 +144,47 @@ def list_geoedit_files():
 #endregion
 
 #region Active / Disable Rocket Communication Server Routes
-@app.route('/radio_rocket_comms_server/activate', methods=['POST'])
+@app.route('/radio_rocket_comms_server/set_active', methods=['POST'])
 def activate_radio_rocket_comms_server():
     # Activate server if not already active
     global radio_buffer
-    radio_buffer.start()
+    radio_buffer.set_active()
     return ('', 200)
 
-@app.route('/radio_rocket_comms_server/deactivate', methods=['POST'])
+@app.route('/radio_rocket_comms_server/set_inactive', methods=['POST'])
 def deactivate_radio_rocket_comms_server():
     # Deactivate server if active
     global radio_buffer
-    radio_buffer.stop()
+    radio_buffer.set_inactive()
     return ('', 200)
 
 @app.route('/radio_rocket_comms_server/get_status', methods=['GET'])
 def get_radio_rocket_comms_server_status():
     # Return the status of the radio communication server
     global radio_buffer
-    status = "active" if radio_buffer._thread.is_alive() else "inactive"
-    return {'status': status}, 200
+    is_active = radio_buffer._thread and radio_buffer._thread.is_alive()
+    status = "active" if is_active else "inactive"
+    
+    # Get runtime if server is active
+    runtime = None
+    if is_active:
+        runtime_value = radio_buffer.get_server_runtime()
+        # Ensure runtime is a valid number, not None
+        runtime = runtime_value if runtime_value is not None else None
+    
+    # Determine detailed status
+    if is_active:
+        detailed_status = "Online"
+    else:
+        detailed_status = "Offline"
+    
+    return {
+        'op_status': status,
+        'detailed_status': detailed_status,
+        'runtime': runtime
+    }, 200
 
-@app.route('/radio_rocket_comms_server/get_runtime', methods=['GET'])
-def get_radio_rocket_comms_runtime():
-    # Return the current internal buffer of the radio communication buffer
-    global radio_buffer
-    return {'internal_buffer': radio_buffer.get_server_runtime()}, 200
+#endregion
 
 #region Store the latest rocket data for web clients
 def send_rocket_data_to_webserver(label: str, data: TimeStamped[object]):

@@ -90,7 +90,6 @@ class RadioCommunicationBuffer:
         self._force_shutdown = False
 
         # Initialize the RadioComsManager
-        #self.radio_coms_manager = RadioComsServer(on_receive_radio_data=self._receive_data)
         self.radio_coms_manager = RadioComsSimulationServer(on_receive_radio_data=self._receive_data)
 
 
@@ -111,9 +110,16 @@ class RadioCommunicationBuffer:
                     self.label_queue = []                    
 
 
-    def start(self):
+    def _start_server(self):
         """
-        Start the Radio Communication Buffer and its resources.
+        Start the Radio Communication Server.
+        """
+        
+
+
+    def set_active(self):
+        """
+        Set the Radio Communication Buffer to active.
         """
         # Check if thread is already running
         if self._thread is not None and self._thread.is_alive():
@@ -124,17 +130,19 @@ class RadioCommunicationBuffer:
         self._force_shutdown = False
         self._thread = threading.Thread(target=self._main, daemon=True)
         self._thread.start()
-        self.radio_coms_manager.start_server()
 
 
-    def stop(self):
+    def set_inactive(self):
         """
-        Stop the Radio Communication Buffer and its resources.
+        Set the Radio Communication Buffer to inactive.
         """
-        self._force_shutdown = True
-        self.radio_coms_manager.stop_server()
-        if self._thread.is_alive():
+        # Stop the buffer (manager) thread.
+        self._force_shutdown = True # Stops the thread's main loop
+        if self._thread.is_alive(): # Wait for thread to finish
             self._thread.join()
+
+        # Stop the radio communication server
+        self.radio_coms_manager.set_inactive()
 
 
     def get_server_runtime(self) -> float:

@@ -56,9 +56,10 @@ class OperationalStateHandler {
                 'Content-Type': 'application/json'
             },
         })
+        .then(response => { console.log(response); return response; })
         .then(response => response.json())
         .then(data => {
-            isRocketServerRunning = data.status === "active";
+            isRocketServerRunning = data.op_status === "active";
 
             // Set initial operational state
             this.operationalState = isRocketServerRunning ? "active" : "edit";
@@ -127,6 +128,38 @@ class OperationalStateHandler {
                 'Content-Type': 'application/json'
             },
         })
+    }
+
+    /**
+     * Update the nav bar rocket connectivity indicator.
+     */
+    public updateNavIndicator(status: "Online" | "Starting" | "Offline"): void {
+        const indicator = this.rocketConnectivityIndicator;
+        if (!indicator) return;
+
+        const indicatorText = indicator.querySelector('.indicator-text');
+        if (!indicatorText) return;
+
+        // Remove all status classes
+        indicator.classList.remove('online', 'starting', 'offline');
+
+        // Add the appropriate class and update text
+        if (status === "Online") {
+            indicator.classList.add('online');
+            indicatorText.textContent = 'Online';
+            indicator.title = 'Rocket Status: Online';
+            document.title = 'Green Maple Leaf App - Online';
+        } else if (status === "Starting") {
+            indicator.classList.add('starting');
+            indicatorText.textContent = 'Starting';
+            indicator.title = 'Rocket Status: Starting';
+            document.title = 'Green Maple Leaf App - Starting';
+        } else {
+            indicator.classList.add('offline');
+            indicatorText.textContent = 'Offline';
+            indicator.title = 'Rocket Status: Offline';
+            document.title = 'Green Maple Leaf App - Offline';
+        }
     }
 }
 
@@ -353,6 +386,34 @@ class OperationalStatePrompt {
 
     public show(): void {
         this.overlay.style.display = 'flex';
+        this.fetchAndUpdateServerStatus();
+    }
+
+    /**
+     * Fetch server status from the server and update the UI.
+     */
+    private fetchAndUpdateServerStatus(): void {
+        fetch('/radio_rocket_comms_server/get_status', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Update server status
+            const detailedStatus = data.detailed_status || "Offline";
+            this.updateServerStatus(detailedStatus);
+            
+            // Update runtime
+            const runtime = data.runtime;
+            this.updateRuntime(runtime);
+        })
+        .catch(error => {
+            console.error('Error fetching server status:', error);
+            this.updateServerStatus("Offline");
+            this.updateRuntime(null);
+        });
     }
 
     public hide(): void {
@@ -391,6 +452,9 @@ class OperationalStatePrompt {
         } else {
             this.statusValue.style.color = '#888888';
         }
+        
+        // Update the nav indicator as well
+        OperationalStateHandler.INSTANCE?.updateNavIndicator(status);
     }
 
     /**
