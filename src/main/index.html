@@ -141,18 +141,31 @@
             color: #4ade80;
         }
         
-        .connectivity-indicator.starting .indicator-dot {
+        .connectivity-indicator.poor-connection .indicator-dot {
             background-color: #fbbf24;
             box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
             animation: pulse 1.5s ease-in-out infinite;
         }
         
-        .connectivity-indicator.starting {
+        .connectivity-indicator.poor-connection {
             border-color: #fbbf24;
         }
         
-        .connectivity-indicator.starting .indicator-text {
+        .connectivity-indicator.poor-connection .indicator-text {
             color: #fbbf24;
+        }
+        
+        .connectivity-indicator.no-connection .indicator-dot {
+            background-color: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+        }
+        
+        .connectivity-indicator.no-connection {
+            border-color: #ef4444;
+        }
+        
+        .connectivity-indicator.no-connection .indicator-text {
+            color: #ef4444;
         }
         
         .connectivity-indicator.offline .indicator-dot {
@@ -245,9 +258,9 @@
             <button id="settings_tab_button" class="nav-tab">Settings</button>
         </div>
         <div class="nav-right-section">
-            <div id="rocket-connectivity-indicator" class="connectivity-indicator online" title="Rocket Status: Online">
+            <div id="rocket-connectivity-indicator" class="connectivity-indicator offline" title="Rocket Status: Loading">
                 <div class="indicator-dot"></div>
-                <span class="indicator-text">Online</span>
+                <span class="indicator-text">Loading</span>
             </div>
             <button id="nav-toggle-btn" class="nav-toggle-btn" title="Toggle state">
                 <span class="toggle-label">Loading</span>
@@ -280,219 +293,5 @@
     <script type="module" src="./compiled_js/application_operational_state.js"></script>
 
     <script type="module" src="./compiled_js/global_statuses.js"></script>
-
-    <script>
-        // Rocket Operation Dialog
-        function showRocketOperationDialog() {
-            // Create overlay
-            const overlay = document.createElement('div');
-            overlay.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(0, 0, 0, 0.7);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 10000;
-            `;
-
-            // Create dialog
-            const dialog = document.createElement('div');
-            dialog.style.cssText = `
-                background-color: #2a2a2a;
-                border-radius: 8px;
-                padding: 24px;
-                min-width: 450px;
-                max-width: 550px;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-            `;
-
-            // Create title
-            const titleEl = document.createElement('h3');
-            titleEl.textContent = 'Rocket operation';
-            titleEl.style.cssText = `
-                margin: 0 0 20px 0;
-                color: white;
-                font-size: 20px;
-                font-weight: 600;
-            `;
-
-            // Create content container
-            const contentContainer = document.createElement('div');
-            contentContainer.style.cssText = `
-                display: flex;
-                flex-direction: column;
-                gap: 16px;
-                margin-bottom: 24px;
-            `;
-
-            // Activate button container
-            const activateBtnContainer = document.createElement('div');
-            activateBtnContainer.style.cssText = `
-                display: flex;
-                justify-content: center;
-                padding-bottom: 8px;
-            `;
-
-            const activateBtn = document.createElement('button');
-            activateBtn.textContent = 'Activate';
-            activateBtn.style.cssText = `
-                padding: 10px 24px;
-                background-color: #6ba3ff;
-                color: #181a1b;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 14px;
-                font-weight: 500;
-            `;
-            activateBtn.onmouseover = () => { activateBtn.style.backgroundColor = '#5a92ee'; };
-            activateBtn.onmouseout = () => { activateBtn.style.backgroundColor = '#6ba3ff'; };
-            
-            activateBtnContainer.appendChild(activateBtn);
-
-            // Runtime label
-            const runtimeLabel = document.createElement('div');
-            runtimeLabel.textContent = 'Shows runtime when running, N/A otherwise';
-            runtimeLabel.style.cssText = `
-                color: #888888;
-                font-size: 12px;
-                font-style: italic;
-                text-align: center;
-                margin-bottom: 8px;
-            `;
-
-            // Server Runtime
-            const runtimeContainer = document.createElement('div');
-
-            const runtimeLabelText = document.createElement('label');
-            runtimeLabelText.textContent = 'Server Runtime:';
-            runtimeLabelText.style.cssText = `
-                color: #cccccc;
-                font-size: 14px;
-                font-weight: 500;
-                margin-bottom: 4px;
-                display: block;
-            `;
-
-            const runtimeValue = document.createElement('div');
-            runtimeValue.textContent = '0:00:00:000';
-            runtimeValue.style.cssText = `
-                padding: 10px 12px;
-                background-color: #1a1a1a;
-                color: #6ba3ff;
-                border: 1px solid #555555;
-                border-radius: 4px;
-                font-size: 14px;
-                font-family: monospace;
-                font-weight: 600;
-                text-align: center;
-            `;
-
-            runtimeContainer.appendChild(runtimeLabelText);
-            runtimeContainer.appendChild(runtimeValue);
-
-            // Server Status
-            const statusContainer = document.createElement('div');
-
-            const statusLabelText = document.createElement('label');
-            statusLabelText.textContent = 'Server Status:';
-            statusLabelText.style.cssText = `
-                color: #cccccc;
-                font-size: 14px;
-                font-weight: 500;
-                margin-bottom: 4px;
-                display: block;
-            `;
-
-            const statusValue = document.createElement('div');
-            statusValue.textContent = 'Online';
-            statusValue.style.cssText = `
-                padding: 10px 12px;
-                background-color: #1a1a1a;
-                color: #4ade80;
-                border: 1px solid #555555;
-                border-radius: 4px;
-                font-size: 14px;
-                font-weight: 600;
-                text-align: center;
-            `;
-
-            const statusOptions = document.createElement('div');
-            statusOptions.textContent = 'Status: Online | Starting | Offline';
-            statusOptions.style.cssText = `
-                color: #888888;
-                font-size: 12px;
-                font-style: italic;
-                text-align: center;
-                margin-top: 4px;
-            `;
-
-            statusContainer.appendChild(statusLabelText);
-            statusContainer.appendChild(statusValue);
-            statusContainer.appendChild(statusOptions);
-
-            // Assemble content
-            contentContainer.appendChild(activateBtnContainer);
-            contentContainer.appendChild(runtimeLabel);
-            contentContainer.appendChild(runtimeContainer);
-            contentContainer.appendChild(statusContainer);
-
-            // Close button
-            const closeBtn = document.createElement('button');
-            closeBtn.textContent = 'Close';
-            closeBtn.style.cssText = `
-                padding: 10px 24px;
-                background-color: #3a3a3a;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 14px;
-                font-weight: 500;
-                width: 100%;
-            `;
-            closeBtn.onmouseover = () => { closeBtn.style.backgroundColor = '#4a4a4a'; };
-            closeBtn.onmouseout = () => { closeBtn.style.backgroundColor = '#3a3a3a'; };
-
-            // Assemble dialog
-            dialog.appendChild(titleEl);
-            dialog.appendChild(contentContainer);
-            dialog.appendChild(closeBtn);
-            overlay.appendChild(dialog);
-
-            // Close function
-            const closeDialog = () => {
-                document.body.removeChild(overlay);
-                document.removeEventListener('keydown', escapeHandler);
-            };
-
-            // Event handlers
-            const escapeHandler = (e) => {
-                if (e.key === 'Escape') {
-                    closeDialog();
-                }
-            };
-
-            activateBtn.addEventListener('click', () => {
-                console.log('Activate clicked');
-                // Add your activation logic here
-            });
-
-            closeBtn.addEventListener('click', closeDialog);
-            overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) {
-                    closeDialog();
-                }
-            });
-            document.addEventListener('keydown', escapeHandler);
-
-            // Add to DOM
-            document.body.appendChild(overlay);
-        }
-    </script>
 </body>
 </html>

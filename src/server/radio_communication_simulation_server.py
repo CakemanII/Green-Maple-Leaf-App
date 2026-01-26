@@ -25,6 +25,8 @@ class RadioComsSimulationServer:
 
         self._is_active = False
 
+        self._last_packet_timestamp: float | None = None
+
         # Start the server immediately
         self._start_server()
 
@@ -32,6 +34,9 @@ class RadioComsSimulationServer:
     def _register_routes(self):
         @self.app.route("/", methods=["POST"])
         def receive_telemetry():
+            # Record the time of the last packet received
+            self._last_packet_timestamp = time.time()
+
             # Make sure we have a handler
             if not self._on_receive_radio_data:
                 return jsonify({"status": "no handler"}), 500
@@ -80,3 +85,10 @@ class RadioComsSimulationServer:
         Returns the runtime of the radio communication server in seconds.
         """
         return time.time() - self._start_time if self._start_time else None
+    
+    def get_time_since_last_packet(self) -> float | None:
+        """
+        Returns the timestamp of the last incoming packet received by the server.
+        """
+        # Return the time since the last packet was received
+        return time.time() - self._last_packet_timestamp if self._last_packet_timestamp else None

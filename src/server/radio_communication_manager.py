@@ -68,7 +68,6 @@ class RadioCommunicationBuffer:
     Communication for rocket data transmission and reception.
     This class will handle sending data to the rocket and receiving data from it, as well as sending that data to the web server.
     """
-
     INTERVAL_DELAY: float = 0.029 # Minimum interval between processing
     
     def __init__(
@@ -89,8 +88,8 @@ class RadioCommunicationBuffer:
         self._thread = None
         self._force_shutdown = False
 
-        # Initialize the RadioComsManager
-        self.radio_coms_manager = RadioComsSimulationServer(on_receive_radio_data=self._receive_data)
+        # Initialize the RadioComsServer
+        self.radio_coms_server = RadioComsSimulationServer(on_receive_radio_data=self._receive_data)
 
 
     def _main(self):
@@ -115,7 +114,6 @@ class RadioCommunicationBuffer:
         Start the Radio Communication Server.
         """
         
-
 
     def set_active(self):
         """
@@ -142,14 +140,14 @@ class RadioCommunicationBuffer:
             self._thread.join()
 
         # Stop the radio communication server
-        self.radio_coms_manager.set_inactive()
+        self.radio_coms_server.set_inactive()
 
 
     def get_server_runtime(self) -> float:
         """
         Returns the runtime of the radio communication server in seconds.
         """
-        return self.radio_coms_manager.get_server_runtime()
+        return self.radio_coms_server.get_server_runtime()
 
 
     def _receive_data(self, data: dict):
@@ -199,3 +197,18 @@ class RadioCommunicationBuffer:
 
     def send_command(self, command: dict):
         pass
+
+    
+    def is_connected_to_rocket(self) -> str:
+        """
+        Returns whether the radio communication server is connected to the rocket.
+        """
+        time_since_last_packet: float | None = self.radio_coms_server.get_time_since_last_packet()
+        if time_since_last_packet is None:
+            return "disconnected"
+        elif time_since_last_packet > 5.0:
+            return "disconnected"
+        elif time_since_last_packet > 0.5:
+            return "attempting"
+        else:
+            return "connected"

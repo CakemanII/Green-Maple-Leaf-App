@@ -12,7 +12,10 @@ class OperationalStateHandler {
 
     private operationalStatePrompt: OperationalStatePrompt;
 
+    private previousOperationalState!: OperationalState;
     private operationalState!: OperationalState;
+
+    private previousRocketConnectionStatus: 'connected' | 'disconnected' | 'attempting' | 'offline' | null = null;
 
     private readonly DEBUGGING_MODE: boolean = false;
 
@@ -27,67 +30,97 @@ class OperationalStateHandler {
         this.stateToggleButton = document.getElementById('nav-toggle-btn') as HTMLButtonElement;
         this.rocketConnectivityIndicator = document.getElementById('rocket-connectivity-indicator') as HTMLDivElement;
         
-        // Initialize operational state
-        this.initializeOperationalState();
+        // Initialize operational state updating & rocket connectivity indicator updating
+        this.setupOperationalStateUpdating();
+        this.setupRocketConnectivityIndicatorUpdating();
 
         // Initialize prompt
         this.operationalStatePrompt = new OperationalStatePrompt(
             () => this.toggleOperationalState()
         );
-        this.operationalStatePrompt.updateRuntime(null);
-        this.operationalStatePrompt.updateServerStatus("Offline");
 
         // Initialize button listener
         this.stateToggleButton.addEventListener('click', () => {
+            this.operationalStatePrompt.updatePromptText(this.operationalState);
             this.operationalStatePrompt.show();
         });
     }
     
     /**
-     * Initialize the operational state of the application.
+     * Initialize operational state updating of the application.
      */
-    private initializeOperationalState(): void {
-        // Check if the rocket server is currently running
-        // Fetch from the webserver
-        let isRocketServerRunning: boolean = false;
-        fetch('/radio_rocket_comms_server/get_status', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-        })
-        .then(response => { console.log(response); return response; })
-        .then(response => response.json())
-        .then(data => {
-            isRocketServerRunning = data.op_status === "active";
+    private setupOperationalStateUpdating(): void {
+        setInterval(() => {
+            // Check if the rocket server is currently running
+            // Fetch from the webserver
+            let isRocketServerRunning: boolean = false;
+            fetch('/radio_rocket_comms_server/get_operational_status', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                isRocketServerRunning = data.is_operational;
 
-            // Set initial operational state
-            this.operationalState = isRocketServerRunning ? "active" : "edit";
+                // Set initial operational state
+                this.operationalState = isRocketServerRunning ? "active" : "edit";
 
-            // Update UI based on initial state
-            this.updateOperationalStateUI();
-            this.updateActiveInactiveTabs();
-            this.operationalStatePrompt.updateButtonText(isRocketServerRunning);
-        })
-        .catch(error => {
-            console.error('Error fetching rocket server status:', error);
-        });
+                // Update UI if state has changed
+                if (this.previousOperationalState !== this.operationalState) {
+                    this.updateOperationalStateButton();
+                    this.updateActiveInactiveTabs();
+                }
+
+                // Set the previous operational state to current one
+                this.previousOperationalState = this.operationalState;
+            })
+            .catch(error => {
+                console.error('Error fetching rocket server status:', error);
+            });
+        }, 200);
+    }
+
+    /**
+     * Initialize rocket connectivity indicator updating.
+     */
+    private setupRocketConnectivityIndicatorUpdating(): void {
+        setInterval(() => {
+            // Fetch rocket connectivity status from the webserver
+            fetch('/radio_rocket_comms_server/get_rocket_connectivity_status', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            })
+            .then(response => {console.log(response); return response;})
+            .then(response => response.json())
+            .then(data => {
+                this.updateNavIndicator(data.rocket_connection_status);
+            })
+            .catch(error => {
+                console.error('Error fetching rocket connectivity status:', error);
+            });
+        }, 200);
     }
 
     /**
      * Update the operational state UI elements.
      */
-    private updateOperationalStateUI(): void {
+    private updateOperationalStateButton(): void {
         if (this.operationalState === "active") {
             // Update UI for active state
             this.stateToggleButton.textContent = "Operational";
             this.stateToggleButton.classList.add('active');
+            // Update indicator to show operational mode status (will check server connection)
         }
         else
         {
             // Update UI for edit state
             this.stateToggleButton.textContent = "Edit Mode";
             this.stateToggleButton.classList.remove('active');
+            // Update indicator to show edit mode message
         }
     }
 
@@ -104,15 +137,19 @@ class OperationalStateHandler {
     }
 
     private toggleOperationalState(): void {
+        // Toggle the operational state
         if (this.operationalState === "active")
-            this.stopRocketServer();
+            this.deactivateRocketServer();
         else
-            this.startRocketServer();
+            this.activateRocketServer();
+
+        // Close the prompt
+        this.operationalStatePrompt.hide();
     }
 
-    private startRocketServer(): void {
+    private activateRocketServer(): void {
         // Send request to start the web server
-        fetch('/radio_rocket_comms_server/activate', {
+        fetch('/radio_rocket_comms_server/set_active', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -120,9 +157,9 @@ class OperationalStateHandler {
         })
     }
 
-    private stopRocketServer(): void {
+    private deactivateRocketServer(): void {
         // Send request to stop the web server
-        fetch('/radio_rocket_comms_server/deactivate', {
+        fetch('/radio_rocket_comms_server/set_inactive', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -133,41 +170,57 @@ class OperationalStateHandler {
     /**
      * Update the nav bar rocket connectivity indicator.
      */
-    public updateNavIndicator(status: "Online" | "Starting" | "Offline"): void {
+    public updateNavIndicator(connectionStatus: 'connected' | 'disconnected' | 'attempting'): void {
         const indicator = this.rocketConnectivityIndicator;
         if (!indicator) return;
 
         const indicatorText = indicator.querySelector('.indicator-text');
         if (!indicatorText) return;
 
-        // Remove all status classes
-        indicator.classList.remove('online', 'starting', 'offline');
-
-        // Add the appropriate class and update text
-        if (status === "Online") {
-            indicator.classList.add('online');
-            indicatorText.textContent = 'Online';
-            indicator.title = 'Rocket Status: Online';
-            document.title = 'Green Maple Leaf App - Online';
-        } else if (status === "Starting") {
-            indicator.classList.add('starting');
-            indicatorText.textContent = 'Starting';
-            indicator.title = 'Rocket Status: Starting';
-            document.title = 'Green Maple Leaf App - Starting';
-        } else {
-            indicator.classList.add('offline');
-            indicatorText.textContent = 'Offline';
-            indicator.title = 'Rocket Status: Offline';
-            document.title = 'Green Maple Leaf App - Offline';
+        // Check if we're in Edit Mode
+        if (this.operationalState === "edit") {
+            if (this.previousRocketConnectionStatus !== 'offline') {
+                // Remove all status classes
+                indicator.classList.remove('online', 'offline', 'poor-connection', 'no-connection');
+                indicator.classList.add('offline');
+                indicatorText.textContent = 'Not Connected (Editing)';
+                indicator.title = 'Not Connected (Editing)';
+                this.previousRocketConnectionStatus = 'offline';
+            }
+            return;
         }
+
+        // Operational Mode - show actual connection status
+        if (this.previousRocketConnectionStatus === connectionStatus) return; // No Change
+
+        // Remove all status classes
+        indicator.classList.remove('online', 'offline', 'poor-connection', 'no-connection');
+
+        // Update previous status
+        if (connectionStatus === "connected") {
+            indicator.classList.add('online');
+            indicatorText.textContent = 'Connected to Rocket';
+            indicator.title = 'Connected to Rocket';
+        } else if (connectionStatus === "attempting") {
+            indicator.classList.add('poor-connection');
+            indicatorText.textContent = 'Poor Connection';
+            indicator.title = 'Poor Connection';
+        } else {
+            indicator.classList.add('no-connection');
+            console.log("Setting rocket connectivity indicator to no connection.");
+            indicatorText.textContent = 'No Connection';
+            indicator.title = 'No Connection';
+        }
+        // Update previous status
+        this.previousRocketConnectionStatus = connectionStatus;
     }
 }
 
 class OperationalStatePrompt {
     private overlay!: HTMLDivElement;
-    private runtimeValue!: HTMLDivElement;
-    private statusValue!: HTMLDivElement;
     private activateBtn!: HTMLButtonElement;
+    private titleEl!: HTMLHeadingElement;
+    private descriptionEl!: HTMLDivElement;
 
     constructor(button_click_callback: () => void) {
         this.initializeDOM(button_click_callback);
@@ -201,14 +254,24 @@ class OperationalStatePrompt {
         `;
 
         // Create title
-        const titleEl = document.createElement('h3');
-        titleEl.textContent = 'Rocket Operation';
-        titleEl.style.cssText = `
-            margin: 0 0 20px 0;
+        this.titleEl = document.createElement('h3');
+        this.titleEl.textContent = 'Rocket Operation';
+        this.titleEl.style.cssText = `
+            margin: 0 0 12px 0;
             color: white;
             font-size: 20px;
             font-weight: 600;
             text-align: center;
+        `;
+
+        // Create description
+        this.descriptionEl = document.createElement('div');
+        this.descriptionEl.textContent = 'Do you want to switch modes?';
+        this.descriptionEl.style.cssText = `
+            color: #cccccc;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 20px;
         `;
 
         // Create content container
@@ -245,92 +308,19 @@ class OperationalStatePrompt {
         
         activateBtnContainer.appendChild(this.activateBtn);
 
-        // Runtime label
-        const runtimeLabel = document.createElement('div');
-        runtimeLabel.textContent = 'Shows runtime when running, N/A otherwise';
-        runtimeLabel.style.cssText = `
-            color: #888888;
-            font-size: 12px;
-            font-style: italic;
+        // Warning label
+        const warningLabel = document.createElement('div');
+        warningLabel.textContent = 'This may interrupt current rocket communications.';
+        warningLabel.style.cssText = `
+            color: #ff0000;
+            font-size: 15px;
             text-align: center;
             margin-bottom: 8px;
         `;
 
-        // Server Runtime
-        const runtimeContainer = document.createElement('div');
-
-        const runtimeLabelText = document.createElement('label');
-        runtimeLabelText.textContent = 'Server Runtime:';
-        runtimeLabelText.style.cssText = `
-            color: #cccccc;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 4px;
-            display: block;
-        `;
-
-        this.runtimeValue = document.createElement('div');
-        this.runtimeValue.textContent = '0:00:00:000';
-        this.runtimeValue.style.cssText = `
-            padding: 10px 12px;
-            background-color: #1a1a1a;
-            color: #6ba3ff;
-            border: 1px solid #555555;
-            border-radius: 4px;
-            font-size: 14px;
-            font-family: monospace;
-            font-weight: 600;
-            text-align: center;
-        `;
-
-        runtimeContainer.appendChild(runtimeLabelText);
-        runtimeContainer.appendChild(this.runtimeValue);
-
-        // Server Status
-        const statusContainer = document.createElement('div');
-
-        const statusLabelText = document.createElement('label');
-        statusLabelText.textContent = 'Server Status:';
-        statusLabelText.style.cssText = `
-            color: #cccccc;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 4px;
-            display: block;
-        `;
-
-        this.statusValue = document.createElement('div');
-        this.statusValue.textContent = 'Online';
-        this.statusValue.style.cssText = `
-            padding: 10px 12px;
-            background-color: #1a1a1a;
-            color: #4ade80;
-            border: 1px solid #555555;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: 600;
-            text-align: center;
-        `;
-
-        const statusOptions = document.createElement('div');
-        statusOptions.textContent = 'Status: Online | Starting | Offline';
-        statusOptions.style.cssText = `
-            color: #888888;
-            font-size: 12px;
-            font-style: italic;
-            text-align: center;
-            margin-top: 4px;
-        `;
-
-        statusContainer.appendChild(statusLabelText);
-        statusContainer.appendChild(this.statusValue);
-        statusContainer.appendChild(statusOptions);
-
         // Assemble content
         contentContainer.appendChild(activateBtnContainer);
-        contentContainer.appendChild(runtimeLabel);
-        contentContainer.appendChild(runtimeContainer);
-        contentContainer.appendChild(statusContainer);
+        contentContainer.appendChild(warningLabel);
 
         // Close button
         const closeBtn = document.createElement('button');
@@ -350,7 +340,8 @@ class OperationalStatePrompt {
         closeBtn.onmouseout = () => { closeBtn.style.backgroundColor = '#3a3a3a'; };
 
         // Assemble dialog
-        dialog.appendChild(titleEl);
+        dialog.appendChild(this.titleEl);
+        dialog.appendChild(this.descriptionEl);
         dialog.appendChild(contentContainer);
         dialog.appendChild(closeBtn);
         this.overlay.appendChild(dialog);
@@ -386,34 +377,6 @@ class OperationalStatePrompt {
 
     public show(): void {
         this.overlay.style.display = 'flex';
-        this.fetchAndUpdateServerStatus();
-    }
-
-    /**
-     * Fetch server status from the server and update the UI.
-     */
-    private fetchAndUpdateServerStatus(): void {
-        fetch('/radio_rocket_comms_server/get_status', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Update server status
-            const detailedStatus = data.detailed_status || "Offline";
-            this.updateServerStatus(detailedStatus);
-            
-            // Update runtime
-            const runtime = data.runtime;
-            this.updateRuntime(runtime);
-        })
-        .catch(error => {
-            console.error('Error fetching server status:', error);
-            this.updateServerStatus("Offline");
-            this.updateRuntime(null);
-        });
     }
 
     public hide(): void {
@@ -421,47 +384,18 @@ class OperationalStatePrompt {
     }
 
     /**
-     * Update the runtime display.
+     * Update the prompt text based on current operational state.
      */
-    public updateRuntime(runtimeSeconds: number | null): void {
-        if (runtimeSeconds === null) {
-            this.runtimeValue.textContent = "N/A";
-            return;
-        }
-        // Convert seconds to HH:MM:SS:MS format
-        const hours = Math.floor(runtimeSeconds / 3600);
-        const minutes = Math.floor((runtimeSeconds % 3600) / 60);
-        const seconds = Math.floor(runtimeSeconds % 60);
-
-        // Format the runtime string
-        const runtimeStr = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        this.runtimeValue.textContent = runtimeStr;
-    }
-
-    /**
-     * Update the server status display.
-     */
-    public updateServerStatus(status: "Online" | "Starting" | "Offline"): void {
-        this.statusValue.textContent = status;
-        
-        // Update color based on status
-        if (status === "Online") {
-            this.statusValue.style.color = '#4ade80';
-        } else if (status === "Starting") {
-            this.statusValue.style.color = '#fbbf24';
+    public updatePromptText(currentState: OperationalState): void {
+        if (currentState === "active") {
+            this.titleEl.textContent = 'Switch to Edit Mode?';
+            this.descriptionEl.textContent = 'This will stop the rocket connection and allow you to edit configurations.';
+            this.activateBtn.textContent = 'Switch to Edit Mode';
         } else {
-            this.statusValue.style.color = '#888888';
+            this.titleEl.textContent = 'Switch to Operational Mode?';
+            this.descriptionEl.textContent = 'This will connect to the rocket and start live operations.';
+            this.activateBtn.textContent = 'Switch to Operational Mode';
         }
-        
-        // Update the nav indicator as well
-        OperationalStateHandler.INSTANCE?.updateNavIndicator(status);
-    }
-
-    /**
-     * Update the button text.
-     */
-    public updateButtonText(currentlyActive: boolean): void {
-        this.activateBtn.textContent = currentlyActive ? "Deactivate" : "Activate";
     }
 }
 
