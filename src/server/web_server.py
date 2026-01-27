@@ -2,6 +2,7 @@ from flask import Flask, send_from_directory, request, jsonify
 from flask_socketio import SocketIO, emit
 import os
 import mimetypes
+import logging
 
 # Ensure .js files are served with correct MIME type
 mimetypes.add_type('application/javascript', '.js')
@@ -10,6 +11,20 @@ mimetypes.add_type('text/javascript', '.mjs')
 from file_handler import FileHandler
 from radio_communication_manager import RadioCommunicationBuffer, TimeStamped
 from radio_communication_simulation_server import RadioComsSimulationServer
+
+# Configure logging to suppress specific routes
+class RouteFilter(logging.Filter):
+    def filter(self, record):
+        # Suppress logs for polling endpoints
+        if 'get_rocket_connectivity_status' in record.getMessage():
+            return False
+        if 'get_operational_status' in record.getMessage():
+            return False
+        return True
+
+# Apply the filter to werkzeug logger
+log = logging.getLogger('werkzeug')
+log.addFilter(RouteFilter())
 
 SRC_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MAIN_DIR: str = os.path.join(SRC_DIR, 'main')
