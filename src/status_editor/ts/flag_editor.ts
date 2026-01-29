@@ -545,7 +545,12 @@ export class FlagEditor {
         }
 
         // Find the flag
-        flagToEdit = statusToEdit.flags.find(flag => flag.UUID === flagUUID) as Flag;
+        // Check if it's the default flag
+        if (statusToEdit.defaultFlag && statusToEdit.defaultFlag.UUID === flagUUID)
+            flagToEdit = statusToEdit.defaultFlag;
+        else
+            flagToEdit = statusToEdit.flags.find(flag => flag.UUID === flagUUID) as Flag;
+        
         if (!flagToEdit) {
             throw new Error(`Flag with UUID ${flagUUID} not found in status ${statusUUID}`);
         }

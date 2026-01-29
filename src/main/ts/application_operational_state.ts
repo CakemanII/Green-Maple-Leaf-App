@@ -94,7 +94,6 @@ class OperationalStateHandler {
                     'Content-Type': 'application/json'
                 },
             })
-            .then(response => {console.log(response); return response;})
             .then(response => response.json())
             .then(data => {
                 this.updateNavIndicator(data.rocket_connection_status);
