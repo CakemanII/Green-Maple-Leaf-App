@@ -42,6 +42,21 @@ export type StatusCondition = {
     flagUUID: string;   // UUID of the flag to check
 }
 
+// Status Collection Save Simplicity Tytpes
+export type SimpleStatusCollection = {
+    UUID: string;
+    name: string;
+    description: string;
+    statusesUUIDs: string[];
+}
+
+export type SimpleStatus = {
+    UUID: string;
+    name: string;
+    defaultFlagUUID: string;
+    flagUUIDs: string[]; // Only store the UUIDs of the flags
+}
+
 // 3D Vector type
 export type Vector3D = {
     x: number;

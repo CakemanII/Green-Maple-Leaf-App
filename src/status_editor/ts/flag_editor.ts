@@ -1,7 +1,8 @@
 // Imports
 import { GeneralUtilities } from '../../shared/compiled_js/utilities.js';
 import { Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition, StatusCollection } from '../../shared/compiled_js/types.js';
-
+import { CollectionEditor } from './collection_saving.js';
+import { CollectionEditorUI } from './collection_editor.js';
 
 const ExampleStatus3: Status = {
     UUID: "statustemptemp2",
@@ -91,11 +92,9 @@ const ExampleStatus3: Status = {
     ]
 };
 
-
-
-export class FlagEditor {
-    private static instance: FlagEditor
-    public static get INSTANCE(): FlagEditor { return FlagEditor.instance; }
+export class FlagEditorUI {
+    private static instance: FlagEditorUI
+    public static get INSTANCE(): FlagEditorUI { return FlagEditorUI.instance; }
 
     // Conditional Row Telemetry Input Dictionary
     private static readonly TELEMETRY_OPTIONS_DICTIONARY: { [key: string]: string } = {
@@ -119,7 +118,7 @@ export class FlagEditor {
     private flagImageInputElement!: HTMLInputElement;
     private flagAudioInputElement!: HTMLInputElement;
 
-    private saveFlagBtnElement!: HTMLButtonElement;
+    private confirmFlagBtnElement!: HTMLButtonElement;
 
     private flagPreviewElement!: HTMLImageElement;
     private flagConditionsContainerElement!: HTMLDivElement;
@@ -129,15 +128,12 @@ export class FlagEditor {
     private currentFlagStatusUUID: string | null = null;
     private currentFlagCollectionUUID: string | null = null;
 
-    // Flag Changes tracker
-    private flagChanges: {collection_uuid: string, status_uuid: string, flag: Flag}[] = [];
-
     constructor() {
         // Ensure singleton
-        if (FlagEditor.instance) {
+        if (FlagEditorUI.instance) {
             throw new Error("Use FlagEditor.INSTANCE to access the singleton instance.");
         }
-        FlagEditor.instance = this;
+        FlagEditorUI.instance = this;
 
         // Get UI elements
         this.flagCreationPromptElement = document.getElementById('flag-creation-prompt') as HTMLDivElement;
@@ -150,7 +146,7 @@ export class FlagEditor {
         this.flagImageInputElement = this.flagCreationPromptElement.querySelector('#flag-image-input') as HTMLInputElement;
         this.flagAudioInputElement = this.flagCreationPromptElement.querySelector('#flag-audio-input') as HTMLInputElement;
 
-        this.saveFlagBtnElement = this.flagCreationPromptElement.querySelector('#save-flag-btn') as HTMLButtonElement;
+        this.confirmFlagBtnElement = this.flagCreationPromptElement.querySelector('#save-flag-btn') as HTMLButtonElement;
 
         this.flagPreviewElement = this.flagCreationPromptElement.querySelector('#flag-image-preview') as HTMLImageElement;
         this.flagConditionsContainerElement = this.flagCreationPromptElement.querySelector('#flag-conditions-container') as HTMLDivElement;
@@ -160,16 +156,13 @@ export class FlagEditor {
         this.flagCreationCancelBtnElement.addEventListener('click', () => this.closeFlagCreationPrompt());
 
         // Setup save button event
-        this.saveFlagBtnElement.addEventListener('click', () => this.confirmChangesToFlag());
+        this.confirmFlagBtnElement.addEventListener('click', () => this.confirmChangesToFlag());
 
         // Setup condition button events using event delegation
         this.setupConditionButtonEvents();
 
         // Generate telemetry options HTML for condition rows
         this.conditionTelemetryOptionsHTML = this.generateTelemetryOptionsHTML();
-
-        // Open the prompt for testing
-        this.populateHTMLWithFlagJSON(ExampleStatus3['flags'][0]);
     }
 
     // #region Setup and Initialization
@@ -237,52 +230,14 @@ export class FlagEditor {
      */
     private generateTelemetryOptionsHTML(): string {
         let optionsHTML = '<option value="" selected>Select Telemetry...</option>';
-        for (const key in FlagEditor.TELEMETRY_OPTIONS_DICTIONARY) {
-            const displayName = FlagEditor.TELEMETRY_OPTIONS_DICTIONARY[key];
+        for (const key in FlagEditorUI.TELEMETRY_OPTIONS_DICTIONARY) {
+            const displayName = FlagEditorUI.TELEMETRY_OPTIONS_DICTIONARY[key];
             optionsHTML += `<option value="${key}">${displayName}</option>`;
         }
         return optionsHTML;
     }
     // #endregion
-
-
-
-    private async getStatusCollectionFileData(collectionUUID: string): Promise<StatusCollection> {
-        // Get the file contents from the server.
-        const response = await fetch(`/status_collection/get?uuid=${encodeURIComponent(collectionUUID)}`,
-            { method: 'GET' });
-
-        if (!response.ok) {
-            throw new Error(`Failed to load status collection file with UUID: ${collectionUUID}`);
-        }
-
-        const fileContents: string = await response.text();
-
-        // Parse the file contents.
-        const statusCollectionData: StatusCollection = this.parseStatusCollectionData(fileContents);
-        return statusCollectionData;
-    }
-
-    private parseStatusCollectionData(fileContents: string): StatusCollection {
-        // Parse the JSON content
-        const data: any = JSON.parse(fileContents);
-
-        // Verify and process region data as needed
-        const isValid = this.verifyData(data);
-        if (!isValid) {
-            throw new Error("Invalid geoedit file format.");
-        }
-
-        return data as StatusCollection;
-    }
-
-    private verifyData(data: any): boolean {
-        // Check if StatusCollection structure is valid
-        if (data && typeof data === "object" && Array.isArray(data.statuses)) {
-            return true;
-        }
-        return false;
-    }
+    
 
     // #region DOM Manipulation
     /**
@@ -525,42 +480,20 @@ export class FlagEditor {
     /**
      * Edit existing flag
      */
-    public async editExistingFlag(collectionUUID: string, statusUUID: string, flagUUID: string): Promise<void> {
-        // Set current variables
-        this.currentFlagCollectionUUID = collectionUUID;
-        this.currentFlagStatusUUID = statusUUID;
-
-        let flagToEdit: Flag;
-
-        // Check if the flag has already been locally edited.
-        // ...
-
-        // Get the status collection data
-        const statusCollectionData: StatusCollection = await this.getStatusCollectionFileData(collectionUUID);
-
-        // Find the status
-        const statusToEdit = statusCollectionData.statuses.find(status => status.UUID === statusUUID);
-        if (!statusToEdit) {
-            throw new Error(`Status with UUID ${statusUUID} not found in collection ${collectionUUID}`);
-        }
-
-        // Find the flag
-        // Check if it's the default flag
-        if (statusToEdit.defaultFlag && statusToEdit.defaultFlag.UUID === flagUUID)
-            flagToEdit = statusToEdit.defaultFlag;
-        else
-            flagToEdit = statusToEdit.flags.find(flag => flag.UUID === flagUUID) as Flag;
-        
+    public async editExistingFlag(flagUUID: string): Promise<void> {
+        // Get the local flag
+        const flagToEdit: Flag | null = CollectionEditor.INSTANCE.fetchFlagFromLocalChanges(flagUUID);
         if (!flagToEdit) {
-            throw new Error(`Flag with UUID ${flagUUID} not found in status ${statusUUID}`);
+            throw new Error(`Failed to find flag with UUID: ${flagUUID} in local changes.`);
         }
 
         // Populate the prompt with the flag data
-        this.populateHTMLWithFlagJSON(flagToEdit);
+        this.populateHTMLWithFlagJSON(flagToEdit!);
 
         // Open the prompt
         this.openFlagCreationPrompt();
     }
+    // #endregion
 
     // #region Translate HTML to JSON
     private translateHTMLInputToFlagJSON(): Flag {
@@ -936,29 +869,11 @@ export class FlagEditor {
         // Translate HTML inputs to Flag JSON
         const flagJSON = this.translateHTMLInputToFlagJSON();
         
-        // Check if the flag has already been edited (is in the flagChanges array)
-        // Editing existing flag
-        const existingIndex = this.flagChanges.findIndex(
-            changedFlag => (
-                changedFlag.status_uuid === this.currentFlagStatusUUID &&
-                changedFlag.flag.UUID === this.currentFlag!.UUID &&
-                changedFlag.collection_uuid === this.currentFlagCollectionUUID
-            )
-        );
+        // Save the flag JSON to local changes
+        CollectionEditor.INSTANCE.addFlagContentChanges(flagJSON);
 
-        if (existingIndex !== -1) {
-            // Update existing change
-            this.flagChanges[existingIndex].flag = flagJSON;
-        }
-        else
-        {
-            // Add new change
-            this.flagChanges.push({
-                collection_uuid: this.currentFlagCollectionUUID!,
-                status_uuid: this.currentFlagStatusUUID!,
-                flag: flagJSON
-            });
-        }
+        // Update the flag display in the editor
+        CollectionEditorUI.INSTANCE.updateFlagDisplay(flagJSON.UUID);
 
         // Reset the prompt to be safe
         this.resetPrompt();
@@ -973,13 +888,13 @@ export class FlagEditor {
     private updateSaveButtonState(): void {
         if (this.currentFlag) {
             // Editing existing flag
-            this.saveFlagBtnElement.textContent = 'Save Changes';
+            this.confirmFlagBtnElement.textContent = 'Confirm Changes';
         } else {
             // Creating new flag
-            this.saveFlagBtnElement.textContent = 'Create Flag';
+            this.confirmFlagBtnElement.textContent = 'Create Flag';
         }
     }
     // #endregion
 }
 
-new FlagEditor();
+new FlagEditorUI();

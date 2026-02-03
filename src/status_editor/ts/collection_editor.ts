@@ -1,102 +1,7 @@
-import { StatusCollection, Status, Flag } from '../../shared/compiled_js/types.js';
-import { FlagEditor } from './flag_editor.js';
+import { SimpleStatus, SimpleStatusCollection, Flag } from '../../shared/compiled_js/types.js';
+import { CollectionEditor } from './collection_saving.js';
+import { FlagEditorUI } from './flag_editor.js';
 
-const ExampleStatus4: Status = {
-    UUID: "statustemptemp2",
-    name: "Impact Detection",
-    defaultFlag: {
-        name: "No Critical Impact Detected",
-        UUID: "defaultflagtemp2",
-        description: "",
-        imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\all-good.png",
-        primaryConditionalGroup: null,
-    },
-    flags: [
-        {
-            UUID: "flagtemp1234",
-            name: "Terminal Velocity Reached, It's Over Twin",
-            description: "Rocket has reached terminal velocity indicating free-fall impact.",
-            imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\its_over.jpg",
-            primaryConditionalGroup: {
-                type: 'AND',
-                editorColor: 'rgba(11, 58, 146, 1)',
-                not: false,
-                embededConditionalGroups: [
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'vel.y',
-                            operator: 'LTOE',
-                            value: -50
-                        }
-                    },
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'accel.y',
-                            operator: 'GTOE',
-                            value: -0.1
-                        }
-                    },
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'accel.y',
-                            operator: 'LTOE',
-                            value: 0
-                        }
-                    },
-                    {
-                        type: 'AND',
-                        editorColor: 'rgb(231, 76, 60)',
-                        not: false,
-                        embededConditionalGroups: [
-                            {
-                                type: 'CONDITION',
-                                not: false,
-                                condition: {
-                                    telemetryKey: 'vel.y',
-                                    operator: 'LTOE',
-                                    value: -50
-                                }
-                            },
-                            {
-                                type: 'CONDITION',
-                                not: false,
-                                condition: {
-                                    telemetryKey: 'accel.y',
-                                    operator: 'GTOE',
-                                    value: -0.1
-                                }
-                            },
-                            {
-                                type: 'CONDITION',
-                                not: false,
-                                condition: {
-                                    telemetryKey: 'accel.y',
-                                    operator: 'LTOE',
-                                    value: 0
-                                }
-                            }
-                        ]
-                    }
-                ]
-            }
-        },
-    ]
-};
-
-const ExampleStatusCollection: StatusCollection = {
-    "name": "Example Collection",
-    "UUID": "test123",
-    "description": "This is an example status collection.",
-    "statuses": [
-        ExampleStatus4, ExampleStatus4, ExampleStatus4
-    ]
-};
 
 /**
  * Edit Collection Info Dialog
@@ -108,7 +13,7 @@ class EditCollectionInfoDialog {
      * @param initialDescription - Initial description value
      * @param initialSize - Derived size value (read-only)
      * @param initialStatusCount - Derived status count value (read-only)
-     * @param onSave - Callback when user saves (receives name, description)
+     * @param onConfirm - Callback when user saves (receives name, description)
      * @param onCancel - Optional callback when user cancels
      */
     public static show(
@@ -116,7 +21,7 @@ class EditCollectionInfoDialog {
         initialDescription: string = '',
         initialSize: string = '',
         initialStatusCount: number = 0,
-        onSave: (name: string, description: string) => void,
+        onConfirm: (name: string, description: string) => void,
         onCancel?: () => void
     ): void {
         // Create overlay
@@ -353,7 +258,7 @@ class EditCollectionInfoDialog {
 
         saveButton.addEventListener('click', () => {
             closeDialog();
-            onSave(nameInput.value, descriptionInput.value);
+            onConfirm(nameInput.value, descriptionInput.value);
         });
 
         overlay.addEventListener('click', (e) => {
@@ -621,71 +526,49 @@ class EditStatusInfoDialog {
 }
 
 
-export class CollectionEditor {
-    private static instance: CollectionEditor;
-    public static get INSTANCE(): CollectionEditor { return CollectionEditor.instance; }
+export class CollectionEditorUI {
+    private static instance: CollectionEditorUI;
+    public static get INSTANCE(): CollectionEditorUI { return CollectionEditorUI.instance; }
 
     // Elements
     private collectionsContainer!: HTMLElement;
     
     // Drag state
+    private draggedElementPreviousElementParent: HTMLElement | null = null;
+    private draggedElementPreviousIndex: number | null = null;
     private draggedElement: HTMLElement | null = null;
     private dragType: 'flag' | 'status' | null = null;
     private placeholder: HTMLElement | null = null;
     
     constructor() {
         // Ensure singleton
-        if (CollectionEditor.instance) {
+        if (CollectionEditorUI.instance) {
             throw new Error("Use CollectionEditor.INSTANCE to access the singleton instance.");
         }
-        CollectionEditor.instance = this;
+        CollectionEditorUI.instance = this;
 
         // Initialize element references
         this.collectionsContainer = document.querySelector('.collections-container') as HTMLElement;
 
         // Initialize drag and drop
         this.initializeDragAndDrop();
-
-        // testing
-        this.initializeCollectionFromJSON(ExampleStatusCollection);
     }
-
 
     // #region DOM Initialization Methods
-    /**
-     * Initialize an entire collection from json.
-     */
-    private initializeCollectionFromJSON(collectionJSON: StatusCollection): void {
-        // Create collection
-        const collectionElement = this.initializeStatusCollection(collectionJSON.UUID, collectionJSON.name, collectionJSON.description);
-
-        // Create statuses
-        const statusesContainer = collectionElement.querySelector('.statuses-container') as HTMLDivElement;
-        collectionJSON.statuses.forEach((statusJSON: Status) => {
-            // Create status
-            const statusElement = this.initializeStatusElement(statusesContainer, collectionJSON.UUID, statusJSON.UUID, statusJSON.name);
-
-            // Create default flag
-            const flagsContainer = statusElement.querySelector('.flags-container') as HTMLDivElement;
-            this.initializeFlagElement(flagsContainer, collectionJSON.UUID, statusJSON.UUID, statusJSON.defaultFlag.UUID, statusJSON.defaultFlag.name, true);
-
-            // Create flags
-            statusJSON.flags.forEach((flagJSON: Flag) => {
-                // Create flag
-                this.initializeFlagElement(flagsContainer, collectionJSON.UUID, statusJSON.UUID, flagJSON.UUID, flagJSON.name, false);
-            });
-        });
-    }
-
-
     /**
      * Initialize a status collection in the DOM.
      */
     private initializeStatusCollection(collectionUUID: string, name: string, description: string): HTMLDivElement {
+        // Check if the collection already exists
+        const existingCollection = this.collectionsContainer.querySelector(`.status-collection[data-uuid="${collectionUUID}"]`);
+        if (existingCollection) {
+            throw new Error(`Collection with UUID ${collectionUUID} already exists in the DOM.`);
+        }
+
         const collection = document.createElement('div');
         this.collectionsContainer.appendChild(collection);
         collection.className = 'status-collection';
-        collection.setAttribute('data-collection-uuid', collectionUUID);
+        collection.setAttribute('data-uuid', collectionUUID);
         
         // Create collection header
         const header = document.createElement('div');
@@ -765,8 +648,8 @@ export class CollectionEditor {
                 '125 KB',
                 5,
                 (name, description) => {
-                    // Handle save
-                    console.log('Saved:', name, description);
+                    collectionName.textContent = name;
+                    descriptionElement.textContent = description;
                 },
                 () => {
                     // Handle cancel (optional)
@@ -784,8 +667,8 @@ export class CollectionEditor {
     private initializeStatusElement(collectionStatusContainer: HTMLDivElement, collectionUUID: string, statusUUID: string, name: string): HTMLDivElement {
         const status = document.createElement('div');
         status.className = 'status';
-        status.setAttribute('data-status-uuid', statusUUID);
-        status.setAttribute('data-collection-uuid', collectionUUID);
+        status.setAttribute('data-uuid', statusUUID);
+        status.setAttribute('data-uuid', collectionUUID);
         
         // Create status name
         const statusName = document.createElement('h3');
@@ -819,9 +702,9 @@ export class CollectionEditor {
                 name,
                 'Initial Description', 
                 'Initial Collection',
-                (name, description, collection) => {
-                    // Handle save - called when user clicks Save
-                    console.log('Saved:', name, description, collection);
+                (name, description) => {
+                    statusName.textContent = name;
+                    // Set description
                 },
             );
         });
@@ -838,9 +721,9 @@ export class CollectionEditor {
     private initializeFlagElement(statusFlagContainer: HTMLDivElement, collectionUUID: string, statusUUID: string, flagUUID: string, name: string, isDefault: boolean): HTMLDivElement {
         const flag = document.createElement('div');
         flag.className = 'flag';
-        flag.setAttribute('data-collection-uuid', collectionUUID);
-        flag.setAttribute('data-status-uuid', statusUUID);
-        flag.setAttribute('data-flag-uuid', flagUUID);
+        flag.setAttribute('data-uuid', collectionUUID);
+        flag.setAttribute('data-uuid', statusUUID);
+        flag.setAttribute('data-uuid', flagUUID);
         flag.setAttribute('data-default-flag', isDefault ? 'true' : 'false');
         
         // Create flag name
@@ -902,53 +785,30 @@ export class CollectionEditor {
         // Not found
         return null;
     }
+    // #endregion
 
-    /**
-     * Update collection information display.
-     */
-    private updateCollectionDisplay(collectionUUID: string, name: string, description: string): void {
-        // Find collection element
-        const collectionElement = this.getElementInContainerByUUID(collectionUUID, this.collectionsContainer, '.status-collection');
-        if (!collectionElement) return;
-
-        // Update name and description
-        const nameElement = collectionElement.querySelector('.collection-name') as HTMLElement;
-        const descriptionElement = collectionElement.querySelector('.collection-description') as HTMLElement;
-        nameElement.textContent = name;
-        descriptionElement.textContent = description;
-    }
-
-    /**
-     * Update status information display.
-     */
-    private updateStatusDisplay(collectionUUID: string, statusUUID: string, name: string): void {
-        const collectionElement = this.getElementInContainerByUUID(collectionUUID, this.collectionsContainer, '.status-collection');
-        if (!collectionElement) return;
-        const statusElement = this.getElementInContainerByUUID(statusUUID, collectionElement, '.status');
-        if (!statusElement) return;
-
-        // Update name and description
-        const nameElement = statusElement.querySelector('.status-name') as HTMLElement;
-        nameElement.textContent = name;  
-    }
-
+    // #region Update Display Methods
     /**
      * Update flag information display.
      */
-    private updateFlagDisplay(collectionUUID: string, statusUUID: string, flagUUID: string, name: string, imagePath: string): void {
-        // Find status element
-        const collectionElement = this.getElementInContainerByUUID(collectionUUID, this.collectionsContainer, '.status-collection');
-        if (!collectionElement) return;
-        const statusElement = this.getElementInContainerByUUID(statusUUID, collectionElement, '.status');
-        if (!statusElement) return;
-        const flagElement = this.getElementInContainerByUUID(flagUUID, statusElement, '.flag');
+    public updateFlagDisplay(flagUUID: string): void {
+        // Find flag element
+        const flagElement = this.getElementInContainerByUUID(flagUUID, this.collectionsContainer, '.flag');
+        console.log('Updating flag display for UUID:', flagUUID, 'Found element:', flagElement);
         if (!flagElement) return;
+
+        // Get flag data
+        const flagData: Flag | null = CollectionEditor.INSTANCE.getFlagByUUID(flagUUID);
+        if (!flagData) throw new Error(`Flag data not found for UUID: ${flagUUID}`);
 
         // Update name
         const nameElement = flagElement.querySelector('.flag-name') as HTMLElement;
-        nameElement.textContent = name;
-    }
+        console.log('Updating flag name to:', flagData.name);
+        nameElement.textContent = flagData.name;
 
+        // Update flag image
+        // ...
+    }
     // #endregion
 
     // #region Menus from Cog Buttons
@@ -957,12 +817,12 @@ export class CollectionEditor {
      */
     private displayFlagCogMenu(flagElement: HTMLDivElement): void {
         // Get UUIDs
-        const flagUUID = flagElement.getAttribute('data-flag-uuid') as string;
-        const statusUUID = flagElement.getAttribute('data-status-uuid') as string;
-        const collectionUUID = flagElement.getAttribute('data-collection-uuid') as string;
+        const flagUUID = flagElement.getAttribute('data-uuid') as string;
+        const statusUUID = flagElement.getAttribute('data-uuid') as string;
+        const collectionUUID = flagElement.getAttribute('data-uuid') as string;
         // Display menu
         new Promise<void>((resolve) => {
-            FlagEditor.INSTANCE.editExistingFlag(collectionUUID, statusUUID, flagUUID);
+            FlagEditorUI.INSTANCE.editExistingFlag(flagUUID);
             resolve();
         });
     }
@@ -1124,17 +984,121 @@ export class CollectionEditor {
         
         // Remove dragging class with smooth transition
         this.draggedElement.classList.remove('dragging');
+
+        // Determine if the order has changed and handle accordingly
+        if (
+            this.draggedElementPreviousElementParent !== this.draggedElement!.parentElement ||
+            this.draggedElementPreviousIndex !== Array.from(this.draggedElement!.parentElement!.children).indexOf(this.draggedElement!)
+        ) {
+            // Translate DOM to visual data
+            const visualData = this.translateDOMToVisualData();
+            CollectionEditor.INSTANCE.modifyStatusCollectionChange(visualData.visualCollections, visualData.visualStatuses);
+        }
         
         // Clean up
         if (this.placeholder && this.placeholder.parentElement) {
             this.placeholder.parentElement.removeChild(this.placeholder);
         }
-        
         this.draggedElement = null;
         this.dragType = null;
         this.placeholder = null;
     }
     // #endregion
+
+    // #region Translate Visual Data to DOM
+    /**
+     * Initialize an entire collection from json.
+     */
+    public translateJSONCollectionIntoDOM(visualStatusCollection: SimpleStatusCollection): void {
+        // Create collection
+        const collectionElement = this.initializeStatusCollection(visualStatusCollection.UUID, visualStatusCollection.name, visualStatusCollection.description);
+
+        // Create statuses
+        const statusesContainer = collectionElement.querySelector('.statuses-container') as HTMLDivElement;
+        visualStatusCollection.statusesUUIDs.forEach((statusUUID: string) => {
+            // Create status
+            const statusJSON: SimpleStatus = CollectionEditor.INSTANCE.getStatusByUUID(statusUUID)!;
+            const statusElement = this.initializeStatusElement(statusesContainer, visualStatusCollection.UUID, statusUUID, statusJSON.name); // Name is not available in SimpleStatusCollection
+
+            // Create default flag
+            const defaultFlagJSON: Flag = CollectionEditor.INSTANCE.getFlagByUUID(statusJSON.defaultFlagUUID)!;
+            const flagsContainer = statusElement.querySelector('.flags-container') as HTMLDivElement;
+            this.initializeFlagElement(flagsContainer, visualStatusCollection.UUID, statusUUID, statusJSON.defaultFlagUUID, defaultFlagJSON.name, true);
+            
+            // Create flags
+            statusJSON.flagUUIDs.forEach((flagUUID: string) => {
+                // Create flag
+                const flagJSON: Flag = CollectionEditor.INSTANCE.getFlagByUUID(flagUUID)!;
+                this.initializeFlagElement(flagsContainer, visualStatusCollection.UUID, statusUUID, flagUUID, flagJSON.name, false);
+            });
+        });
+    }
+    // #endregion
+
+    // #region Translate DOM to Visual Data
+    /**
+     * Translate the current DOM structure into visual data.
+     */
+    public translateDOMToVisualData(): { visualCollections: SimpleStatusCollection[], visualStatuses: SimpleStatus[] } {
+        // Declare arrays
+        const visualCollections: SimpleStatusCollection[] = [];
+        const visualStatuses: SimpleStatus[] = [];
+
+        // Iterate over collections
+        const collectionElements = this.collectionsContainer.querySelectorAll('.status-collection');
+        collectionElements.forEach((collectionElement) => {
+            // Get collection info
+            const collectionUUID = collectionElement.getAttribute('data-uuid') as string;
+            const collectionName = (collectionElement.querySelector('.collection-name') as HTMLElement).textContent || '';
+            const collectionDescription = (collectionElement.querySelector('.collection-description') as HTMLElement).textContent || '';
+
+            // Prepare collection data
+            const visualCollection: SimpleStatusCollection = {
+                UUID: collectionUUID,
+                name: collectionName,
+                description: collectionDescription,
+                statusesUUIDs: []
+            };
+
+            // Iterate over statuses
+            const statusElements = collectionElement.querySelectorAll('.status');
+            statusElements.forEach((statusElement) => {
+                // Get status info
+                const statusUUID = statusElement.getAttribute('data-uuid') as string;
+                const statusName = (statusElement.querySelector('.status-name') as HTMLElement).textContent || '';
+                // Prepare status data
+                const visualStatus: SimpleStatus = {
+                    UUID: statusUUID,
+                    name: statusName,
+                    defaultFlagUUID: '',
+                    flagUUIDs: []
+                };
+
+                // Add status UUID to collection
+                visualCollection.statusesUUIDs.push(statusUUID);
+
+                // Iterate over flags
+                const flagElements = statusElement.querySelectorAll('.flag');
+                flagElements.forEach((flagElement) => {
+                    const flagUUID = flagElement.getAttribute('data-uuid') as string;
+                    const isDefault = flagElement.getAttribute('data-default-flag') === 'true';
+                    if (isDefault) {
+                        visualStatus.defaultFlagUUID = flagUUID;
+                    }
+                    visualStatus.flagUUIDs.push(flagUUID);
+                });
+                // Add status to statuses array
+                visualStatuses.push(visualStatus);
+            });
+
+            // Add collection to collections array
+            visualCollections.push(visualCollection);
+        });
+
+        // Iterate over statuses
+        return { visualCollections: visualCollections, visualStatuses: visualStatuses };
+    }
+    // #endregion
 }
 
-new CollectionEditor();
+new CollectionEditorUI();
