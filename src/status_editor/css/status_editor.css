@@ -162,10 +162,22 @@ body {
     border-color: var(--accent);
     color: #181a1b;
 }
-
 .save-btn:hover {
     background-color: #5a92ee;
     border-color: #5a92ee;
+}
+.save-btn.deactivated {
+    color: #888888;
+    background-color: var(--card);
+    border-color: var(--border);
+    cursor: not-allowed;
+}
+.save-btn.deactivated:hover {
+    background-color: var(--card);
+    border-color: var(--border);
+    color: #888888;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .revert-btn {
@@ -173,7 +185,17 @@ body {
     border-color: var(--border);
     color: #ff6b6b;
 }
-
+.revert-btn.deactivated {
+    color: #888888;
+    cursor: not-allowed;
+}
+.revert-btn.deactivated:hover {
+    background-color: var(--card);
+    border-color: var(--border);
+    color: #888888;
+    cursor: not-allowed;
+    transform: none;
+}
 .revert-btn:hover {
     background-color: #ff6b6b;
     border-color: #ff6b6b;
@@ -234,7 +256,7 @@ body {
     font-size: 0.875rem;
     color: var(--muted);
     margin: 0;
-    line-height: 1.5;
+    line-height: 0;
 }
 
 /* Statuses Container (horizontal scroll) */
@@ -323,8 +345,7 @@ body {
     color: #ffffff;
     margin: 0;
     text-align: left;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
     cursor: grab;
     white-space: nowrap;
     display: flex;
@@ -334,6 +355,18 @@ body {
 
 .status-name:active {
     cursor: grabbing;
+}
+
+.status-description {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin: 0;
+    padding-top: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.4;
+    white-space: normal;
+    word-wrap: break-word;
 }
 
 /* Flags Container (horizontal stack) */

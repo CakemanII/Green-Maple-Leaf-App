@@ -655,11 +655,17 @@ export class CollectionEditorUI {
         statusName.className = 'status-name';
         statusName.textContent = name;
         
+        // Create status description
+        const statusDescription = document.createElement('p');
+        statusDescription.className = 'status-description';
+        statusDescription.textContent = ''; // Empty by default, can be set later
+        
         // Create flags container
         const flagsContainer = document.createElement('div');
         flagsContainer.className = 'flags-container';
         
         status.appendChild(statusName);
+        status.appendChild(statusDescription);
         status.appendChild(flagsContainer);
         
         // Add cog button to status name
@@ -680,11 +686,12 @@ export class CollectionEditorUI {
         cogButton.addEventListener('click', () => {
             EditStatusInfoDialog.show(
                 statusName.childNodes[0].textContent || '',
-                'Initial Description', 
+                statusDescription.textContent || '', 
                 'Initial Collection',
                 (newName, newDescription) => {
                     // Update the text content without removing child elements
                     statusName.childNodes[0].textContent = newName;
+                    statusDescription.textContent = newDescription;
                     
                     // Save changes to data model
                     const visualData = this.translateDOMToVisualData();
@@ -806,6 +813,20 @@ export class CollectionEditorUI {
         // Logic to save changes
         CollectionEditor.INSTANCE.saveAllChangesToServer();
     }
+
+    /**
+     * Enable or disable the save button.
+     */
+    public updateSaveRevertButtonStates(changesMade: boolean): void {
+        console.log('Updating save/revert button states. Changes made:', changesMade);
+        const saveButton = document.querySelector('#main-save-btn') as HTMLButtonElement;
+        saveButton.classList.toggle('deactivated', !changesMade);
+        saveButton.disabled = !changesMade;
+
+        const revertButton = document.querySelector('#main-revert-btn') as HTMLButtonElement;
+        revertButton.classList.toggle('deactivated', !changesMade);
+        revertButton.disabled = !changesMade;
+    }
     // #endregion
 
     // #region Update Display Methods
@@ -899,6 +920,8 @@ export class CollectionEditorUI {
     private startDragging(element: HTMLElement, type: 'flag' | 'status', e: MouseEvent): void {
         this.draggedElement = element;
         this.dragType = type;
+        this.draggedElementPreviousElementParent = element.parentElement;
+        this.draggedElementPreviousIndex = Array.from(element.parentElement!.children).indexOf(element);
         
         // Add dragging class for smooth animation
         element.classList.add('dragging');
@@ -1022,6 +1045,8 @@ export class CollectionEditorUI {
         this.draggedElement = null;
         this.dragType = null;
         this.placeholder = null;
+        this.draggedElementPreviousElementParent = null;
+        this.draggedElementPreviousIndex = null;
     }
     // #endregion
 

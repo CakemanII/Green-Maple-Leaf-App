@@ -7,6 +7,7 @@ export class CollectionEditor
     public static get INSTANCE(): CollectionEditor { return CollectionEditor.instance; }
     
     // Represents the current status collection states.
+    private changesMade: boolean = false;
     private previousStatusCollections: StatusCollection[] = [];
     
     private visualStatusCollections: SimpleStatusCollection[] = [];
@@ -100,6 +101,10 @@ export class CollectionEditor
             this.flags.push(flag);
         else 
             this.flags[existingIndex] = flag;
+
+        // Mark that changes have been made
+        this.changesMade = true;
+        CollectionEditorUI.INSTANCE.updateSaveRevertButtonStates(this.changesMade);
     }
 
     /**
@@ -129,6 +134,10 @@ export class CollectionEditor
             else
                 this.visualStatuses[statusIndex] = status;
         }
+
+        // Mark that changes have been made
+        this.changesMade = true;
+        CollectionEditorUI.INSTANCE.updateSaveRevertButtonStates(this.changesMade);
     }
 
     /**
@@ -147,6 +156,10 @@ export class CollectionEditor
         // Reload previous collections into local changes
         for (const collection of this.previousStatusCollections)
             this.loadCollectionFromJSON(collection);
+
+        // Un-Mark that changes have been made
+        this.changesMade = false;
+        CollectionEditorUI.INSTANCE.updateSaveRevertButtonStates(this.changesMade);
     }
     // #endregion
 
@@ -169,6 +182,10 @@ export class CollectionEditor
         // Save each collection to the server
         for (const collection of newStatusCollections)
             await this.saveCollectionToServer(collection);
+
+        // Un-Mark that changes have been made
+        this.changesMade = false;
+        CollectionEditorUI.INSTANCE.updateSaveRevertButtonStates(this.changesMade);
     }
 
     /**
