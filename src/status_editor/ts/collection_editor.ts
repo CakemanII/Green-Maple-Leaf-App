@@ -664,6 +664,26 @@ export class CollectionEditorUI {
         const flagsContainer = document.createElement('div');
         flagsContainer.className = 'flags-container';
         
+        // Create add flag button
+        const addFlagButton = document.createElement('button');
+        addFlagButton.className = 'add-flag-btn';
+        addFlagButton.title = 'Add new flag';
+        addFlagButton.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+        `;
+        addFlagButton.addEventListener('click', () => {
+            console.log('Add new flag to status:', statusUUID);
+            // TODO: Implement flag creation logic
+            FlagEditorUI.INSTANCE.createNewFlag(
+                status.parentElement?.parentElement?.getAttribute('data-uuid') as string,
+                statusUUID
+            );
+        });
+        flagsContainer.appendChild(addFlagButton);
+        
         status.appendChild(statusName);
         status.appendChild(statusDescription);
         status.appendChild(flagsContainer);
@@ -831,13 +851,32 @@ export class CollectionEditorUI {
 
     // #region Update Display Methods
     /**
+     * Create flag display.
+     */
+    public createFlagDisplay(collectionUUID: string, statusUUID: string, flagUUID: string, isDefault: boolean = false): void {
+        // Get status element
+        const statusElement = this.getElementInContainerByUUID(statusUUID, this.collectionsContainer, '.status');
+        if (!statusElement) throw new Error(`Status element not found for UUID: ${statusUUID}`);
+
+        // Get flags container
+        const flagsContainer = statusElement.querySelector('.flags-container') as HTMLDivElement;
+        if (!flagsContainer) throw new Error(`Flags container not found in status UUID: ${statusUUID}`);
+
+        // Get flag data
+        const flagData: Flag | null = CollectionEditor.INSTANCE.getFlagByUUID(flagUUID);
+        if (!flagData) throw new Error(`Flag data not found for UUID: ${flagUUID}`);
+        
+        // Initialize flag element
+        this.initializeFlagElement(flagsContainer, collectionUUID, statusUUID, flagUUID, flagData.name, isDefault);
+    }
+
+    /**
      * Update flag information display.
      */
     public updateFlagDisplay(flagUUID: string): void {
         // Find flag element
         const flagElement = this.getElementInContainerByUUID(flagUUID, this.collectionsContainer, '.flag');
-        console.log('Updating flag display for UUID:', flagUUID, 'Found element:', flagElement);
-        if (!flagElement) return;
+        if (!flagElement) throw new Error(`Flag element not found for UUID: ${flagUUID}`);
 
         // Get flag data
         const flagData: Flag | null = CollectionEditor.INSTANCE.getFlagByUUID(flagUUID);
@@ -845,7 +884,6 @@ export class CollectionEditorUI {
 
         // Update name
         const nameElement = flagElement.querySelector('.flag-name') as HTMLElement;
-        console.log('Updating flag name to:', flagData.name);
         nameElement.textContent = flagData.name;
 
         // Update flag image
@@ -860,8 +898,7 @@ export class CollectionEditorUI {
     private displayFlagCogMenu(flagElement: HTMLDivElement): void {
         // Get UUIDs
         const flagUUID = flagElement.getAttribute('data-uuid') as string;
-        const statusUUID = flagElement.getAttribute('data-uuid') as string;
-        const collectionUUID = flagElement.getAttribute('data-uuid') as string;
+
         // Display menu
         new Promise<void>((resolve) => {
             FlagEditorUI.INSTANCE.editExistingFlag(flagUUID);

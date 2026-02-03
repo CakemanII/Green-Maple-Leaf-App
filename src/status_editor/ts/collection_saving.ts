@@ -1,4 +1,5 @@
-import { StatusCollection, Status, Flag, SimpleStatus, SimpleStatusCollection } from '../../shared/compiled_js/types.js';
+import { StatusCollection, Status, Flag, SimpleStatus, SimpleStatusCollection, ConditionalGroup } from '../../shared/compiled_js/types.js';
+import { GeneralUtilities } from '../../shared/compiled_js/utilities.js';
 import { CollectionEditorUI } from './collection_editor.js';
 
 export class CollectionEditor
@@ -332,6 +333,29 @@ export class CollectionEditor
     public getFlagByUUID(flagUUID: string): Flag | null {
         const flag = this.flags.find(f => f.UUID === flagUUID);
         return flag || null;
+    }
+    // #endregion
+
+    // #region New Flag Creation
+    public generateNewFlag(isDefaultFlag: boolean): Flag {
+        // Generate a new UUID for the flag
+        const newUUID = GeneralUtilities.generateUUID();
+
+        // Create a new flag with default properties
+        const newFlag: Flag = {
+            UUID: newUUID,
+            name: "New Flag",
+            description: "",
+            imagePath: "",
+            primaryConditionalGroup: isDefaultFlag ? null : {
+                name: "Main Conditional Group",
+                not: false,
+                type: "AND",
+                embededConditionalGroups: [],
+                editorColor: "#FFFFFF",
+            }
+        };
+        return newFlag;
     }
     // #endregion
 }

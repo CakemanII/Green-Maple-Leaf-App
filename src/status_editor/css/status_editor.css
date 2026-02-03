@@ -314,6 +314,59 @@ body {
     border-color: var(--accent);
 }
 
+/* Add Flag Button */
+.add-flag-btn {
+    width: 120px;
+    height: 120px;
+    background-color: transparent;
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.add-flag-btn svg {
+    width: 40px;
+    height: 40px;
+    color: var(--muted);
+    transition: all 0.2s ease;
+}
+
+/* Show add flag button only when hovering status but NOT when hovering flags */
+.status:hover .add-flag-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Hide add flag button when hovering over any flag */
+.status:has(.flag:hover) .add-flag-btn {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Hide add flag button when dragging */
+.status.dragging .add-flag-btn {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.add-flag-btn:hover {
+    background-color: rgba(107, 163, 255, 0.1);
+    border-color: var(--accent);
+    border-style: solid;
+}
+
+.add-flag-btn:hover svg {
+    color: var(--accent);
+    transform: scale(1.1);
+}
+
 /* Status Cog Visibility */
 .status:hover .status-cog {
     opacity: 1;

@@ -4,93 +4,6 @@ import { Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition, St
 import { CollectionEditor } from './collection_saving.js';
 import { CollectionEditorUI } from './collection_editor.js';
 
-const ExampleStatus3: Status = {
-    UUID: "statustemptemp2",
-    name: "Impact Detection",
-    defaultFlag: {
-        name: "No Critical Impact Detected",
-        UUID: "defaultflagtemp2",
-        description: "",
-        imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\all-good.png",
-        primaryConditionalGroup: null,
-    },
-    flags: [
-        {
-            UUID: "flagtemp1234",
-            name: "Terminal Velocity Reached, It's Over Twin",
-            description: "Rocket has reached terminal velocity indicating free-fall impact.",
-            imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\its_over.jpg",
-            primaryConditionalGroup: {
-                type: 'AND',
-                editorColor: 'rgba(11, 58, 146, 1)',
-                not: false,
-                embededConditionalGroups: [
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'vel.y',
-                            operator: 'LTOE',
-                            value: -50
-                        }
-                    },
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'accel.y',
-                            operator: 'GTOE',
-                            value: -0.1
-                        }
-                    },
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'accel.y',
-                            operator: 'LTOE',
-                            value: 0
-                        }
-                    },
-                    {
-                        type: 'AND',
-                        editorColor: 'rgb(231, 76, 60)',
-                        not: false,
-                        embededConditionalGroups: [
-                            {
-                                type: 'CONDITION',
-                                not: false,
-                                condition: {
-                                    telemetryKey: 'vel.y',
-                                    operator: 'LTOE',
-                                    value: -50
-                                }
-                            },
-                            {
-                                type: 'CONDITION',
-                                not: false,
-                                condition: {
-                                    telemetryKey: 'accel.y',
-                                    operator: 'GTOE',
-                                    value: -0.1
-                                }
-                            },
-                            {
-                                type: 'CONDITION',
-                                not: false,
-                                condition: {
-                                    telemetryKey: 'accel.y',
-                                    operator: 'LTOE',
-                                    value: 0
-                                }
-                            }
-                        ]
-                    }
-                ]
-            }
-        },
-    ]
-};
 
 export class FlagEditorUI {
     private static instance: FlagEditorUI
@@ -127,6 +40,7 @@ export class FlagEditorUI {
     private currentFlag: Flag | null = null;
     private currentFlagStatusUUID: string | null = null;
     private currentFlagCollectionUUID: string | null = null;
+    private isNewFlag: boolean = false;
 
     constructor() {
         // Ensure singleton
@@ -238,7 +152,6 @@ export class FlagEditorUI {
     }
     // #endregion
     
-
     // #region DOM Manipulation
     /**
      * Add a telemetry condition row to the specified condition body
@@ -435,8 +348,9 @@ export class FlagEditorUI {
      */
     private resetPrompt(): void {
         // Reset variables
-        this.currentFlagCollectionUUID = null;
+        this.isNewFlag = false;
         this.currentFlagStatusUUID = null;
+        this.currentFlagCollectionUUID = null;
 
         // Reset the current flag
         this.currentFlag = null;
@@ -471,9 +385,22 @@ export class FlagEditorUI {
     /**
      * Create new flag
      */
-    public createNewFlag(): void {
+    public createNewFlag(collectionUUID: string, statusUUID: string): void {
         // Reset and open prompt
         this.resetPrompt();
+
+        // Generate new flag.
+        const newFlag = CollectionEditor.INSTANCE.generateNewFlag(false);
+
+        // Populate the prompt with the flag data
+        this.populateHTMLWithFlagJSON(newFlag);
+
+        // Set variables
+        this.currentFlagCollectionUUID = collectionUUID;
+        this.currentFlagStatusUUID = statusUUID;
+        this.isNewFlag = true;
+
+        // Open the prompt
         this.openFlagCreationPrompt();
     }
 
@@ -489,6 +416,9 @@ export class FlagEditorUI {
 
         // Populate the prompt with the flag data
         this.populateHTMLWithFlagJSON(flagToEdit!);
+
+        // Set current flag being edited
+        this.isNewFlag = false;
 
         // Open the prompt
         this.openFlagCreationPrompt();
@@ -704,7 +634,6 @@ export class FlagEditorUI {
         const children = Array.from(parent.children);
         return children.indexOf(childElement);
     }
-
     // #endregion
 
     // #region Translate JSON to HTML
@@ -873,8 +802,21 @@ export class FlagEditorUI {
         CollectionEditor.INSTANCE.addFlagContentChanges(flagJSON);
 
         // Update the flag display in the editor
-        CollectionEditorUI.INSTANCE.updateFlagDisplay(flagJSON.UUID);
-
+        if (this.isNewFlag === false)
+            CollectionEditorUI.INSTANCE.updateFlagDisplay(flagJSON.UUID);
+        else
+        {
+            // New Flag created, so create its display
+            CollectionEditorUI.INSTANCE.createFlagDisplay(
+                this.currentFlagCollectionUUID as string,
+                this.currentFlagStatusUUID as string,
+                flagJSON.UUID,
+            );
+            // Update the status and collections to hold the new flag
+            const visualData = CollectionEditorUI.INSTANCE.translateDOMToVisualData();
+            CollectionEditor.INSTANCE.modifyStatusCollectionChange(visualData.visualCollections, visualData.visualStatuses);
+        }
+            
         // Reset the prompt to be safe
         this.resetPrompt();
 
