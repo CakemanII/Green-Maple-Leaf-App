@@ -24,6 +24,7 @@ export class FlagEditorUI {
 
     private flagCreationCloseBtnElement!: HTMLButtonElement;
     private flagCreationCancelBtnElement!: HTMLButtonElement;
+    private flagDeleteBtnElement!: HTMLButtonElement;
 
     private flagTitleElement!: HTMLInputElement;
     private flagDescriptionElement!: HTMLTextAreaElement;
@@ -54,6 +55,7 @@ export class FlagEditorUI {
         this.flagCreationPromptElement = document.getElementById('flag-creation-prompt') as HTMLDivElement;
         this.flagCreationCloseBtnElement = this.flagCreationPromptElement.querySelector('#flag-creation-close-btn') as HTMLButtonElement;
         this.flagCreationCancelBtnElement = this.flagCreationPromptElement.querySelector('#flag-creation-cancel-btn') as HTMLButtonElement;
+        this.flagDeleteBtnElement = this.flagCreationPromptElement.querySelector('#flag-delete-btn') as HTMLButtonElement;
 
         this.flagTitleElement = this.flagCreationPromptElement.querySelector('#flag-title-input') as HTMLInputElement;
         this.flagDescriptionElement = this.flagCreationPromptElement.querySelector('#flag-description-input') as HTMLTextAreaElement;
@@ -69,6 +71,9 @@ export class FlagEditorUI {
         // Setup close and cancel button events
         this.flagCreationCloseBtnElement.addEventListener('click', () => this.closeFlagCreationPrompt());
         this.flagCreationCancelBtnElement.addEventListener('click', () => this.closeFlagCreationPrompt());
+
+        // Setup delete button event
+        this.flagDeleteBtnElement.addEventListener('click', () => this.deleteFlag());
 
         // Setup save button event
         this.confirmFlagBtnElement.addEventListener('click', () => this.confirmChangesToFlag());
@@ -402,6 +407,9 @@ export class FlagEditorUI {
         this.currentFlagStatusUUID = statusUUID;
         this.isNewFlag = true;
 
+        // Update save button state
+        this.updateSaveButtonState();
+
         // Open the prompt
         this.openFlagCreationPrompt();
     }
@@ -421,6 +429,18 @@ export class FlagEditorUI {
 
         // Set current flag being edited
         this.isNewFlag = false;
+
+        // Set variables
+        const uuids = CollectionEditorUI.INSTANCE.getCollectionAndStatusUUIDFromFlagUUID(flagUUID);
+        if (uuids) {
+            this.currentFlagCollectionUUID = uuids.collectionUUID;
+            this.currentFlagStatusUUID = uuids.statusUUID;
+        } else {
+            console.error("Failed to find collection and status UUIDs for flag UUID:", flagUUID);
+        }
+
+        // Update save button state
+        this.updateSaveButtonState();
 
         // Open the prompt
         this.openFlagCreationPrompt();
@@ -656,7 +676,7 @@ export class FlagEditorUI {
                 console.warn("Flag has no primary conditional group to populate.");
                 return;
             }
-            
+
             this.populateConditionGroupElement(
                 this.flagConditionsContainerElement,
                 flag.primaryConditionalGroup!
@@ -665,8 +685,6 @@ export class FlagEditorUI {
 
         // Set current flag being edited
         this.currentFlag = flag;
-        // Update save button state
-        this.updateSaveButtonState();
     }
 
     /**
@@ -828,15 +846,52 @@ export class FlagEditorUI {
 
     /**
      * Update the save button state to either display "Create Flag" or "Save Changes"
+     * Also show/hide the delete button based on whether it's a new flag
      */
     private updateSaveButtonState(): void {
-        if (this.currentFlag) {
+        if (this.isNewFlag === false) {
             // Editing existing flag
             this.confirmFlagBtnElement.textContent = 'Confirm Changes';
+
+            // Hide the delete button if it's a default flag
+            if (this.isDefaultFlag)
+                this.flagDeleteBtnElement.style.display = 'none';
+            else
+                this.flagDeleteBtnElement.style.display = 'inline-block';
         } else {
             // Creating new flag
             this.confirmFlagBtnElement.textContent = 'Create Flag';
+            this.flagDeleteBtnElement.style.display = 'none';
         }
+    }
+
+    /**
+     * Delete the current flag from local changes
+     */
+    private deleteFlag(): void {
+        if (!this.currentFlag || !this.currentFlagCollectionUUID || !this.currentFlagStatusUUID) {
+            console.error('Cannot delete flag: missing current flag data');
+            return;
+        }
+
+        if (this.isDefaultFlag || this.isNewFlag)
+        {
+            console.error("Cannot delete default flags or flags that haven't been created yet.");
+            return;
+        }
+
+        // Get the flag UUID
+        const flagUUID = this.currentFlag.UUID;
+
+        // Remove flag from DOM
+        CollectionEditorUI.INSTANCE.removeFlagFromDOM(flagUUID);
+
+        // Update the data model
+        const visualData = CollectionEditorUI.INSTANCE.translateDOMToVisualData();
+        CollectionEditor.INSTANCE.modifyStatusCollectionChange(visualData.visualCollections, visualData.visualStatuses);
+
+        // Close the modal
+        this.closeFlagCreationPrompt();
     }
     // #endregion
 }

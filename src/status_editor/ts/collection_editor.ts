@@ -675,7 +675,6 @@ export class CollectionEditorUI {
             </svg>
         `;
         addFlagButton.addEventListener('click', () => {
-            console.log('Add new flag to status:', statusUUID);
             // TODO: Implement flag creation logic
             FlagEditorUI.INSTANCE.createNewFlag(
                 status.parentElement?.parentElement?.getAttribute('data-uuid') as string,
@@ -896,6 +895,21 @@ export class CollectionEditorUI {
 
         // Update flag image
         // ...
+    }
+
+    /**
+     * Remove a flag from the DOM.
+     */
+    public removeFlagFromDOM(flagUUID: string): void {
+        // Find flag element
+        const flagElement = this.getElementInContainerByUUID(flagUUID, this.collectionsContainer, '.flag');
+        if (!flagElement) {
+            console.error(`Flag element not found for UUID: ${flagUUID}`);
+            return;
+        }
+
+        // Remove from DOM
+        flagElement.remove();
     }
     // #endregion
 
@@ -1196,6 +1210,38 @@ export class CollectionEditorUI {
         return { visualCollections: visualCollections, visualStatuses: visualStatuses };
     }
     // #endregion
+
+    /**
+     * Get Collection UUID, and Status UUID, from Flag UUID.
+     */
+    public getCollectionAndStatusUUIDFromFlagUUID(flagUUID: string): { collectionUUID: string, statusUUID: string } | null {
+        // Find flag element
+        const flagElement = this.getElementInContainerByUUID(flagUUID, this.collectionsContainer, '.flag');
+        if (!flagElement) {
+            console.error(`Flag element not found for UUID: ${flagUUID}`);
+            return null;
+        }
+
+        // Get status element
+        const statusElement = flagElement.closest('.status') as HTMLElement;
+        if (!statusElement) {
+            console.error(`Status element not found for flag UUID: ${flagUUID}`);
+            return null;
+        }
+
+        // Get collection element
+        const collectionElement = statusElement.closest('.status-collection') as HTMLElement;
+        if (!collectionElement) {
+            console.error(`Collection element not found for flag UUID: ${flagUUID}`);
+            return null;
+        }
+
+        // Return UUIDs
+        return {
+            collectionUUID: collectionElement.getAttribute('data-uuid') as string,
+            statusUUID: statusElement.getAttribute('data-uuid') as string
+        };
+    }
 }
 
 new CollectionEditorUI();

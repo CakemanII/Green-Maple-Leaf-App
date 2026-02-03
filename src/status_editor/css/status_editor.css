@@ -1053,6 +1053,18 @@ body {
     color:#ffffff;
 }
 
+.btn-danger{
+    background-color:#2a1515;
+    color:#ff3333;
+    border:1px solid #ff3333;
+}
+
+.btn-danger:hover{
+    background-color:#ff3333;
+    color:#ffffff;
+    border-color:#ff3333;
+}
+
 /* Tab Menu Styles */
 .tab-menu {
     display:none;
