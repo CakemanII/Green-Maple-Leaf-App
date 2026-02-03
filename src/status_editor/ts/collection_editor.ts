@@ -287,14 +287,14 @@ class EditStatusInfoDialog {
      * @param initialName - Initial name value
      * @param initialDescription - Initial description value
      * @param initialCollection - Initial collection value
-     * @param onSave - Callback when user saves (receives name, description, collection)
+     * @param onConfirm - Callback when user saves (receives name, description, collection)
      * @param onCancel - Optional callback when user cancels
      */
     public static show(
         initialName: string = '',
         initialDescription: string = '',
         initialCollection: string = '',
-        onSave: (name: string, description: string, collection: string) => void,
+        onConfirm: (name: string, description: string, collection: string) => void,
         onCancel?: () => void
     ): void {
         // Create overlay
@@ -505,7 +505,7 @@ class EditStatusInfoDialog {
 
         saveButton.addEventListener('click', () => {
             closeDialog();
-            onSave(nameInput.value, descriptionInput.value, collectionInput.value);
+            onConfirm(nameInput.value, descriptionInput.value, collectionInput.value);
         });
 
         overlay.addEventListener('click', (e) => {
@@ -618,13 +618,18 @@ export class CollectionEditorUI {
         // Setup cog button event
         cogButton.addEventListener('click', () => {
             EditCollectionInfoDialog.show(
-                name,
-                description,
+                collectionName.childNodes[0].textContent || '',
+                descriptionElement.textContent || '',
                 '125 KB',
                 5,
-                (name, description) => {
-                    collectionName.textContent = name;
-                    descriptionElement.textContent = description;
+                (newName, newDescription) => {
+                    // Update the text content without removing child elements
+                    collectionName.childNodes[0].textContent = newName;
+                    descriptionElement.textContent = newDescription;
+                    
+                    // Save changes to data model
+                    const visualData = this.translateDOMToVisualData();
+                    CollectionEditor.INSTANCE.modifyStatusCollectionChange(visualData.visualCollections, visualData.visualStatuses);
                 },
                 () => {
                     // Handle cancel (optional)
@@ -674,11 +679,16 @@ export class CollectionEditorUI {
         // Setup cog button event
         cogButton.addEventListener('click', () => {
             EditStatusInfoDialog.show(
-                name,
+                statusName.childNodes[0].textContent || '',
                 'Initial Description', 
                 'Initial Collection',
-                (name, description) => {
-                    statusName.textContent = name;
+                (newName, newDescription) => {
+                    // Update the text content without removing child elements
+                    statusName.childNodes[0].textContent = newName;
+                    
+                    // Save changes to data model
+                    const visualData = this.translateDOMToVisualData();
+                    CollectionEditor.INSTANCE.modifyStatusCollectionChange(visualData.visualCollections, visualData.visualStatuses);
                 },
             );
         });

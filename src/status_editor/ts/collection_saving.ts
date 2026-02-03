@@ -35,8 +35,8 @@ export class CollectionEditor
         // Compile and map collection and statuses into the local changes.
         const simpleCollection: SimpleStatusCollection = {
             UUID: collectionJSON.UUID,
-            name: collectionJSON.name,
-            description: collectionJSON.description,
+            name: collectionJSON.name.trim(),
+            description: collectionJSON.description.trim(),
             statusesUUIDs: collectionJSON.statuses.map(status => status.UUID),
         };
         this.visualStatusCollections.push(simpleCollection);
@@ -46,7 +46,7 @@ export class CollectionEditor
             // Map simple status
             const simpleStatus: SimpleStatus = {
                 UUID: status.UUID,
-                name: status.name,
+                name: status.name.trim(),
                 defaultFlagUUID: status.defaultFlag.UUID,
                 flagUUIDs: status.flags.map(flag => flag.UUID),
             };
