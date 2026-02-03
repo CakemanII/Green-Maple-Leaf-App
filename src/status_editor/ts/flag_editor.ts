@@ -41,6 +41,7 @@ export class FlagEditorUI {
     private currentFlagStatusUUID: string | null = null;
     private currentFlagCollectionUUID: string | null = null;
     private isNewFlag: boolean = false;
+    private isDefaultFlag: boolean = false;
 
     constructor() {
         // Ensure singleton
@@ -351,6 +352,7 @@ export class FlagEditorUI {
         this.isNewFlag = false;
         this.currentFlagStatusUUID = null;
         this.currentFlagCollectionUUID = null;
+        this.isDefaultFlag = false;
 
         // Reset the current flag
         this.currentFlag = null;
@@ -385,7 +387,7 @@ export class FlagEditorUI {
     /**
      * Create new flag
      */
-    public createNewFlag(collectionUUID: string, statusUUID: string): void {
+    public createNewFlag(collectionUUID: string, statusUUID: string, isDefaultFlag: boolean): void {
         // Reset and open prompt
         this.resetPrompt();
 
@@ -393,7 +395,7 @@ export class FlagEditorUI {
         const newFlag = CollectionEditor.INSTANCE.generateNewFlag(false);
 
         // Populate the prompt with the flag data
-        this.populateHTMLWithFlagJSON(newFlag);
+        this.populateHTMLWithFlagJSON(newFlag, isDefaultFlag);
 
         // Set variables
         this.currentFlagCollectionUUID = collectionUUID;
@@ -407,15 +409,15 @@ export class FlagEditorUI {
     /**
      * Edit existing flag
      */
-    public async editExistingFlag(flagUUID: string): Promise<void> {
+    public async editExistingFlag(flagUUID: string, isDefaultFlag: boolean): Promise<void> {
         // Get the local flag
         const flagToEdit: Flag | null = CollectionEditor.INSTANCE.fetchFlagFromLocalChanges(flagUUID);
-        if (!flagToEdit) {
+        if (flagToEdit === null) {
             throw new Error(`Failed to find flag with UUID: ${flagUUID} in local changes.`);
         }
 
         // Populate the prompt with the flag data
-        this.populateHTMLWithFlagJSON(flagToEdit!);
+        this.populateHTMLWithFlagJSON(flagToEdit!, isDefaultFlag);
 
         // Set current flag being edited
         this.isNewFlag = false;
@@ -427,19 +429,16 @@ export class FlagEditorUI {
 
     // #region Translate HTML to JSON
     private translateHTMLInputToFlagJSON(): Flag {
-        // Determine if a flag is being created or edited and get according variables
-        let uuid: string;
-        if (this.currentFlag)
-            // Editing existing flag
-            uuid = this.currentFlag.UUID;
-        else
-            // Creating new flag
-            uuid = GeneralUtilities.generateUUID();
+        // Get flag UUID
+        let uuid = this.currentFlag!.UUID;
 
-        // Recursively parse condition groups and conditions
-        const primaryConditionalGroupJSON = this.parseConditionGroupElement(
-            this.flagConditionsContainerElement.querySelector('.condition-group') as HTMLDivElement
-        );
+        // Recursively parse condition groups and conditions if not a default flag.
+        let primaryConditionalGroupJSON: ConditionalGroup | null = null;
+        if (!this.isDefaultFlag) {
+            primaryConditionalGroupJSON = this.parseConditionGroupElement(
+                this.flagConditionsContainerElement.querySelector('.condition-group') as HTMLDivElement
+            );
+        }
 
         // Build JSON representation
         const flagJSON: Flag = {
@@ -637,9 +636,10 @@ export class FlagEditorUI {
     // #endregion
 
     // #region Translate JSON to HTML
-    private populateHTMLWithFlagJSON(flag: Flag): void {
+    private populateHTMLWithFlagJSON(flag: Flag, isDefaultFlag: boolean): void {
         // Clear existing contents
         this.resetPrompt();
+        this.isDefaultFlag = isDefaultFlag; // set it back to after being reset.
 
         // Set basic fields
         this.flagTitleElement.value = flag.name;
@@ -649,17 +649,19 @@ export class FlagEditorUI {
         // Image
         // Audio
 
-        // Check if it is a default flag
-        if (!flag.primaryConditionalGroup) {
-            console.warn("Flag has no primary conditional group to populate.");
-            return;
+        // Recursively populate condition groups if not default flag.
+        if (!this.isDefaultFlag) {
+            // Check if it is a default flag
+            if (!flag.primaryConditionalGroup) {
+                console.warn("Flag has no primary conditional group to populate.");
+                return;
+            }
+            
+            this.populateConditionGroupElement(
+                this.flagConditionsContainerElement,
+                flag.primaryConditionalGroup!
+            );
         }
-
-        // Recursively populate condition groups
-        this.populateConditionGroupElement(
-            this.flagConditionsContainerElement,
-            flag.primaryConditionalGroup
-        );
 
         // Set current flag being edited
         this.currentFlag = flag;

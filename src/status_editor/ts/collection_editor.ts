@@ -679,14 +679,17 @@ export class CollectionEditorUI {
             // TODO: Implement flag creation logic
             FlagEditorUI.INSTANCE.createNewFlag(
                 status.parentElement?.parentElement?.getAttribute('data-uuid') as string,
-                statusUUID
+                statusUUID,
+                false
             );
         });
-        flagsContainer.appendChild(addFlagButton);
         
         status.appendChild(statusName);
         status.appendChild(statusDescription);
         status.appendChild(flagsContainer);
+        
+        // Add the button at the end initially
+        flagsContainer.appendChild(addFlagButton);
         
         // Add cog button to status name
         const cogSVG = `
@@ -773,8 +776,13 @@ export class CollectionEditorUI {
             this.displayFlagCogMenu(flag);
         });
         
-        // Add flag to status container
-        statusFlagContainer.appendChild(flag);
+        // Insert flag before the Add Flag button to keep it at the end
+        const addFlagButton = statusFlagContainer.querySelector('.add-flag-btn');
+        if (addFlagButton) {
+            statusFlagContainer.insertBefore(flag, addFlagButton);
+        } else {
+            statusFlagContainer.appendChild(flag);
+        }
         
         return flag;
     }
@@ -899,9 +907,12 @@ export class CollectionEditorUI {
         // Get UUIDs
         const flagUUID = flagElement.getAttribute('data-uuid') as string;
 
+        // Determine if default flag
+        const isDefaultFlag = flagElement.getAttribute('data-default-flag') === 'true';
+
         // Display menu
         new Promise<void>((resolve) => {
-            FlagEditorUI.INSTANCE.editExistingFlag(flagUUID);
+            FlagEditorUI.INSTANCE.editExistingFlag(flagUUID, isDefaultFlag);
             resolve();
         });
     }
