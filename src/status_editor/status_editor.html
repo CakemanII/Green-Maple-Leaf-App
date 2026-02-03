@@ -9,6 +9,15 @@
 <body>
     <!-- Main Content Area -->
     <div class="status-editor-container">
+        <!-- Header with Save and Revert buttons -->
+        <div class="status-editor-header">
+            <h1 class="editor-title"></h1>
+            <div class="editor-actions">
+                <button id="main-revert-btn" class="collection-action-btn revert-btn deactivated" title="Revert all changes">Revert</button>
+                <button id="main-save-btn" class="collection-action-btn save-btn deactivated" title="Save all changes to server">Save</button>
+            </div>
+        </div>
+        
         <!-- Collections Container (scrollable vertically) -->
         <div class="collections-container">
             <!-- Collections will be dynamically generated here -->

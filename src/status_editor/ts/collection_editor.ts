@@ -552,6 +552,9 @@ export class CollectionEditorUI {
 
         // Initialize drag and drop
         this.initializeDragAndDrop();
+
+        // Initialize revert and save buttons
+        this.initializeRevertAndSaveButtons();
     }
 
     // #region DOM Initialization Methods
@@ -582,35 +585,7 @@ export class CollectionEditorUI {
         collectionName.className = 'collection-name';
         collectionName.textContent = name;
         
-        // Create button container for save and revert
-        const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'collection-header-buttons';
-        
-        // Create Revert button
-        const revertButton = document.createElement('button');
-        revertButton.className = 'collection-action-btn revert-btn';
-        revertButton.textContent = 'Revert';
-        revertButton.title = 'Revert changes';
-        revertButton.onclick = () => {
-            console.log('Revert clicked for collection:', collectionUUID);
-            // Add your revert logic here
-        };
-        
-        // Create Save button
-        const saveButton = document.createElement('button');
-        saveButton.className = 'collection-action-btn save-btn';
-        saveButton.textContent = 'Save';
-        saveButton.title = 'Save collection';
-        saveButton.onclick = () => {
-            console.log('Save clicked for collection:', collectionUUID);
-            // Add your save logic here
-        };
-        
-        buttonContainer.appendChild(revertButton);
-        buttonContainer.appendChild(saveButton);
-        
         headerTopRow.appendChild(collectionName);
-        headerTopRow.appendChild(buttonContainer);
         
         const descriptionElement = document.createElement('p');
         descriptionElement.className = 'collection-description';
@@ -704,7 +679,6 @@ export class CollectionEditorUI {
                 'Initial Collection',
                 (name, description) => {
                     statusName.textContent = name;
-                    // Set description
                 },
             );
         });
@@ -785,6 +759,43 @@ export class CollectionEditorUI {
         // Not found
         return null;
     }
+
+    /**
+     * Remove all collections from DOM by UUID.
+     */
+    public removeAllCollectionsFromDOM(): void {
+        const collections = this.collectionsContainer.querySelectorAll('.status-collection');
+        collections.forEach(collection => collection.remove());
+    }
+    // #endregion
+
+    // #region Revert and Save Buttons
+    /**
+     * Initialize revert and save buttons.
+     */
+    private initializeRevertAndSaveButtons(): void {
+        const revertButton = document.querySelector('#main-revert-btn') as HTMLButtonElement;
+        const saveButton = document.querySelector('#main-save-btn') as HTMLButtonElement;
+
+        revertButton.addEventListener('click', () => this.handleRevertButtonClick());
+        saveButton.addEventListener('click', () => this.handleSaveButtonClick());
+    }
+
+    /**
+     * Handle revert button click.
+     */
+    private handleRevertButtonClick(): void {
+        // Logic to revert changes
+        CollectionEditor.INSTANCE.revertLocalChanges();
+    }
+
+    /**
+     * Handle save button click.
+     */
+    private handleSaveButtonClick(): void {
+        // Logic to save changes
+        CollectionEditor.INSTANCE.saveAllChangesToServer();
+    }
     // #endregion
 
     // #region Update Display Methods
@@ -826,7 +837,6 @@ export class CollectionEditorUI {
             resolve();
         });
     }
-
     // #endregion
 
     // #region Drag and Dropping
@@ -989,7 +999,7 @@ export class CollectionEditorUI {
         if (
             this.draggedElementPreviousElementParent !== this.draggedElement!.parentElement ||
             this.draggedElementPreviousIndex !== Array.from(this.draggedElement!.parentElement!.children).indexOf(this.draggedElement!)
-        ) {
+        ) {            
             // Translate DOM to visual data
             const visualData = this.translateDOMToVisualData();
             CollectionEditor.INSTANCE.modifyStatusCollectionChange(visualData.visualCollections, visualData.visualStatuses);
@@ -1085,7 +1095,11 @@ export class CollectionEditorUI {
                     if (isDefault) {
                         visualStatus.defaultFlagUUID = flagUUID;
                     }
-                    visualStatus.flagUUIDs.push(flagUUID);
+                    else
+                    {
+                        visualStatus.flagUUIDs.push(flagUUID);
+                    }
+                    
                 });
                 // Add status to statuses array
                 visualStatuses.push(visualStatus);

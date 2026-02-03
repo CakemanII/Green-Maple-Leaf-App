@@ -24,6 +24,7 @@ export class CollectionEditor
         this.fetchStatusCollectionFromServer('test123')
         .then((collection => {
             this.loadCollectionFromJSON(collection);
+            this.previousStatusCollections = [collection];
         }));
     }
 
@@ -63,8 +64,26 @@ export class CollectionEditor
     /**
      * Unload a collection from the editor given its JSON.
      */
-    private unloadCollectionFromJSON(collectionJSON: StatusCollection): void {
+    private unloadCollectionFromJSON(collectionUUID: string): void {
+        // Remove collection from local changes
+        this.visualStatusCollections = this.visualStatusCollections.filter(c => c.UUID !== collectionUUID);
 
+        // Remove associated statuses and flags
+        const statusesToRemove = this.visualStatuses.filter(s => {
+            const collection = this.visualStatusCollections.find(c => c.UUID === collectionUUID);
+            return collection ? collection.statusesUUIDs.includes(s.UUID) : false;
+        });
+
+        for (const status of statusesToRemove) {
+            this.visualStatuses = this.visualStatuses.filter(s => s.UUID !== status.UUID);
+
+            for (const flagUUID of status.flagUUIDs.concat([status.defaultFlagUUID])) {
+                this.flags = this.flags.filter(f => f.UUID !== flagUUID);
+            }
+        }
+
+        // Remove from the editor UI
+        CollectionEditorUI.INSTANCE.removeAllCollectionsFromDOM();
     }
 
     // #region Adding/Editing Local Changes
@@ -115,11 +134,19 @@ export class CollectionEditor
     /**
      * Revert all unsaved changes.
      */
-    public clearAllLocalChanges(): void
+    public revertLocalChanges(): void
     {
+        // Clear current local changes
         this.visualStatusCollections = [];
         this.flags = [];
         this.visualStatuses = [];
+
+        // Clear all collections from DOM
+        CollectionEditorUI.INSTANCE.removeAllCollectionsFromDOM();
+
+        // Reload previous collections into local changes
+        for (const collection of this.previousStatusCollections)
+            this.loadCollectionFromJSON(collection);
     }
     // #endregion
 
