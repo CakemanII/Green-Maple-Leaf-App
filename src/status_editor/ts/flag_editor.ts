@@ -189,6 +189,7 @@ export class FlagEditorUI {
             </select>
             <input type="number" step="1" class="condition-value-input" placeholder="Value..." value="0" />
             <div class="color-indicator" style="background-color:${randomColor};" title="Click to change color"></div>
+            <button class="delete-btn"><i class="fas fa-trash"></i></button>
         `;
         
         // Insert before the button-row
@@ -216,6 +217,12 @@ export class FlagEditorUI {
 
             // Set the colors
             this.updateConditionalGroupStyle(conditionRow);
+        });
+
+        // Make the delete button remove the entire group
+        const deleteBtn = conditionRow.querySelector('.delete-btn') as HTMLButtonElement;
+        deleteBtn.addEventListener('dblclick', () => {
+            conditionRow.remove();
         });
 
         return conditionRow;
@@ -249,6 +256,7 @@ export class FlagEditorUI {
                 <option value="flag3">Critical</option>
             </select>
             <div class="color-indicator" style="background-color:${randomColor};" title="Click to change color"></div>
+            <button class="delete-btn"><i class="fas fa-trash"></i></button>
         `;
         
         // Insert before the button-row
@@ -278,6 +286,12 @@ export class FlagEditorUI {
             this.updateConditionalGroupStyle(conditionRow);
         });
 
+        // Make the delete button remove the entire group
+        const deleteBtn = conditionRow.querySelector('.delete-btn') as HTMLButtonElement;
+        deleteBtn.addEventListener('dblclick', () => {
+            conditionRow.remove();
+        });
+
         return conditionRow;
     }
 
@@ -297,6 +311,7 @@ export class FlagEditorUI {
                 <input type="text" class="condition-name-input" placeholder="Group Name..." value="Conditional Group" />
                 <div class="color-indicator" style="background-color:${colors[0]};" title="Click to change color"></div>
                 <button class="toggle-btn active" data-toggle="and" id="and-or-btn">And</button>
+                <button class="delete-btn"><i class="fas fa-trash"></i></button>
             </div>
             <div class="condition-body">
                 <div class="button-row">
@@ -333,6 +348,12 @@ export class FlagEditorUI {
 
             // Set the colors
             this.updateConditionalGroupStyle(conditionGroup);
+        });
+
+        // Make the delete button remove the entire group
+        const deleteBtn = conditionGroup.querySelector('.delete-btn') as HTMLButtonElement;
+        deleteBtn.addEventListener('dblclick', () => {
+            conditionGroup.remove();
         });
 
         return conditionGroup;
