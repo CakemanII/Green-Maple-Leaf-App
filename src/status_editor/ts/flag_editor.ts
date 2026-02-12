@@ -28,14 +28,22 @@ export class FlagEditorUI {
 
     private flagTitleElement!: HTMLInputElement;
     private flagDescriptionElement!: HTMLTextAreaElement;
-    private flagStatusElement!: HTMLSelectElement;
     private flagImageInputElement!: HTMLInputElement;
     private flagAudioInputElement!: HTMLInputElement;
 
     private confirmFlagBtnElement!: HTMLButtonElement;
 
     private flagPreviewElement!: HTMLImageElement;
+    private flagConditionsContainerTitleElement!: HTMLHeadingElement;
     private flagConditionsContainerElement!: HTMLDivElement;
+
+    // Confirmation Dialog Elements
+    private confirmationDialogElement!: HTMLDivElement;
+    private confirmationTitleElement!: HTMLHeadingElement;
+    private confirmationMessageElement!: HTMLParagraphElement;
+    private confirmationYesBtnElement!: HTMLButtonElement;
+    private confirmationNoBtnElement!: HTMLButtonElement;
+    private confirmationCallback: ((confirmed: boolean) => void) | null = null;
 
     // Active Flag Being Created/Edited
     private currentFlag: Flag | null = null;
@@ -43,6 +51,13 @@ export class FlagEditorUI {
     private currentFlagCollectionUUID: string | null = null;
     private isNewFlag: boolean = false;
     private isDefaultFlag: boolean = false;
+
+    // Drag and Drop State
+    private draggedElement: HTMLElement | null = null;
+    private dragType: 'condition-row' | 'condition-group' | null = null;
+    private draggedElementPreviousParent: HTMLElement | null = null;
+    private draggedElementPreviousIndex: number = -1;
+    private mainConditionalGroup: HTMLElement | null = null;
 
     constructor() {
         // Ensure singleton
@@ -59,7 +74,6 @@ export class FlagEditorUI {
 
         this.flagTitleElement = this.flagCreationPromptElement.querySelector('#flag-title-input') as HTMLInputElement;
         this.flagDescriptionElement = this.flagCreationPromptElement.querySelector('#flag-description-input') as HTMLTextAreaElement;
-        this.flagStatusElement = this.flagCreationPromptElement.querySelector('#flag-status-select') as HTMLSelectElement;
         this.flagImageInputElement = this.flagCreationPromptElement.querySelector('#flag-image-input') as HTMLInputElement;
         this.flagAudioInputElement = this.flagCreationPromptElement.querySelector('#flag-audio-input') as HTMLInputElement;
 
@@ -67,6 +81,14 @@ export class FlagEditorUI {
 
         this.flagPreviewElement = this.flagCreationPromptElement.querySelector('#flag-image-preview') as HTMLImageElement;
         this.flagConditionsContainerElement = this.flagCreationPromptElement.querySelector('#flag-conditions-container') as HTMLDivElement;
+        this.flagConditionsContainerTitleElement = this.flagCreationPromptElement.querySelector('#flag-conditions-section-title') as HTMLHeadingElement;
+
+        // Get confirmation dialog elements
+        this.confirmationDialogElement = document.getElementById('confirmation-dialog') as HTMLDivElement;
+        this.confirmationTitleElement = this.confirmationDialogElement.querySelector('#confirmation-title') as HTMLHeadingElement;
+        this.confirmationMessageElement = this.confirmationDialogElement.querySelector('#confirmation-message') as HTMLParagraphElement;
+        this.confirmationYesBtnElement = this.confirmationDialogElement.querySelector('#confirmation-yes-btn') as HTMLButtonElement;
+        this.confirmationNoBtnElement = this.confirmationDialogElement.querySelector('#confirmation-no-btn') as HTMLButtonElement;
 
         // Setup close and cancel button events
         this.flagCreationCloseBtnElement.addEventListener('click', () => this.closeFlagCreationPrompt());
@@ -78,8 +100,15 @@ export class FlagEditorUI {
         // Setup save button event
         this.confirmFlagBtnElement.addEventListener('click', () => this.confirmChangesToFlag());
 
+        // Setup confirmation dialog button events
+        this.confirmationYesBtnElement.addEventListener('click', () => this.handleConfirmationResponse(true));
+        this.confirmationNoBtnElement.addEventListener('click', () => this.handleConfirmationResponse(false));
+
         // Setup condition button events using event delegation
         this.setupConditionButtonEvents();
+
+        // Initialize drag and drop for conditions
+        this.initializeDragAndDrop();
 
         // Generate telemetry options HTML for condition rows
         this.conditionTelemetryOptionsHTML = this.generateTelemetryOptionsHTML();
@@ -172,6 +201,7 @@ export class FlagEditorUI {
         const randomColor = colors[Math.floor(Math.random() * colors.length)];
         
         conditionRow.innerHTML = `
+            <div class="drag-handle" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></div>
             <select class="condition-select" style="flex:1;">
                 ${this.conditionTelemetryOptionsHTML}
             </select>
@@ -241,6 +271,7 @@ export class FlagEditorUI {
         const randomColor = colors[Math.floor(Math.random() * colors.length)];
         
         conditionRow.innerHTML = `
+            <div class="drag-handle" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></div>
             <select class="condition-select">
                 <option value="">Select Status...</option>
                 <option value="statustemptemp1">Testing!</option>
@@ -298,7 +329,7 @@ export class FlagEditorUI {
     /**
      * Add a new conditional group to the conditions container
      */
-    private addConditionalGroup(conditionBody: HTMLDivElement): HTMLDivElement {
+    private addConditionalGroup(conditionBody: HTMLDivElement, isMainConditionalGroup: boolean = false): HTMLDivElement {
         const conditionGroup = document.createElement('div');
         conditionGroup.className = 'condition-group';
         
@@ -307,18 +338,19 @@ export class FlagEditorUI {
         
         conditionGroup.innerHTML = `
             <div class="condition-header">
+                ${isMainConditionalGroup ? '' : `<div class="drag-handle" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></div>`}
                 <button class="toggle-btn" data-toggle="not">Not</button>
                 <input type="text" class="condition-name-input" placeholder="Group Name..." value="Conditional Group" />
                 <div class="color-indicator" style="background-color:${colors[0]};" title="Click to change color"></div>
                 <button class="toggle-btn active" data-toggle="and" id="and-or-btn">And</button>
-                <button class="delete-btn"><i class="fas fa-trash"></i></button>
+                ${isMainConditionalGroup ? '' : `<button class="delete-btn"><i class="fas fa-trash"></i></button>`}
             </div>
             <div class="condition-body">
                 <div class="button-row">
                     <button class="add-condition-btn">+ Add Telemetry Condition</button>
                     <button class="add-condition-btn">+ Add Status Conditional</button>
+                    <button class="add-group-btn">+ Add Conditional Group</button>
                 </div>
-                <button class="add-group-btn">+ Add Conditional Group</button>
             </div>
         `;
         
@@ -352,9 +384,11 @@ export class FlagEditorUI {
 
         // Make the delete button remove the entire group
         const deleteBtn = conditionGroup.querySelector('.delete-btn') as HTMLButtonElement;
-        deleteBtn.addEventListener('dblclick', () => {
-            conditionGroup.remove();
-        });
+        if (deleteBtn) {
+            deleteBtn.addEventListener('dblclick', () => {
+                conditionGroup.remove();
+            });
+        }
 
         return conditionGroup;
     }
@@ -385,7 +419,6 @@ export class FlagEditorUI {
 
         this.flagTitleElement.value = '';
         this.flagDescriptionElement.value = '';
-        this.flagStatusElement.selectedIndex = 0;
         
         // Image
         // Audio
@@ -700,8 +733,20 @@ export class FlagEditorUI {
 
             this.populateConditionGroupElement(
                 this.flagConditionsContainerElement,
-                flag.primaryConditionalGroup!
+                flag.primaryConditionalGroup!,
+                true // is main conditional group
             );
+
+            // Display the flag conditions container and section title
+            this.flagConditionsContainerElement.style.display = 'block';
+            this.flagConditionsContainerTitleElement.style.display = 'block';
+        }
+        else
+        {
+            // Hide the flag conditions container since default flags don't have conditions
+            this.flagConditionsContainerElement.style.display = 'none';
+            // Hide the section title
+            this.flagConditionsContainerTitleElement.style.display = 'none';
         }
 
         // Set current flag being edited
@@ -711,11 +756,11 @@ export class FlagEditorUI {
     /**
      * Populates a conditional group element based on the provided JSON representation.
      */
-    private populateConditionGroupElement(containerElement: HTMLDivElement, groupJSON: ConditionalGroup): void {
+    private populateConditionGroupElement(containerElement: HTMLDivElement, groupJSON: ConditionalGroup, isMainConditionalGroup: boolean = false): void {
         // Create condition group element
         console.log('Populating :', containerElement);
         const containerBody = containerElement.querySelector('.condition-body') as HTMLDivElement;
-        const conditionGroupElement = this.addConditionalGroup(containerBody);
+        const conditionGroupElement = this.addConditionalGroup(containerBody, isMainConditionalGroup);
 
         // Set NOT button state
         const notBtn = conditionGroupElement.querySelector('.toggle-btn[data-toggle="not"]') as HTMLButtonElement;
@@ -887,6 +932,27 @@ export class FlagEditorUI {
     }
 
     /**
+     * Show confirmation dialog
+     */
+    private showConfirmationDialog(title: string, message: string, callback: (confirmed: boolean) => void): void {
+        this.confirmationTitleElement.textContent = title;
+        this.confirmationMessageElement.textContent = message;
+        this.confirmationCallback = callback;
+        this.confirmationDialogElement.classList.add('active');
+    }
+
+    /**
+     * Handle confirmation dialog response
+     */
+    private handleConfirmationResponse(confirmed: boolean): void {
+        this.confirmationDialogElement.classList.remove('active');
+        if (this.confirmationCallback) {
+            this.confirmationCallback(confirmed);
+            this.confirmationCallback = null;
+        }
+    }
+
+    /**
      * Delete the current flag from local changes
      */
     private deleteFlag(): void {
@@ -901,18 +967,184 @@ export class FlagEditorUI {
             return;
         }
 
-        // Get the flag UUID
-        const flagUUID = this.currentFlag.UUID;
+        // Show confirmation dialog
+        this.showConfirmationDialog(
+            'Delete Flag',
+            `Are you sure you want to delete the flag "${this.currentFlag.name}"?\n\nThis action cannot be undone.`,
+            (confirmed) => {
+                if (!confirmed) {
+                    return;
+                }
 
-        // Remove flag from DOM
-        CollectionEditorUI.INSTANCE.removeFlagFromDOM(flagUUID);
+                // Get the flag UUID
+                const flagUUID = this.currentFlag!.UUID;
 
-        // Update the data model
-        const visualData = CollectionEditorUI.INSTANCE.translateDOMToVisualData();
-        CollectionEditor.INSTANCE.modifyStatusCollectionChange(visualData.visualCollections, visualData.visualStatuses);
+                // Remove flag from DOM
+                CollectionEditorUI.INSTANCE.removeFlagFromDOM(flagUUID);
 
-        // Close the modal
-        this.closeFlagCreationPrompt();
+                // Update the data model
+                const visualData = CollectionEditorUI.INSTANCE.translateDOMToVisualData();
+                CollectionEditor.INSTANCE.modifyStatusCollectionChange(visualData.visualCollections, visualData.visualStatuses);
+
+                // Close the modal
+                this.closeFlagCreationPrompt();
+            }
+        );
+    }
+    // #endregion
+
+    // #region Drag and Drop
+    /**
+     * Initialize drag and drop functionality for condition rows and groups.
+     */
+    private initializeDragAndDrop(): void {
+        this.flagConditionsContainerElement.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+        document.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        document.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+    }
+
+    /**
+     * Handles mouse down events to initiate dragging.
+     */
+    private handleMouseDown(e: MouseEvent): void {
+        const target = e.target as HTMLElement;
+        
+        // Only allow dragging from the drag handle
+        const dragHandle = target.closest('.drag-handle') as HTMLElement;
+        if (!dragHandle) {
+            return;
+        }
+        
+        // Check if clicking on a condition row
+        const conditionRow = dragHandle.closest('.condition-row') as HTMLElement;
+        if (conditionRow) {
+            this.startDragging(conditionRow, 'condition-row', e);
+            return;
+        }
+        
+        // Check if clicking on a condition group header (not its children)
+        const conditionHeader = dragHandle.closest('.condition-header') as HTMLElement;
+        if (conditionHeader) {
+            const conditionGroup = conditionHeader.closest('.condition-group') as HTMLElement;
+            if (conditionGroup) {
+                // Don't allow dragging the main conditional group
+                const mainGroup = this.flagConditionsContainerElement.querySelector('.condition-group');
+                if (conditionGroup === mainGroup) {
+                    return;
+                }
+                this.startDragging(conditionGroup, 'condition-group', e);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Starts the dragging process for a given element.
+     */
+    private startDragging(element: HTMLElement, type: 'condition-row' | 'condition-group', e: MouseEvent): void {
+        this.draggedElement = element;
+        this.dragType = type;
+        this.draggedElementPreviousParent = element.parentElement;
+        this.draggedElementPreviousIndex = Array.from(element.parentElement!.children).indexOf(element);
+        
+        // Find and store the main conditional group (topmost condition-group)
+        this.mainConditionalGroup = this.flagConditionsContainerElement.querySelector('.condition-group') as HTMLElement;
+        
+        // Add dragging class for visual feedback
+        element.classList.add('dragging');
+        
+        e.preventDefault();
+    }
+
+    /**
+     * Handles mouse move events to update dragging position.
+     */
+    private handleMouseMove(e: MouseEvent): void {
+        if (!this.draggedElement || !this.dragType || !this.mainConditionalGroup) return;
+
+        const target = e.target as HTMLElement;
+        
+        // Find the closest condition-body (parent container)
+        const conditionBody = target.closest('.condition-body') as HTMLElement;
+        if (!conditionBody) return;
+        
+        // Only allow dragging within the main conditional group
+        // Check if the conditionBody is a descendant of the main conditional group
+        if (!this.mainConditionalGroup.contains(conditionBody)) return;
+        
+        this.handleDragging(conditionBody, target, e);
+    }
+
+    /**
+     * Handles dragging for both condition rows and groups.
+     */
+    private handleDragging(conditionBody: HTMLElement, target: HTMLElement, e: MouseEvent): void {
+        if (!this.draggedElement) return;
+        
+        // Find if we're hovering over a condition row
+        const hoveredRow = target.closest('.condition-row') as HTMLElement;
+        
+        // Find if we're hovering over a condition group (but not nested ones)
+        let hoveredGroup = target.closest('.condition-group') as HTMLElement;
+        
+        // Determine which element we're actually hovering over that's a direct child of conditionBody
+        let hoveredElement: HTMLElement | null = null;
+        
+        if (hoveredRow && hoveredRow !== this.draggedElement && hoveredRow.parentElement === conditionBody) {
+            hoveredElement = hoveredRow;
+        } else if (hoveredGroup && hoveredGroup !== this.draggedElement && hoveredGroup.parentElement === conditionBody) {
+            hoveredElement = hoveredGroup;
+        }
+        
+        if (hoveredElement) {
+            // Insert before or after based on vertical position
+            const rect = hoveredElement.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+            
+            if (e.clientY < midpoint) {
+                conditionBody.insertBefore(this.draggedElement, hoveredElement);
+            } else {
+                conditionBody.insertBefore(this.draggedElement, hoveredElement.nextSibling);
+            }
+        } else {
+            // If not hovering over any specific element, check if we should append to the body
+            // This handles dragging into empty containers or to the end of a container
+            const childrenInBody = Array.from(conditionBody.children).filter(child => 
+                (child.classList.contains('condition-row') || child.classList.contains('condition-group')) &&
+                child !== this.draggedElement
+            );
+            
+            // Find the button-row to insert before it
+            const buttonRow = Array.from(conditionBody.children).find(
+                child => child.classList.contains('button-row')
+            ) as HTMLElement | undefined;
+            
+            // If dragged element is not already in this body, or if we're in an empty area
+            if (this.draggedElement.parentElement !== conditionBody) {
+                if (buttonRow) {
+                    conditionBody.insertBefore(this.draggedElement, buttonRow);
+                } else {
+                    conditionBody.appendChild(this.draggedElement);
+                }
+            }
+        }
+    }
+
+    /**
+     * Handles mouse up events to finalize dragging.
+     */
+    private handleMouseUp(e: MouseEvent): void {
+        if (!this.draggedElement) return;
+        
+        // Remove dragging class
+        this.draggedElement.classList.remove('dragging');
+
+        // Reset drag state
+        this.draggedElement = null;
+        this.dragType = null;
+        this.draggedElementPreviousParent = null;
+        this.draggedElementPreviousIndex = -1;
+        this.mainConditionalGroup = null;
     }
     // #endregion
 }

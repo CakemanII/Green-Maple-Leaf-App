@@ -11,17 +11,17 @@
 
 /* Shake Animation for Dragging */
 @keyframes shake {
-    0%, 100% { transform: scale(1.15) rotate(-3deg); }
-    25% { transform: scale(1.15) rotate(3deg); }
-    50% { transform: scale(1.15) rotate(-3deg); }
-    75% { transform: scale(1.15) rotate(3deg); }
+    0%, 100% { transform: scale(1.02) rotate(-0.8deg); }
+    25% { transform: scale(1.02) rotate(0.8deg); }
+    50% { transform: scale(1.02) rotate(-0.8deg); }
+    75% { transform: scale(1.02) rotate(0.8deg); }
 }
 
 @keyframes shakeStatus {
-    0%, 100% { transform: scale(1.02) rotate(-0.5deg); }
-    25% { transform: scale(1.02) rotate(0.5deg); }
-    50% { transform: scale(1.02) rotate(-0.5deg); }
-    75% { transform: scale(1.02) rotate(0.5deg); }
+    0%, 100% { transform: scale(1.01) rotate(-0.3deg); }
+    25% { transform: scale(1.01) rotate(0.3deg); }
+    50% { transform: scale(1.01) rotate(-0.3deg); }
+    75% { transform: scale(1.01) rotate(0.3deg); }
 }
 
 html{font-size:16px}
@@ -563,6 +563,15 @@ body {
     box-shadow:0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
+.confirmation-modal{
+    background-color:var(--card);
+    border:2px solid var(--accent);
+    border-radius:12px;
+    width:90%;
+    max-width:500px;
+    box-shadow:0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
 .modal-header{
     background-color:var(--panel);
     padding:24px 32px;
@@ -767,6 +776,21 @@ body {
     border-radius:8px;
     overflow:hidden;
     max-width:100%;
+    transition:all 0.2s;
+}
+
+.condition-group:active {
+    /* Removed cursor style - only drag handle should show grab cursor */
+}
+
+.condition-group.dragging {
+    opacity:0.5;
+    animation:shakeStatus 0.3s infinite;
+    pointer-events:none;
+}
+
+.condition-group.dragging * {
+    pointer-events:none;
 }
 
 .condition-header {
@@ -776,6 +800,10 @@ body {
     display:flex;
     align-items:center;
     gap:12px;
+}
+
+.condition-header:active {
+    /* Removed cursor style - only drag handle should show grab cursor */
 }
 
 .toggle-btn {
@@ -882,6 +910,26 @@ body {
     gap:12px;
 }
 
+.drag-handle {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--muted);
+    cursor:grab;
+    padding:6px 8px;
+    font-size:1.125rem;
+    transition:color 0.2s;
+    user-select:none;
+}
+
+.drag-handle:hover {
+    color:var(--accent);
+}
+
+.drag-handle:active {
+    cursor:grabbing;
+}
+
 .condition-row {
     background-color:var(--panel);
     border:3px solid var(--border);
@@ -890,6 +938,21 @@ body {
     display:flex;
     align-items:center;
     gap:12px;
+    transition:all 0.2s;
+}
+
+.condition-row:active {
+    /* Removed cursor style - only drag handle should show grab cursor */
+}
+
+.condition-row.dragging {
+    opacity:0.5;
+    animation:shake 0.3s infinite;
+    pointer-events:none;
+}
+
+.condition-row.dragging * {
+    pointer-events:none;
 }
 
 .condition-row .color-indicator {
@@ -992,14 +1055,7 @@ body {
     cursor:pointer;
     transition:all 0.15s;
     text-align:center;
-    width:100%;
-    max-height:0;
-    opacity:0;
-    pointer-events:none;
-    overflow:hidden;
-    margin:0;
-    padding:0;
-    border-width:0;
+    flex:1;
 }
 
 .add-group-btn:hover {
@@ -1016,24 +1072,22 @@ body {
     margin-top:12px;
 }
 
-.condition-body:hover > .add-group-btn {
-    max-height:60px;
-    opacity:1;
-    pointer-events:auto;
-    margin-top:12px;
-    padding:10px 16px;
-    border-width:1px;
+
+
+/* Hide add buttons when any element is being dragged */
+.condition-body:has(.dragging) .button-row {
+    max-height:0 !important;
+    opacity:0 !important;
+    pointer-events:none !important;
+    margin:0 !important;
 }
 
 /* Hide buttons when hovering nested condition groups */
-.condition-body > .condition-group:hover ~ .button-row,
-.condition-body > .condition-group:hover ~ .add-group-btn {
+.condition-body > .condition-group:hover ~ .button-row {
     max-height:0;
     opacity:0;
     pointer-events:none;
     margin:0;
-    padding:0;
-    border-width:0;
 }
 
 .modal-actions {
