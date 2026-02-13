@@ -294,7 +294,7 @@ class EditStatusInfoDialog {
         initialName: string = '',
         initialDescription: string = '',
         initialCollection: string = '',
-        onConfirm: (name: string, description: string, collection: string) => void,
+        onConfirm: (name: string, description: string) => void,
         onCancel?: () => void
     ): void {
         // Create overlay
@@ -394,31 +394,6 @@ class EditStatusInfoDialog {
             font-family: inherit;
         `;
 
-        // Collection field
-        const collectionLabel = document.createElement('label');
-        collectionLabel.textContent = 'Collection';
-        collectionLabel.style.cssText = `
-            color: #cccccc;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 4px;
-        `;
-
-        const collectionInput = document.createElement('input');
-        collectionInput.type = 'text';
-        collectionInput.value = initialCollection;
-        collectionInput.placeholder = 'Enter collection...';
-        collectionInput.style.cssText = `
-            padding: 10px 12px;
-            border: 1px solid #555555;
-            border-radius: 4px;
-            background-color: #3a3a3a;
-            color: white;
-            font-size: 14px;
-            width: 100%;
-            box-sizing: border-box;
-        `;
-
         // Add fields to form container
         const nameFieldContainer = document.createElement('div');
         nameFieldContainer.appendChild(nameLabel);
@@ -428,13 +403,8 @@ class EditStatusInfoDialog {
         descriptionFieldContainer.appendChild(descriptionLabel);
         descriptionFieldContainer.appendChild(descriptionInput);
 
-        const collectionFieldContainer = document.createElement('div');
-        collectionFieldContainer.appendChild(collectionLabel);
-        collectionFieldContainer.appendChild(collectionInput);
-
         formContainer.appendChild(nameFieldContainer);
         formContainer.appendChild(descriptionFieldContainer);
-        formContainer.appendChild(collectionFieldContainer);
 
         // Create button container
         const buttonContainer = document.createElement('div');
@@ -505,7 +475,7 @@ class EditStatusInfoDialog {
 
         saveButton.addEventListener('click', () => {
             closeDialog();
-            onConfirm(nameInput.value, descriptionInput.value, collectionInput.value);
+            onConfirm(nameInput.value, descriptionInput.value);
         });
 
         overlay.addEventListener('click', (e) => {
