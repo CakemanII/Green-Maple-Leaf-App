@@ -3,6 +3,7 @@ import { GeneralUtilities } from '../../shared/compiled_js/utilities.js';
 import { Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition, StatusCollection } from '../../shared/compiled_js/types.js';
 import { CollectionEditor } from './collection_saving.js';
 import { CollectionEditorUI } from './collection_editor.js';
+import { ConfirmationPrompt } from '../../shared/compiled_js/prompts.js';
 
 
 export class FlagEditorUI {
@@ -932,16 +933,6 @@ export class FlagEditorUI {
     }
 
     /**
-     * Show confirmation dialog
-     */
-    private showConfirmationDialog(title: string, message: string, callback: (confirmed: boolean) => void): void {
-        this.confirmationTitleElement.textContent = title;
-        this.confirmationMessageElement.textContent = message;
-        this.confirmationCallback = callback;
-        this.confirmationDialogElement.classList.add('active');
-    }
-
-    /**
      * Handle confirmation dialog response
      */
     private handleConfirmationResponse(confirmed: boolean): void {
@@ -968,14 +959,12 @@ export class FlagEditorUI {
         }
 
         // Show confirmation dialog
-        this.showConfirmationDialog(
+        new ConfirmationPrompt(
             'Delete Flag',
             `Are you sure you want to delete the flag "${this.currentFlag.name}"?\n\nThis action cannot be undone.`,
-            (confirmed) => {
-                if (!confirmed) {
-                    return;
-                }
-
+            "Delete",
+            "Cancel",
+            () => {
                 // Get the flag UUID
                 const flagUUID = this.currentFlag!.UUID;
 

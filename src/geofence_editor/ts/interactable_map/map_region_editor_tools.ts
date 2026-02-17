@@ -2,7 +2,7 @@
 declare const L: typeof import('leaflet');
 
 import { AnchorPoint } from "./anchor_point.js";
-import { MapEditorUIConfirmDialog } from "../../../shared/compiled_js/prompts.js";
+import { ConfirmationPrompt } from "../../../shared/compiled_js/prompts.js";
 import { MapRegionEditor, MapRegionRegionManager, MapRegionEditorKeyStates, MapRegionDataManager, MapRegionAnchorManager } from "../interactable_map/map_region_editor.js";
 import { InteractiveMap } from "./map.js";
 import { RegionType, FrontendAnchorData } from "./region.js";
@@ -970,15 +970,15 @@ export class MapRegionEditorDeleteTool extends MapRegionEditorTool {
         const regionData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(this.targetUUID);
         const regionName = regionData ? regionData.General.Name : 'this region';
         
-        MapEditorUIConfirmDialog.show(
+        new ConfirmationPrompt(
             'Delete Region',
             `Are you sure you want to delete "<b>${regionName}</b>"? This action cannot be undone.`,
+            "Delete",
+            "Cancel",
             () => {
-                // Confirmed - delete the region
                 MapRegionRegionManager.INSTANCE.deleteRegion(this.targetUUID);
-            },
-            '#dc3545' // Red color for delete
-        );
+            }
+        )
     }
 
     public removeTool(): void {
@@ -1023,14 +1023,15 @@ export class MapRegionEditorConvertToFreeformTool extends MapRegionEditorTool {
         const regionName = regionData.General.Name;
         const regionTypeName = RegionType[currentType];
 
-        MapEditorUIConfirmDialog.show(
+        new ConfirmationPrompt(
             'Convert to Freeform',
-            `Are you sure you want to convert "<b>${regionName}</b>" from ${regionTypeName} to Freeform? This action cannot be undone.`,
+            `Are you sure you want to convert "<b>${regionName}</b>" from <b>${regionTypeName}</b> to a freeform region? This will allow for more complex shapes but cannot be easily undone.`,
+            "Yes",
+            "Cancel",
             () => {
-                // Confirmed - proceed with conversion
+                // Confirmed - perform the conversion
                 this.performConversion();
             },
-            '#6ba3ff' // Blue color for convert
         );
     }
 

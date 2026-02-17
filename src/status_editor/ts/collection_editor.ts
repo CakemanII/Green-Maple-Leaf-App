@@ -1,70 +1,57 @@
 import { SimpleStatus, SimpleStatusCollection, Flag } from '../../shared/compiled_js/types.js';
 import { CollectionEditor } from './collection_saving.js';
 import { FlagEditorUI } from './flag_editor.js';
+import { InputPrompt } from "../../shared/compiled_js/prompts.js";
 
 
 /**
- * Edit Collection Info Dialog
+ * Edit Collection Info Prompt
  */
-class EditCollectionInfoDialog {
-    /**
-     * Show an edit collection info dialog
-     * @param initialName - Initial collection name value
-     * @param initialDescription - Initial description value
-     * @param initialSize - Derived size value (read-only)
-     * @param initialStatusCount - Derived status count value (read-only)
-     * @param onConfirm - Callback when user saves (receives name, description)
-     * @param onCancel - Optional callback when user cancels
-     * @param collectionUUID - Optional UUID of the collection being edited (required for delete)
-     * @param onDelete - Optional callback when user confirms deletion
-     */
-    public static show(
+class EditCollectionInfoPrompt extends InputPrompt {
+    private nameInputElement!: HTMLInputElement;
+    private descriptionInputElement!: HTMLTextAreaElement
+    private sizeDisplayElement!: HTMLDivElement;
+    private statusCountDisplayElement!: HTMLDivElement;
+
+    private initialName: string;
+    private initialDescription: string;
+
+    private initialSize!: string;
+    private initialStatusCount!: number;
+
+    private collectionUUID!: string;
+
+    private onRemove: () => void;
+
+    constructor(
         initialName: string = '',
         initialDescription: string = '',
         initialSize: string = '',
         initialStatusCount: number = 0,
-        onConfirm: (name: string, description: string) => void,
-        onCancel?: () => void,
-        collectionUUID?: string,
-        onDelete?: (collectionUUID: string) => void
-    ): void {
-        // Create overlay
-        const overlay = document.createElement('div');
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-        `;
+        collectionUUID: string,
+        onConfirm: (name: string, description: string) => void, 
+        onCancel: () => void,
+        onRemove: () => void
+    ) {
+        const confirm = () => {
+            const inputs = this.collectInput();
+            onConfirm(inputs[0], inputs[1]);
+        }
 
-        // Create dialog
-        const dialog = document.createElement('div');
-        dialog.style.cssText = `
-            background-color: #2a2a2a;
-            border-radius: 8px;
-            padding: 24px;
-            min-width: 450px;
-            max-width: 550px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-        `;
+        super("Collection Info Editing", "", "Save", "Cancel", confirm, onCancel);
+        this.initialName = initialName;
+        this.initialDescription = initialDescription;
+        this.initialSize = initialSize;
+        this.initialStatusCount = initialStatusCount;
+        this.collectionUUID = collectionUUID;
+        this.onRemove = onRemove;
 
-        // Create title
-        const titleEl = document.createElement('h3');
-        titleEl.textContent = 'Collection Info Editing';
-        titleEl.style.cssText = `
-            margin: 0 0 20px 0;
-            color: white;
-            font-size: 20px;
-            font-weight: 600;
-        `;
+        // Set up input elements in the DOM
+        this.intializeAdditionalDOM();
+    }
 
-        // Create form fields
+    protected intializeAdditionalDOM(): void {
+ // Create form fields
         const formContainer = document.createElement('div');
         formContainer.style.cssText = `
             display: flex;
@@ -85,7 +72,7 @@ class EditCollectionInfoDialog {
 
         const nameInput = document.createElement('input');
         nameInput.type = 'text';
-        nameInput.value = initialName;
+        nameInput.value = this.initialName;
         nameInput.placeholder = 'Enter collection name...';
         nameInput.style.cssText = `
             padding: 10px 12px;
@@ -109,7 +96,7 @@ class EditCollectionInfoDialog {
         `;
 
         const descriptionInput = document.createElement('textarea');
-        descriptionInput.value = initialDescription;
+        descriptionInput.value = this.initialDescription;
         descriptionInput.placeholder = 'Enter description...';
         descriptionInput.rows = 3;
         descriptionInput.style.cssText = `
@@ -136,7 +123,7 @@ class EditCollectionInfoDialog {
         `;
 
         const sizeDisplay = document.createElement('div');
-        sizeDisplay.textContent = initialSize;
+        sizeDisplay.textContent = this.initialSize;
         sizeDisplay.style.cssText = `
             padding: 10px 12px;
             border: 1px solid #555555;
@@ -159,7 +146,7 @@ class EditCollectionInfoDialog {
         `;
 
         const statusCountDisplay = document.createElement('div');
-        statusCountDisplay.textContent = initialStatusCount.toString();
+        statusCountDisplay.textContent = this.initialStatusCount.toString();
         statusCountDisplay.style.cssText = `
             padding: 10px 12px;
             border: 1px solid #555555;
@@ -193,53 +180,21 @@ class EditCollectionInfoDialog {
         formContainer.appendChild(sizeFieldContainer);
         formContainer.appendChild(statusCountFieldContainer);
 
-        // Create button container
-        const buttonContainer = document.createElement('div');
-        buttonContainer.style.cssText = `
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-        `;
+        // Add form container to dialog (before buttons)
+        this.insertElementIntoDialog(formContainer);
 
-        // Left side button container (for delete)
-        const leftButtonContainer = document.createElement('div');
-        leftButtonContainer.style.cssText = `
-            display: flex;
-            gap: 12px;
-        `;
+        // Set variables for later use
+        this.nameInputElement = nameInput;
+        this.descriptionInputElement = descriptionInput;
+        this.sizeDisplayElement = sizeDisplay;
+        this.statusCountDisplayElement = statusCountDisplay;
 
-        // Right side button container (for cancel and save)
-        const rightButtonContainer = document.createElement('div');
-        rightButtonContainer.style.cssText = `
-            display: flex;
-            gap: 12px;
-        `;
-
-        // Create Remove button (only if collectionUUID and onDelete are provided)
-        if (collectionUUID && onDelete) {
-            const removeButton = document.createElement('button');
-            removeButton.textContent = 'Remove';
-            removeButton.style.cssText = `
-                padding: 10px 24px;
-                background-color: #d32f2f;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 14px;
-                font-weight: 500;
-            `;
-            removeButton.onmouseover = () => { removeButton.style.backgroundColor = '#b71c1c'; };
-            removeButton.onmouseout = () => { removeButton.style.backgroundColor = '#d32f2f'; };
-            leftButtonContainer.appendChild(removeButton);
-        }
-
-        // Create Cancel button
-        const cancelButton = document.createElement('button');
-        cancelButton.textContent = 'Cancel';
-        cancelButton.style.cssText = `
+        // Add delete button
+        const removeButton = document.createElement('button');
+        removeButton.textContent = 'Remove';
+        removeButton.style.cssText = `
             padding: 10px 24px;
-            background-color: #3a3a3a;
+            background-color: #d32f2f;
             color: white;
             border: none;
             border-radius: 4px;
@@ -247,249 +202,61 @@ class EditCollectionInfoDialog {
             font-size: 14px;
             font-weight: 500;
         `;
-        cancelButton.onmouseover = () => { cancelButton.style.backgroundColor = '#4a4a4a'; };
-        cancelButton.onmouseout = () => { cancelButton.style.backgroundColor = '#3a3a3a'; };
+        removeButton.onmouseover = () => { removeButton.style.backgroundColor = '#b71c1c'; };
+        removeButton.onmouseout = () => { removeButton.style.backgroundColor = '#d32f2f'; };
 
-        // Create Save button
-        const saveButton = document.createElement('button');
-        saveButton.textContent = 'Save';
-        saveButton.style.cssText = `
-            padding: 10px 24px;
-            background-color: #6ba3ff;
-            color: #181a1b;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-        `;
-        saveButton.onmouseover = () => { saveButton.style.backgroundColor = '#5a92ee'; };
-        saveButton.onmouseout = () => { saveButton.style.backgroundColor = '#6ba3ff'; };
-
-        // Assemble dialog
-        rightButtonContainer.appendChild(cancelButton);
-        rightButtonContainer.appendChild(saveButton);
-        buttonContainer.appendChild(leftButtonContainer);
-        buttonContainer.appendChild(rightButtonContainer);
-        dialog.appendChild(titleEl);
-        dialog.appendChild(formContainer);
-        dialog.appendChild(buttonContainer);
-        overlay.appendChild(dialog);
-
-        // Close function
-        const closeDialog = () => {
-            document.body.removeChild(overlay);
-            document.removeEventListener('keydown', escapeHandler);
-        };
-
-        // Event handlers
-        const escapeHandler = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                closeDialog();
-                if (onCancel) onCancel();
-            }
-        };
-
-        cancelButton.addEventListener('click', () => {
-            closeDialog();
-            if (onCancel) onCancel();
+        removeButton.addEventListener('click', () => {
+            this.onRemove();
+            this.closePrompt();
         });
 
-        saveButton.addEventListener('click', () => {
-            closeDialog();
-            onConfirm(nameInput.value, descriptionInput.value);
-        });
+        this.insertButtonIntoButtonContainer(removeButton, 0); // Add to left side of button container
+    }
 
-        // Add remove button handler (if remove button exists)
-        if (collectionUUID && onDelete) {
-            const removeButton = leftButtonContainer.querySelector('button') as HTMLButtonElement;
-            if (removeButton) {
-                removeButton.addEventListener('click', () => {
-                    // Show confirmation dialog
-                    const confirmOverlay = document.createElement('div');
-                    confirmOverlay.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background-color: rgba(0, 0, 0, 0.8);
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        z-index: 10001;
-                    `;
-
-                    const confirmDialog = document.createElement('div');
-                    confirmDialog.style.cssText = `
-                        background-color: #2a2a2a;
-                        border-radius: 8px;
-                        padding: 24px;
-                        min-width: 350px;
-                        max-width: 450px;
-                        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-                    `;
-
-                    const confirmTitle = document.createElement('h3');
-                    confirmTitle.textContent = 'Remove Collection';
-                    confirmTitle.style.cssText = `
-                        margin: 0 0 16px 0;
-                        color: white;
-                        font-size: 18px;
-                        font-weight: 600;
-                    `;
-
-                    const confirmMessage = document.createElement('p');
-                    confirmMessage.textContent = `Are you sure you want to remove the collection "${initialName}"?\n\nThis action cannot be undone and will also remove all statuses and flags in this collection.`;
-                    confirmMessage.style.cssText = `
-                        margin: 0 0 24px 0;
-                        color: #cccccc;
-                        font-size: 14px;
-                        line-height: 1.5;
-                        white-space: pre-line;
-                    `;
-
-                    const confirmButtonContainer = document.createElement('div');
-                    confirmButtonContainer.style.cssText = `
-                        display: flex;
-                        justify-content: center;
-                        gap: 12px;
-                    `;
-
-                    const confirmNoButton = document.createElement('button');
-                    confirmNoButton.textContent = 'Cancel';
-                    confirmNoButton.style.cssText = `
-                        padding: 10px 24px;
-                        background-color: #3a3a3a;
-                        color: white;
-                        border: none;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 14px;
-                        font-weight: 500;
-                    `;
-                    confirmNoButton.onmouseover = () => { confirmNoButton.style.backgroundColor = '#4a4a4a'; };
-                    confirmNoButton.onmouseout = () => { confirmNoButton.style.backgroundColor = '#3a3a3a'; };
-
-                    const confirmYesButton = document.createElement('button');
-                    confirmYesButton.textContent = 'Remove';
-                    confirmYesButton.style.cssText = `
-                        padding: 10px 24px;
-                        background-color: #d32f2f;
-                        color: white;
-                        border: none;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 14px;
-                        font-weight: 500;
-                    `;
-                    confirmYesButton.onmouseover = () => { confirmYesButton.style.backgroundColor = '#b71c1c'; };
-                    confirmYesButton.onmouseout = () => { confirmYesButton.style.backgroundColor = '#d32f2f'; };
-
-                    const closeConfirmDialog = () => {
-                        document.body.removeChild(confirmOverlay);
-                    };
-
-                    confirmNoButton.addEventListener('click', () => {
-                        closeConfirmDialog();
-                    });
-
-                    confirmYesButton.addEventListener('click', () => {
-                        closeConfirmDialog();
-                        closeDialog();
-                        onDelete(collectionUUID);
-                    });
-
-                    confirmButtonContainer.appendChild(confirmNoButton);
-                    confirmButtonContainer.appendChild(confirmYesButton);
-                    confirmDialog.appendChild(confirmTitle);
-                    confirmDialog.appendChild(confirmMessage);
-                    confirmDialog.appendChild(confirmButtonContainer);
-                    confirmOverlay.appendChild(confirmDialog);
-                    document.body.appendChild(confirmOverlay);
-
-                    // Focus on cancel button
-                    setTimeout(() => confirmNoButton.focus(), 0);
-                });
-            }
-        }
-
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                closeDialog();
-                if (onCancel) onCancel();
-            }
-        });
-
-        document.addEventListener('keydown', escapeHandler);
-
-        // Add to DOM
-        document.body.appendChild(overlay);
-
-        // Focus on name input
-        setTimeout(() => nameInput.focus(), 0);
+    public collectInput(): any[] {
+        return [this.nameInputElement.value, this.descriptionInputElement.value];
     }
 }
 
 /**
- * Edit Status Info Dialog
+ * Edit Status Info Prompt
  */
-class EditStatusInfoDialog {
-    /**
-     * Show an edit status info dialog
-     * @param initialName - Initial name value
-     * @param initialDescription - Initial description value
-     * @param initialCollection - Initial collection value
-     * @param onConfirm - Callback when user saves (receives name, description, collection)
-     * @param onCancel - Optional callback when user cancels
-     * @param statusUUID - Optional UUID of the status being edited (required for delete)
-     * @param onDelete - Optional callback when user confirms deletion
-     */
-    public static show(
+class EditStatusInfoPrompt extends InputPrompt {
+    private nameInputElement!: HTMLInputElement;
+    private descriptionInputElement!: HTMLTextAreaElement
+
+    private initialName: string;
+    private initialDescription: string;
+
+    private statusUUID: string;
+
+    private onDelete: () => void;
+
+    constructor(
         initialName: string = '',
         initialDescription: string = '',
-        initialCollection: string = '',
-        onConfirm: (name: string, description: string) => void,
-        onCancel?: () => void,
-        statusUUID?: string,
-        onDelete?: (statusUUID: string) => void
-    ): void {
-        // Create overlay
-        const overlay = document.createElement('div');
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-        `;
+        statusUUID: string,
+        onConfirm: (name: string, description: string) => void, 
+        onCancel: () => void,
+        onDelete: () => void
+    ) {
+        const confirm = () => {
+            const inputs = this.collectInput();
+            onConfirm(inputs[0], inputs[1]);
+        }
 
-        // Create dialog
-        const dialog = document.createElement('div');
-        dialog.style.cssText = `
-            background-color: #2a2a2a;
-            border-radius: 8px;
-            padding: 24px;
-            min-width: 450px;
-            max-width: 550px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-        `;
+        super("Edit Status Info", "", "Save", "Cancel", confirm, onCancel);
+        this.initialName = initialName;
+        this.initialDescription = initialDescription;
+        this.statusUUID = statusUUID;
+        this.onDelete = onDelete;
 
-        // Create title
-        const titleEl = document.createElement('h3');
-        titleEl.textContent = 'Edit Status Info';
-        titleEl.style.cssText = `
-            margin: 0 0 20px 0;
-            color: white;
-            font-size: 20px;
-            font-weight: 600;
-        `;
+        // Set up input elements in the DOM
+        this.intializeAdditionalDOM();
+    }
 
+    protected intializeAdditionalDOM(): void {
+        // Create name & description fields
         // Create form fields
         const formContainer = document.createElement('div');
         formContainer.style.cssText = `
@@ -511,7 +278,7 @@ class EditStatusInfoDialog {
 
         const nameInput = document.createElement('input');
         nameInput.type = 'text';
-        nameInput.value = initialName;
+        nameInput.value = this.initialName;
         nameInput.placeholder = 'Enter name...';
         nameInput.style.cssText = `
             padding: 10px 12px;
@@ -535,7 +302,7 @@ class EditStatusInfoDialog {
         `;
 
         const descriptionInput = document.createElement('textarea');
-        descriptionInput.value = initialDescription;
+        descriptionInput.value = this.initialDescription;
         descriptionInput.placeholder = 'Enter description...';
         descriptionInput.rows = 3;
         descriptionInput.style.cssText = `
@@ -556,60 +323,28 @@ class EditStatusInfoDialog {
         nameFieldContainer.appendChild(nameLabel);
         nameFieldContainer.appendChild(nameInput);
 
+        // Description field container
         const descriptionFieldContainer = document.createElement('div');
         descriptionFieldContainer.appendChild(descriptionLabel);
         descriptionFieldContainer.appendChild(descriptionInput);
 
+        // Add to main form container
         formContainer.appendChild(nameFieldContainer);
         formContainer.appendChild(descriptionFieldContainer);
 
-        // Create button container
-        const buttonContainer = document.createElement('div');
-        buttonContainer.style.cssText = `
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-        `;
+        // Add form container to dialog (before buttons)
+        this.insertElementIntoDialog(formContainer);
 
-        // Left side button container (for delete)
-        const leftButtonContainer = document.createElement('div');
-        leftButtonContainer.style.cssText = `
-            display: flex;
-            gap: 12px;
-        `;
+        // Set variables for later use
+        this.nameInputElement = nameInput;
+        this.descriptionInputElement = descriptionInput;
 
-        // Right side button container (for cancel and save)
-        const rightButtonContainer = document.createElement('div');
-        rightButtonContainer.style.cssText = `
-            display: flex;
-            gap: 12px;
-        `;
-
-        // Create Delete button (only if statusUUID and onDelete are provided)
-        if (statusUUID && onDelete) {
-            const deleteButton = document.createElement('button');
-            deleteButton.textContent = 'Delete';
-            deleteButton.style.cssText = `
-                padding: 10px 24px;
-                background-color: #d32f2f;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 14px;
-                font-weight: 500;
-            `;
-            deleteButton.onmouseover = () => { deleteButton.style.backgroundColor = '#b71c1c'; };
-            deleteButton.onmouseout = () => { deleteButton.style.backgroundColor = '#d32f2f'; };
-            leftButtonContainer.appendChild(deleteButton);
-        }
-
-        // Create Cancel button
-        const cancelButton = document.createElement('button');
-        cancelButton.textContent = 'Cancel';
-        cancelButton.style.cssText = `
+        // Add delete button
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+        deleteButton.style.cssText = `
             padding: 10px 24px;
-            background-color: #3a3a3a;
+            background-color: #d32f2f;
             color: white;
             border: none;
             border-radius: 4px;
@@ -617,187 +352,17 @@ class EditStatusInfoDialog {
             font-size: 14px;
             font-weight: 500;
         `;
-        cancelButton.onmouseover = () => { cancelButton.style.backgroundColor = '#4a4a4a'; };
-        cancelButton.onmouseout = () => { cancelButton.style.backgroundColor = '#3a3a3a'; };
-
-        // Create Save button
-        const saveButton = document.createElement('button');
-        saveButton.textContent = 'Save';
-        saveButton.style.cssText = `
-            padding: 10px 24px;
-            background-color: #6ba3ff;
-            color: #181a1b;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-        `;
-        saveButton.onmouseover = () => { saveButton.style.backgroundColor = '#5a92ee'; };
-        saveButton.onmouseout = () => { saveButton.style.backgroundColor = '#6ba3ff'; };
-
-        // Assemble dialog
-        rightButtonContainer.appendChild(cancelButton);
-        rightButtonContainer.appendChild(saveButton);
-        buttonContainer.appendChild(leftButtonContainer);
-        buttonContainer.appendChild(rightButtonContainer);
-        dialog.appendChild(titleEl);
-        dialog.appendChild(formContainer);
-        dialog.appendChild(buttonContainer);
-        overlay.appendChild(dialog);
-
-        // Close function
-        const closeDialog = () => {
-            document.body.removeChild(overlay);
-            document.removeEventListener('keydown', escapeHandler);
-        };
-
-        // Event handlers
-        const escapeHandler = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                closeDialog();
-                if (onCancel) onCancel();
-            }
-        };
-
-        cancelButton.addEventListener('click', () => {
-            closeDialog();
-            if (onCancel) onCancel();
+        deleteButton.onmouseover = () => { deleteButton.style.backgroundColor = '#b71c1c'; };
+        deleteButton.onmouseout = () => { deleteButton.style.backgroundColor = '#d32f2f'; };
+        deleteButton.addEventListener('click', () => {
+            this.onDelete();
+            this.closePrompt();
         });
+        this.insertButtonIntoButtonContainer(deleteButton, 0); // Add to left side of button container
+    }
 
-        saveButton.addEventListener('click', () => {
-            closeDialog();
-            onConfirm(nameInput.value, descriptionInput.value);
-        });
-
-        // Add delete button handler (if delete button exists)
-        if (statusUUID && onDelete) {
-            const deleteButton = leftButtonContainer.querySelector('button') as HTMLButtonElement;
-            if (deleteButton) {
-                deleteButton.addEventListener('click', () => {
-                    // Show confirmation dialog
-                    const confirmOverlay = document.createElement('div');
-                    confirmOverlay.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background-color: rgba(0, 0, 0, 0.8);
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        z-index: 10001;
-                    `;
-
-                    const confirmDialog = document.createElement('div');
-                    confirmDialog.style.cssText = `
-                        background-color: #2a2a2a;
-                        border-radius: 8px;
-                        padding: 24px;
-                        min-width: 350px;
-                        max-width: 450px;
-                        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-                    `;
-
-                    const confirmTitle = document.createElement('h3');
-                    confirmTitle.textContent = 'Delete Status';
-                    confirmTitle.style.cssText = `
-                        margin: 0 0 16px 0;
-                        color: white;
-                        font-size: 18px;
-                        font-weight: 600;
-                    `;
-
-                    const confirmMessage = document.createElement('p');
-                    confirmMessage.textContent = `Are you sure you want to delete the status \"${initialName}\"?\\n\\nThis action cannot be undone and will also delete all associated flags.`;
-                    confirmMessage.style.cssText = `
-                        margin: 0 0 24px 0;
-                        color: #cccccc;
-                        font-size: 14px;
-                        line-height: 1.5;
-                        white-space: pre-line;
-                    `;
-
-                    const confirmButtonContainer = document.createElement('div');
-                    confirmButtonContainer.style.cssText = `
-                        display: flex;
-                        justify-content: center;
-                        gap: 12px;
-                    `;
-
-                    const confirmNoButton = document.createElement('button');
-                    confirmNoButton.textContent = 'Cancel';
-                    confirmNoButton.style.cssText = `
-                        padding: 10px 24px;
-                        background-color: #3a3a3a;
-                        color: white;
-                        border: none;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 14px;
-                        font-weight: 500;
-                    `;
-                    confirmNoButton.onmouseover = () => { confirmNoButton.style.backgroundColor = '#4a4a4a'; };
-                    confirmNoButton.onmouseout = () => { confirmNoButton.style.backgroundColor = '#3a3a3a'; };
-
-                    const confirmYesButton = document.createElement('button');
-                    confirmYesButton.textContent = 'Delete';
-                    confirmYesButton.style.cssText = `
-                        padding: 10px 24px;
-                        background-color: #d32f2f;
-                        color: white;
-                        border: none;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 14px;
-                        font-weight: 500;
-                    `;
-                    confirmYesButton.onmouseover = () => { confirmYesButton.style.backgroundColor = '#b71c1c'; };
-                    confirmYesButton.onmouseout = () => { confirmYesButton.style.backgroundColor = '#d32f2f'; };
-
-                    const closeConfirmDialog = () => {
-                        document.body.removeChild(confirmOverlay);
-                    };
-
-                    confirmNoButton.addEventListener('click', () => {
-                        closeConfirmDialog();
-                    });
-
-                    confirmYesButton.addEventListener('click', () => {
-                        closeConfirmDialog();
-                        closeDialog();
-                        onDelete(statusUUID);
-                    });
-
-                    confirmButtonContainer.appendChild(confirmNoButton);
-                    confirmButtonContainer.appendChild(confirmYesButton);
-                    confirmDialog.appendChild(confirmTitle);
-                    confirmDialog.appendChild(confirmMessage);
-                    confirmDialog.appendChild(confirmButtonContainer);
-                    confirmOverlay.appendChild(confirmDialog);
-                    document.body.appendChild(confirmOverlay);
-
-                    // Focus on cancel button
-                    setTimeout(() => confirmNoButton.focus(), 0);
-                });
-            }
-        }
-
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                closeDialog();
-                if (onCancel) onCancel();
-            }
-        });
-
-        document.addEventListener('keydown', escapeHandler);
-
-        // Add to DOM
-        document.body.appendChild(overlay);
-
-        // Focus on name input
-        setTimeout(() => nameInput.focus(), 0);
+    public collectInput(): any[] {
+        return [this.nameInputElement.value, this.descriptionInputElement.value];
     }
 }
 
@@ -893,11 +458,12 @@ export class CollectionEditorUI {
 
         // Setup cog button event
         cogButton.addEventListener('click', () => {
-            EditCollectionInfoDialog.show(
+            new EditCollectionInfoPrompt(
                 collectionName.childNodes[0].textContent || '',
                 descriptionElement.textContent || '',
                 '125 KB',
                 5,
+                collectionUUID,
                 (newName, newDescription) => {
                     // Update the text content without removing child elements
                     collectionName.childNodes[0].textContent = newName;
@@ -907,20 +473,16 @@ export class CollectionEditorUI {
                     const visualData = this.translateDOMToVisualData();
                     CollectionEditor.INSTANCE.modifyStatusCollectionChange(visualData.visualCollections, visualData.visualStatuses);
                 },
+                () => {},
                 () => {
-                    // Handle cancel (optional)
-                    console.log('Cancelled');
-                },
-                collectionUUID,
-                (deletedCollectionUUID) => {
                     // Remove collection from DOM
-                    this.removeCollectionFromDOM(deletedCollectionUUID);
+                    this.removeCollectionFromDOM(collectionUUID);
                     
                     // Save changes to data model
                     const visualData = this.translateDOMToVisualData();
                     CollectionEditor.INSTANCE.modifyStatusCollectionChange(visualData.visualCollections, visualData.visualStatuses);
                 }
-            );
+            )
         });
         
         return collection;
@@ -991,30 +553,29 @@ export class CollectionEditorUI {
 
         // Setup cog button event
         cogButton.addEventListener('click', () => {
-            EditStatusInfoDialog.show(
+            new EditStatusInfoPrompt(
                 statusName.childNodes[0].textContent || '',
                 statusDescription.textContent || '', 
-                'Initial Collection',
+                statusUUID,
                 (newName, newDescription) => {
                     // Update the text content without removing child elements
                     statusName.childNodes[0].textContent = newName;
                     statusDescription.textContent = newDescription;
-                    
+
                     // Save changes to data model
                     const visualData = this.translateDOMToVisualData();
                     CollectionEditor.INSTANCE.modifyStatusCollectionChange(visualData.visualCollections, visualData.visualStatuses);
                 },
-                undefined,
-                statusUUID,
-                (deletedStatusUUID) => {
+                () => {},
+                () => {
                     // Remove status from DOM
-                    this.removeStatusFromDOM(deletedStatusUUID);
+                    this.removeStatusFromDOM(statusUUID);
                     
                     // Save changes to data model
                     const visualData = this.translateDOMToVisualData();
                     CollectionEditor.INSTANCE.modifyStatusCollectionChange(visualData.visualCollections, visualData.visualStatuses);
                 }
-            );
+            )
         });
         
         // Add status to collection
