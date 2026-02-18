@@ -26,8 +26,6 @@ class TabMenuUI {
 
         // Initialize event listeners
         this.initializeMenuActivationListeners();
-        
-        this.initializeButtonEventListeners();
     }
 
     /**
@@ -42,35 +40,6 @@ class TabMenuUI {
             if (event.data.type === 'activateMenu') {
                 this.showMenu();
             }
-        });
-    }
-
-    /**
-     * Initializes button event listeners for the tab menu UI.
-     */
-    private initializeButtonEventListeners(): void {
-        return;
-        // Save Button
-        this.saveButton.addEventListener('click', async () => {
-            // Trigger save functionality
-            await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile(false);
-        });
-
-        // Save As Button
-        this.saveAsButton.addEventListener('click', async () => {
-            // Trigger save as functionality
-            await GeoeditFileManager.Instance.attemptSaveCurrentToGeoeditFile(true);
-        });
-
-        // Load Button
-        this.loadButton.addEventListener('click', async () => {
-            // Trigger load functionality
-            MapEditorUIFileListDialog.show(
-                await GeoeditFileManager.Instance.fetchAvailableGeoeditFiles(),
-                async (uuid: string) => {
-                    await GeoeditFileManager.Instance.loadGeoeditFile(uuid);
-                }
-            );
         });
     }
 

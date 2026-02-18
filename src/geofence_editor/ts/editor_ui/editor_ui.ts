@@ -1,4 +1,4 @@
-import { MapEditorUIFileListDialog, ColorPickerPrompt, FileListViewerPrompt } from "../../../shared/compiled_js/prompts.js";
+import { ColorPickerPrompt, GeoeditFileListViewerPrompt } from "../../../shared/compiled_js/prompts.js";
 import { TabMenu } from "../../../shared/compiled_js/tabmenu.js";
 import { GeoeditFileManager } from "../geofence_filing.js";
 import { InteractiveMap } from "../interactable_map/map.js";
@@ -252,14 +252,21 @@ export class MapEditorUI {
                         "/geofence/list_metadatas"
                     );*/
 
-                    MapEditorUIFileListDialog.show(
+                    new GeoeditFileListViewerPrompt(
+                        async (fileMetadata) => {
+                            await GeoeditFileManager.Instance.loadGeoeditFile(fileMetadata.UUID);
+                            finished = true; decision = true;
+                        },
+                        () => { finished = true; }
+                    )
+                    /*MapEditorUIFileListDialog.show(
                         await GeoeditFileManager.Instance.fetchAvailableGeoeditFiles(),
                         async (uuid: string) => {
                             await GeoeditFileManager.Instance.loadGeoeditFile(uuid);
                             finished = true; decision = true;
                         },
                         () => { finished = true; }
-                    );
+                    );*/
 
                     // Wait for finished to be true 
                     while (!finished) {
