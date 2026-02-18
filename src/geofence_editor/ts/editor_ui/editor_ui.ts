@@ -1,4 +1,4 @@
-import { MapEditorUIFileListDialog } from "../../../shared/compiled_js/prompts.js";
+import { MapEditorUIFileListDialog, ColorPickerPrompt } from "../../../shared/compiled_js/prompts.js";
 import { TabMenu } from "../../../shared/compiled_js/tabmenu.js";
 import { GeoeditFileManager } from "../geofence_filing.js";
 import { InteractiveMap } from "../interactable_map/map.js";
@@ -424,398 +424,6 @@ export class MapEditorUI {
     }
 }
 
-/**
- * Custom color picker with gradient square and hue slider
- */
-export class MapEditorUIColorPicker {
-    private modal: HTMLDivElement;
-    private canvas: HTMLCanvasElement;
-    private ctx: CanvasRenderingContext2D;
-    private hueSlider: HTMLInputElement;
-    private hexInput: HTMLInputElement;
-    private confirmBtn: HTMLButtonElement;
-    private currentColorDisplay: HTMLDivElement;
-    private onConfirmCallback: (color: string) => void;
-    private onChangeCallback?: (color: string) => void;
-    private originalColor: string;
-    private onCancelCallback?: () => void;
-    private escapeHandler!: () => void;
-    private outsideClickHandler!: (e: MouseEvent) => void;
-    
-    private currentHue: number = 0;
-    private currentSaturation: number = 100;
-    private currentLightness: number = 50;
-    
-    private isDragging: boolean = false;
-    private gradientCache: ImageData | null = null;
-
-    constructor(initialColor: string, onConfirm: (color: string) => void, clickEvent?: MouseEvent, onChange?: (color: string) => void, onCancel?: () => void) {
-        this.onConfirmCallback = onConfirm;
-        this.onChangeCallback = onChange;
-        this.onCancelCallback = onCancel;
-        this.originalColor = initialColor;
-
-        // Parse initial color
-        this.parseHexColor(initialColor);
-
-        // Create modal container
-        this.modal = document.createElement('div');
-        this.modal.className = 'color-picker-modal active';
-
-        // Create content
-        const content = document.createElement('div');
-        content.className = 'color-picker-content';
-
-        // Create canvas for color square
-        this.canvas = document.createElement('canvas');
-        this.canvas.className = 'color-picker-canvas';
-        // Calculate canvas size based on current font size for responsive scaling
-        const baseFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
-        const canvasSize = Math.floor(17.5 * baseFontSize);
-        this.canvas.width = canvasSize;
-        this.canvas.height = canvasSize;
-        this.ctx = this.canvas.getContext('2d')!;
-
-        // Create hue slider
-        this.hueSlider = document.createElement('input');
-        this.hueSlider.type = 'range';
-        this.hueSlider.className = 'color-picker-hue-slider';
-        this.hueSlider.min = '0';
-        this.hueSlider.max = '360';
-        this.hueSlider.value = this.currentHue.toString();
-
-        // Create right side container for inputs
-        const rightContainer = document.createElement('div');
-        rightContainer.className = 'color-picker-right';
-        // Set height to match canvas
-        rightContainer.style.height = canvasSize + 'px';
-
-        // Create color comparison box
-        const colorCompareBox = document.createElement('div');
-        colorCompareBox.className = 'color-picker-compare-box';
-        
-        const previousColor = document.createElement('div');
-        previousColor.className = 'color-picker-previous-color';
-        previousColor.style.backgroundColor = initialColor;
-        
-        this.currentColorDisplay = document.createElement('div');
-        this.currentColorDisplay.className = 'color-picker-current-color';
-        this.currentColorDisplay.style.backgroundColor = initialColor;
-        
-        colorCompareBox.appendChild(previousColor);
-        colorCompareBox.appendChild(this.currentColorDisplay);
-
-        // Create bottom controls container
-        const bottomControls = document.createElement('div');
-        bottomControls.className = 'color-picker-bottom-controls';
-
-        // Create hex input
-        this.hexInput = document.createElement('input');
-        this.hexInput.type = 'text';
-        this.hexInput.className = 'color-picker-hex-input';
-        this.hexInput.placeholder = '#000000';
-        this.hexInput.value = initialColor;
-
-        // Create confirm button
-        this.confirmBtn = document.createElement('button');
-        this.confirmBtn.className = 'color-picker-confirm-btn';
-        this.confirmBtn.textContent = 'Confirm';
-
-        // Assemble elements
-        bottomControls.appendChild(this.hexInput);
-        bottomControls.appendChild(this.confirmBtn);
-        rightContainer.appendChild(colorCompareBox);
-        rightContainer.appendChild(bottomControls);
-        content.appendChild(this.canvas);
-        content.appendChild(this.hueSlider);
-        content.appendChild(rightContainer);
-        this.modal.appendChild(content);
-
-        // Add to document
-        document.body.appendChild(this.modal);
-
-        // Position top based on click event
-        if (clickEvent) {
-            const contentRect = content.getBoundingClientRect();
-            
-            // Get footer bar height to prevent intersection
-            const footerBar = document.querySelector('.map-info');
-            const footerHeight = footerBar ? footerBar.getBoundingClientRect().height : 0;
-            
-            // Position vertically based on click, ensure it doesn't intersect footer or go below viewport
-            let top = clickEvent.clientY;
-            const maxTop = window.innerHeight - contentRect.height - footerHeight - 10;
-            top = Math.min(Math.max(10, top), maxTop);
-            
-            content.style.position = 'fixed';
-            content.style.top = top + 'px';
-        }
-
-        // Draw initial color square
-        this.drawColorSquare();
-        this.drawSelector();
-
-        // Setup event listeners
-        this.setupEventListeners();
-
-        // ESC key handler using MapRegionEditorKeyStates
-        this.escapeHandler = () => {
-            this.removeWithoutCallback();
-        };
-        MapRegionEditorKeyStates.INSTANCE.escapePressedDownListeners.push(this.escapeHandler);
-    }
-
-    private parseHexColor(hex: string): void {
-        const r = parseInt(hex.slice(1, 3), 16) / 255;
-        const g = parseInt(hex.slice(3, 5), 16) / 255;
-        const b = parseInt(hex.slice(5, 7), 16) / 255;
-
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-        const delta = max - min;
-
-        // Calculate lightness
-        this.currentLightness = ((max + min) / 2) * 100;
-
-        // Calculate saturation
-        if (delta === 0) {
-            this.currentSaturation = 0;
-        } else {
-            this.currentSaturation = (delta / (1 - Math.abs(2 * (this.currentLightness / 100) - 1))) * 100;
-        }
-
-        // Calculate hue
-        if (delta === 0) {
-            this.currentHue = 0;
-        } else if (max === r) {
-            this.currentHue = 60 * (((g - b) / delta) % 6);
-        } else if (max === g) {
-            this.currentHue = 60 * (((b - r) / delta) + 2);
-        } else {
-            this.currentHue = 60 * (((r - g) / delta) + 4);
-        }
-
-        if (this.currentHue < 0) this.currentHue += 360;
-    }
-
-    private hslToHex(h: number, s: number, l: number): string {
-        s /= 100;
-        l /= 100;
-
-        const c = (1 - Math.abs(2 * l - 1)) * s;
-        const x = c * (1 - Math.abs((h / 60) % 2 - 1));
-        const m = l - c / 2;
-
-        let r = 0, g = 0, b = 0;
-
-        if (h >= 0 && h < 60) {
-            r = c; g = x; b = 0;
-        } else if (h >= 60 && h < 120) {
-            r = x; g = c; b = 0;
-        } else if (h >= 120 && h < 180) {
-            r = 0; g = c; b = x;
-        } else if (h >= 180 && h < 240) {
-            r = 0; g = x; b = c;
-        } else if (h >= 240 && h < 300) {
-            r = x; g = 0; b = c;
-        } else {
-            r = c; g = 0; b = x;
-        }
-
-        const red = Math.round((r + m) * 255);
-        const green = Math.round((g + m) * 255);
-        const blue = Math.round((b + m) * 255);
-
-        return '#' + [red, green, blue].map(x => {
-            const hex = x.toString(16);
-            return hex.length === 1 ? '0' + hex : hex;
-        }).join('');
-    }
-
-    private drawColorSquare(): void {
-        const width = this.canvas.width;
-        const height = this.canvas.height;
-
-        // Draw saturation gradient (left to right)
-        for (let x = 0; x < width; x++) {
-            const saturation = (x / width) * 100;
-            for (let y = 0; y < height; y++) {
-                const lightness = 100 - (y / height) * 100;
-                const color = this.hslToHex(this.currentHue, saturation, lightness);
-                this.ctx.fillStyle = color;
-                this.ctx.fillRect(x, y, 1, 1);
-            }
-        }
-        
-        // Cache the gradient for efficient redraws
-        this.gradientCache = this.ctx.getImageData(0, 0, width, height);
-    }
-
-    private drawSelector(): void {
-        // Restore the cached gradient to clear previous selector
-        if (this.gradientCache) {
-            this.ctx.putImageData(this.gradientCache, 0, 0);
-        }
-        
-        const x = (this.currentSaturation / 100) * this.canvas.width;
-        const y = (1 - this.currentLightness / 100) * this.canvas.height;
-
-        this.ctx.strokeStyle = '#ffffff';
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-        this.ctx.arc(x, y, 8, 0, 2 * Math.PI);
-        this.ctx.stroke();
-
-        this.ctx.strokeStyle = '#000000';
-        this.ctx.lineWidth = 1;
-        this.ctx.beginPath();
-        this.ctx.arc(x, y, 9, 0, 2 * Math.PI);
-        this.ctx.stroke();
-    }
-
-    private updateColorFromCanvas(x: number, y: number, updateHex: boolean = false): void {
-        const rect = this.canvas.getBoundingClientRect();
-        const canvasX = Math.max(0, Math.min(this.canvas.width, x - rect.left));
-        const canvasY = Math.max(0, Math.min(this.canvas.height, y - rect.top));
-
-        this.currentSaturation = (canvasX / this.canvas.width) * 100;
-        this.currentLightness = 100 - (canvasY / this.canvas.height) * 100;
-
-        // Update current color display in real-time
-        const hexColor = this.hslToHex(this.currentHue, this.currentSaturation, this.currentLightness);
-        this.currentColorDisplay.style.backgroundColor = hexColor;
-        
-        // Call onChange callback for real-time updates
-        if (this.onChangeCallback) {
-            this.onChangeCallback(hexColor);
-        }
-        
-        // Only update hex input when requested (on mouse up or initial click)
-        if (updateHex) {
-            this.hexInput.value = hexColor;
-        }
-
-        // Only redraw the selector, not the entire gradient
-        this.drawSelector();
-    }
-
-    private setupEventListeners(): void {
-        // Canvas mouse events
-        this.canvas.addEventListener('mousedown', (e) => {
-            this.isDragging = true;
-            this.updateColorFromCanvas(e.clientX, e.clientY, false);
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (this.isDragging) {
-                this.updateColorFromCanvas(e.clientX, e.clientY, false);
-            }
-        });
-
-        document.addEventListener('mouseup', (e) => {
-            if (this.isDragging) {
-                this.updateColorFromCanvas(e.clientX, e.clientY, true);
-                this.isDragging = false;
-            }
-        });
-
-        // Hue slider with debouncing
-        let hueUpdateTimeout: number | null = null;
-        this.hueSlider.addEventListener('input', () => {
-            this.currentHue = parseInt(this.hueSlider.value);
-            this.gradientCache = null; // Invalidate cache when hue changes
-            this.drawColorSquare();
-            this.drawSelector();
-            
-            // Update current color display immediately
-            const hexColor = this.hslToHex(this.currentHue, this.currentSaturation, this.currentLightness);
-            this.currentColorDisplay.style.backgroundColor = hexColor;
-            
-            // Call onChange callback for real-time updates
-            if (this.onChangeCallback) {
-                this.onChangeCallback(hexColor);
-            }
-            
-            // Debounce hex input update
-            if (hueUpdateTimeout !== null) {
-                clearTimeout(hueUpdateTimeout);
-            }
-            hueUpdateTimeout = window.setTimeout(() => {
-                this.hexInput.value = hexColor;
-                hueUpdateTimeout = null;
-            }, 100);
-        });
-
-        // Hex input
-        this.hexInput.addEventListener('input', () => {
-            const hexValue = this.hexInput.value;
-            if (/^#[0-9A-Fa-f]{6}$/.test(hexValue)) {
-                this.parseHexColor(hexValue);
-                this.hueSlider.value = this.currentHue.toString();
-                this.currentColorDisplay.style.backgroundColor = hexValue;
-                
-                // Call onChange callback for real-time updates
-                if (this.onChangeCallback) {
-                    this.onChangeCallback(hexValue);
-                }
-                
-                this.drawColorSquare();
-                this.drawSelector();
-            }
-        });
-
-        // Confirm button
-        this.confirmBtn.addEventListener('click', () => {
-            this.onConfirmCallback(this.hexInput.value);
-            this.remove();
-        });
-
-        // Click outside to close (use setTimeout to avoid immediate trigger)
-        setTimeout(() => {
-            this.outsideClickHandler = (e: MouseEvent) => {
-                const content = this.modal.querySelector('.color-picker-content');
-                if (content && !content.contains(e.target as Node)) {
-                    this.removeWithoutCallback();
-                }
-            };
-            document.addEventListener('click', this.outsideClickHandler);
-        }, 0);
-    }
-
-    /**
-     * Removes the color picker modal from the DOM
-     */
-    public remove(): void {
-        this.cleanup();
-        this.modal.remove();
-    }
-
-    /**
-     * Removes the color picker without calling the callback (cancel action)
-     */
-    private removeWithoutCallback(): void {
-        // Revert to original color
-        if (this.onCancelCallback) {
-            this.onCancelCallback();
-        }
-        this.cleanup();
-        this.modal.remove();
-    }
-
-    /**
-     * Cleanup listeners
-     */
-    private cleanup(): void {
-        // Remove escape listener
-        const index = MapRegionEditorKeyStates.INSTANCE.escapePressedDownListeners.indexOf(this.escapeHandler);
-        if (index > -1) {
-            MapRegionEditorKeyStates.INSTANCE.escapePressedDownListeners.splice(index, 1);
-        }
-        // Remove click listener
-        document.removeEventListener('click', this.outsideClickHandler);
-    }
-}
-
 export class MapEditorUIRegionInfoManager {
     private static instance: MapEditorUIRegionInfoManager;
     public static get INSTANCE(): MapEditorUIRegionInfoManager { return MapEditorUIRegionInfoManager.instance; }
@@ -962,7 +570,35 @@ export class MapEditorUIRegionInfoManager {
             const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
             if (activeRegion) {
                 const originalColor = activeRegion.RegionData.Style.FillColor;
-                new MapEditorUIColorPicker(
+                new ColorPickerPrompt(
+                    originalColor,
+                    e,
+                    (selectedColor) => {
+                        // On confirm
+                        if (!this.isValidHexColor(selectedColor)) return;
+                        const newRegionData: RegionData = activeRegion.RegionData;
+                        newRegionData.Style.FillColor = selectedColor;
+
+                        this.updateRegionDataInManager(newRegionData);
+                    },
+                    (color) => {
+                        // On change (real-time update)
+                        if (!this.isValidHexColor(color)) return;
+                        const newRegionData: RegionData = activeRegion.RegionData;
+                        newRegionData.Style.FillColor = color;
+
+                        this.updateRegionDataInManager(newRegionData);
+                    },
+                    () => {
+                        // On cancel (revert)
+                        const newRegionData: RegionData = activeRegion.RegionData;
+                        newRegionData.Style.FillColor = originalColor;
+
+                        this.updateRegionDataInManager(newRegionData);
+                    }
+                )
+
+                /*new MapEditorUIColorPicker(
                     originalColor,
                     (selectedColor) => {
                         // On confirm
@@ -988,7 +624,7 @@ export class MapEditorUIRegionInfoManager {
 
                         this.updateRegionDataInManager(newRegionData);
                     }
-                );
+                );*/
             }
         });
 
@@ -997,7 +633,33 @@ export class MapEditorUIRegionInfoManager {
             const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
             if (activeRegion) {
                 const originalColor = activeRegion.RegionData.Style.StrokeColor;
-                new MapEditorUIColorPicker(
+                new ColorPickerPrompt(
+                    originalColor,
+                    e,
+                    (selectedColor) => {
+                        // On confirm
+                        const newRegionData: RegionData = activeRegion.RegionData;
+                        newRegionData.Style.StrokeColor = selectedColor;
+
+                        this.updateRegionDataInManager(newRegionData);
+                    },
+                    (color) => {
+                        // On change (real-time update)
+                        const newRegionData: RegionData = activeRegion.RegionData;
+                        newRegionData.Style.StrokeColor = color;
+
+                        this.updateRegionDataInManager(newRegionData);
+                    },
+                    () => {
+                        // On cancel (revert)
+                        const newRegionData: RegionData = activeRegion.RegionData;
+                        newRegionData.Style.StrokeColor = originalColor;
+
+                        this.updateRegionDataInManager(newRegionData);
+                    }
+                )
+                
+                /*new MapEditorUIColorPicker(
                     originalColor,
                     (selectedColor) => {
                         // On confirm
@@ -1021,7 +683,7 @@ export class MapEditorUIRegionInfoManager {
 
                         this.updateRegionDataInManager(newRegionData);
                     }
-                );
+                );*/
             }
         });
     }

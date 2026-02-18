@@ -323,15 +323,418 @@ export class ConfirmationPrompt extends FullscreenPrompt {
 
 // #region Popout Menu Prompts
 export abstract class PopoutMenuPrompt {
-    
+    protected promptContainer!: HTMLDivElement;
+    protected promptContentContainer!: HTMLDivElement;
+
+    private escapeKeyListener!: (e: KeyboardEvent) => void;
+    private clickOffListener!: (e: MouseEvent) => void;
+
+    protected onConfirm: (...args: any[]) => void;
+    protected onCancel: () => void;
+
+    constructor(OnConfirm: (...args: any[]) => void, onCancel: () => void) {
+        // Store callbacks
+        this.onConfirm = OnConfirm;
+        this.onCancel = onCancel;
+
+        // Create basic prompt structure
+        this.initializeBaseDOM();
+    }
+
+    private initializeBaseDOM(): void {
+        // Create modal container
+        this.promptContainer = document.createElement('div');
+        this.promptContainer.className = 'popup-prompt';
+
+        // Create content
+        this.promptContentContainer = document.createElement('div');
+        this.promptContentContainer.className = 'popup-prompt-content';
+        this.promptContainer.appendChild(this.promptContentContainer);
+
+        // Add to document
+        document.body.appendChild(this.promptContainer);
+
+        // Setup escape key listener
+        this.escapeKeyListener = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                this.closePrompt();
+            }
+        };
+
+        // Setup click off listener
+        return;
+        this.clickOffListener = (e: MouseEvent) => {
+            if (this.promptContentContainer && !this.promptContentContainer.contains(e.target as Node)) {
+                this.onConfirm();
+                console.log('Clicked outside prompt, confirming and closing');
+                this.closePrompt();
+            }
+        };
+        document.addEventListener('click', this.clickOffListener);
+    }
+
+    /**
+     * Method for closing and removing the prompt from the DOM.
+     */
+    protected closePrompt(): void {
+        console.log('Closing prompt');
+        
+        // Clean up DOM elements and event listeners
+        document.removeEventListener('keydown', this.escapeKeyListener);
+        document.removeEventListener('click', this.clickOffListener);
+
+        // Remove the prompt container from the DOM if it exists
+        if (this.promptContainer.parentElement) {
+            this.promptContainer.parentElement.removeChild(this.promptContainer);
+        }
+    }
+
+    /**
+     * Method for positioning the prompt according to the click event that triggered it, ensuring it stays within the viewport and doesn't intersect with the footer bar. 
+     */
+    protected positionPrompt(clickEvent: MouseEvent): void {
+        // Position top based on click event
+        if (clickEvent) {
+            const contentRect = this.promptContentContainer.getBoundingClientRect();
+            
+            // Get footer bar height to prevent intersection
+            const footerBar = document.querySelector('.map-info');
+            const footerHeight = footerBar ? footerBar.getBoundingClientRect().height : 0;
+            
+            // Position vertically based on click, ensure it doesn't intersect footer or go below viewport
+            let top = clickEvent.clientY;
+            const maxTop = window.innerHeight - contentRect.height - footerHeight - 10;
+            top = Math.min(Math.max(10, top), maxTop);
+            
+            this.promptContentContainer.style.position = 'fixed';
+            this.promptContentContainer.style.top = top + 'px';
+        }
+    }
 }
 
-export class ColorSelectorPrompt {
-    
-}
+export class ColorPickerPrompt extends PopoutMenuPrompt {
+    private onChange!: (color: string) => void | null;
+    private initialColor!: string;
 
+    // Color DOM elements
+    private canvas!: HTMLCanvasElement;
+    private ctx!: CanvasRenderingContext2D;
+    private hueSlider!: HTMLInputElement;
+
+    private currentHue!: number;
+    private currentColorDisplay!: HTMLDivElement;
+    private currentLightness!: number;
+    private currentSaturation!: number;
+    private gradientCache!: ImageData | null;
+
+    private hexInput!: HTMLInputElement;
+    private confirmBtn!: HTMLButtonElement;
+
+    private isDragging: boolean = false;
+
+    constructor(
+        initialColor: string,
+        clickEvent: MouseEvent,
+        onConfirm: (color: string) => void, 
+        onChange: (color: string) => void | null, 
+        onCancel: () => void
+    ) {
+        // Call base class constructor
+        super(onConfirm, onCancel);
+
+        // Set variables for initial color and callbacks
+        this.initialColor = initialColor;
+        this.onChange = onChange;
+
+        // Parse initial color to set current hue, saturation, and lightness
+        this.parseHexColor(this.initialColor);
+
+        // Initialize the DOM structure for the color picker prompt
+        this.initializePrimaryDOM();
+
+        // Setup event listeners for the color picker interactions
+        this.setupEventListeners();
+
+        // Position the prompt based on the click event that triggered it (if applicable)
+        this.positionPrompt(clickEvent);
+    }
+
+    private initializePrimaryDOM(): void {
+        // Create canvas for color square
+        this.canvas = document.createElement('canvas');
+        this.canvas.className = 'color-picker-canvas';
+
+        // Calculate canvas size based on current font size for responsive scaling
+        const baseFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
+        const canvasSize = Math.floor(17.5 * baseFontSize);
+        this.canvas.width = canvasSize;
+        this.canvas.height = canvasSize;
+        this.ctx = this.canvas.getContext('2d')!;
+
+        // Create hue slider
+        this.hueSlider = document.createElement('input');
+        this.hueSlider.type = 'range';
+        this.hueSlider.className = 'color-picker-hue-slider';
+        this.hueSlider.min = '0';
+        this.hueSlider.max = '360';
+        this.hueSlider.value = this.currentHue.toString();
+
+        // Create right side container for inputs
+        const rightContainer = document.createElement('div');
+        rightContainer.className = 'color-picker-right';
+        // Set height to match canvas
+        rightContainer.style.height = canvasSize + 'px';
+
+        // Create color comparison box
+        const colorCompareBox = document.createElement('div');
+        colorCompareBox.className = 'color-picker-compare-box';
+        
+        const previousColor = document.createElement('div');
+        previousColor.className = 'color-picker-previous-color';
+        previousColor.style.backgroundColor = this.initialColor;
+        
+        this.currentColorDisplay = document.createElement('div');
+        this.currentColorDisplay.className = 'color-picker-current-color';
+        this.currentColorDisplay.style.backgroundColor = this.initialColor;
+        
+        colorCompareBox.appendChild(previousColor);
+        colorCompareBox.appendChild(this.currentColorDisplay);
+
+        // Create bottom controls container
+        const bottomControls = document.createElement('div');
+        bottomControls.className = 'color-picker-bottom-controls';
+
+        // Create hex input
+        this.hexInput = document.createElement('input');
+        this.hexInput.type = 'text';
+        this.hexInput.className = 'color-picker-hex-input';
+        this.hexInput.placeholder = '#000000';
+        this.hexInput.value = this.initialColor;
+
+        // Create confirm button
+        this.confirmBtn = document.createElement('button');
+        this.confirmBtn.className = 'color-picker-confirm-btn';
+        this.confirmBtn.textContent = 'Confirm';
+
+        // Assemble elements
+        bottomControls.appendChild(this.hexInput);
+        bottomControls.appendChild(this.confirmBtn);
+        rightContainer.appendChild(colorCompareBox);
+        rightContainer.appendChild(bottomControls);
+        this.promptContentContainer.appendChild(this.canvas);
+        this.promptContentContainer.appendChild(this.hueSlider);
+        this.promptContentContainer.appendChild(rightContainer);
+    }
+
+    private setupEventListeners(): void {
+        // Canvas mouse events
+        this.canvas.addEventListener('mousedown', (e) => {
+            this.isDragging = true;
+            this.updateColorFromCanvas(e.clientX, e.clientY, false);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (this.isDragging) {
+                this.updateColorFromCanvas(e.clientX, e.clientY, false);
+            }
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (this.isDragging) {
+                this.updateColorFromCanvas(e.clientX, e.clientY, true);
+                this.isDragging = false;
+            }
+        });
+
+        // Hue slider with debouncing
+        let hueUpdateTimeout: number | null = null;
+        this.hueSlider.addEventListener('input', () => {
+            this.currentHue = parseInt(this.hueSlider.value);
+            this.gradientCache = null; // Invalidate cache when hue changes
+            this.drawColorSquare();
+            this.drawSelector();
+            
+            // Update current color display immediately
+            const hexColor = this.hslToHex(this.currentHue, this.currentSaturation, this.currentLightness);
+            this.currentColorDisplay.style.backgroundColor = hexColor;
+            
+            // Call onChange callback for real-time updates
+            if (this.onChange) {
+                this.onChange(hexColor);
+            }
+            
+            // Debounce hex input update
+            if (hueUpdateTimeout !== null) {
+                clearTimeout(hueUpdateTimeout);
+            }
+            hueUpdateTimeout = window.setTimeout(() => {
+                this.hexInput.value = hexColor;
+                hueUpdateTimeout = null;
+            }, 100);
+        });
+
+        // Hex input
+        this.hexInput.addEventListener('input', () => {
+            const hexValue = this.hexInput.value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(hexValue)) {
+                this.parseHexColor(hexValue);
+                this.hueSlider.value = this.currentHue.toString();
+                this.currentColorDisplay.style.backgroundColor = hexValue;
+                
+                // Call onChange callback for real-time updates
+                if (this.onChange) {
+                    this.onChange(hexValue);
+                }
+                
+                this.drawColorSquare();
+                this.drawSelector();
+            }
+        });
+
+        // Confirm button
+        this.confirmBtn.addEventListener('click', () => {
+            this.onConfirm(this.hexInput.value);
+            this.closePrompt();
+        });
+    }
+
+    // #region Utility methods
+    private parseHexColor(hex: string): void {
+        const r = parseInt(hex.slice(1, 3), 16) / 255;
+        const g = parseInt(hex.slice(3, 5), 16) / 255;
+        const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const delta = max - min;
+
+        // Calculate lightness
+        this.currentLightness = ((max + min) / 2) * 100;
+
+        // Calculate saturation
+        if (delta === 0) {
+            this.currentSaturation = 0;
+        } else {
+            this.currentSaturation = (delta / (1 - Math.abs(2 * (this.currentLightness / 100) - 1))) * 100;
+        }
+
+        // Calculate hue
+        if (delta === 0) {
+            this.currentHue = 0;
+        } else if (max === r) {
+            this.currentHue = 60 * (((g - b) / delta) % 6);
+        } else if (max === g) {
+            this.currentHue = 60 * (((b - r) / delta) + 2);
+        } else {
+            this.currentHue = 60 * (((r - g) / delta) + 4);
+        }
+
+        if (this.currentHue < 0) this.currentHue += 360;
+    }
+
+    private hslToHex(h: number, s: number, l: number): string {
+        s /= 100;
+        l /= 100;
+
+        const c = (1 - Math.abs(2 * l - 1)) * s;
+        const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+        const m = l - c / 2;
+
+        let r = 0, g = 0, b = 0;
+
+        if (h >= 0 && h < 60) {
+            r = c; g = x; b = 0;
+        } else if (h >= 60 && h < 120) {
+            r = x; g = c; b = 0;
+        } else if (h >= 120 && h < 180) {
+            r = 0; g = c; b = x;
+        } else if (h >= 180 && h < 240) {
+            r = 0; g = x; b = c;
+        } else if (h >= 240 && h < 300) {
+            r = x; g = 0; b = c;
+        } else {
+            r = c; g = 0; b = x;
+        }
+
+        const red = Math.round((r + m) * 255);
+        const green = Math.round((g + m) * 255);
+        const blue = Math.round((b + m) * 255);
+
+        return '#' + [red, green, blue].map(x => {
+            const hex = x.toString(16);
+            return hex.length === 1 ? '0' + hex : hex;
+        }).join('');
+    }
+
+    private drawColorSquare(): void {
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+
+        // Draw saturation gradient (left to right)
+        for (let x = 0; x < width; x++) {
+            const saturation = (x / width) * 100;
+            for (let y = 0; y < height; y++) {
+                const lightness = 100 - (y / height) * 100;
+                const color = this.hslToHex(this.currentHue, saturation, lightness);
+                this.ctx.fillStyle = color;
+                this.ctx.fillRect(x, y, 1, 1);
+            }
+        }
+        
+        // Cache the gradient for efficient redraws
+        this.gradientCache = this.ctx.getImageData(0, 0, width, height);
+    }
+
+    private drawSelector(): void {
+        // Restore the cached gradient to clear previous selector
+        if (this.gradientCache) {
+            this.ctx.putImageData(this.gradientCache, 0, 0);
+        }
+        
+        const x = (this.currentSaturation / 100) * this.canvas.width;
+        const y = (1 - this.currentLightness / 100) * this.canvas.height;
+
+        this.ctx.strokeStyle = '#ffffff';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, 8, 0, 2 * Math.PI);
+        this.ctx.stroke();
+
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, 9, 0, 2 * Math.PI);
+        this.ctx.stroke();
+    }
+
+    private updateColorFromCanvas(x: number, y: number, updateHex: boolean = false): void {
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = Math.max(0, Math.min(this.canvas.width, x - rect.left));
+        const canvasY = Math.max(0, Math.min(this.canvas.height, y - rect.top));
+
+        this.currentSaturation = (canvasX / this.canvas.width) * 100;
+        this.currentLightness = 100 - (canvasY / this.canvas.height) * 100;
+
+        // Update current color display in real-time
+        const hexColor = this.hslToHex(this.currentHue, this.currentSaturation, this.currentLightness);
+        this.currentColorDisplay.style.backgroundColor = hexColor;
+        
+        // Call onChange callback for real-time updates
+        if (this.onChange) {
+            this.onChange(hexColor);
+        }
+        
+        // Only update hex input when requested (on mouse up or initial click)
+        if (updateHex) {
+            this.hexInput.value = hexColor;
+        }
+
+        // Only redraw the selector, not the entire gradient
+        this.drawSelector();
+    }    
+    // #endregion
+}
 // #endregion
-
 
 
 /**

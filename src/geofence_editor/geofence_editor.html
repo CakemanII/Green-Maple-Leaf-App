@@ -853,18 +853,18 @@
         }
 
         /* Color Picker Modal */
-        .color-picker-modal {
+        .popup-prompt {
             display: none;
             position: fixed;
             z-index: 10000;
             pointer-events: none;
         }
 
-        .color-picker-modal.active {
+        .popup-prompt.active {
             display: block;
         }
 
-        .color-picker-content {
+        .popup-prompt-content {
             left: 18.5rem;
             background-color: #2a2a2a;
             border-radius: 0.5rem;
@@ -1258,17 +1258,6 @@
             <button class="tab-menu-option" data-menu-key="load">
                 <span class="menu-text">Load</span>
             </button>
-        </div>
-    </div>
-
-    <!-- Color Picker Modal -->
-    <div class="color-picker-modal" id="color-picker-modal">
-        <div class="color-picker-content">
-            <input type="color" class="color-picker-wheel" id="color-picker-wheel" value="#ff7800">
-            <div class="color-picker-input-container">
-                <input type="text" class="color-picker-hex-input" id="color-picker-hex-input" placeholder="#000000">
-                <button class="color-picker-confirm-btn" id="color-picker-confirm-btn">Confirm</button>
-            </div>
         </div>
     </div>
     
