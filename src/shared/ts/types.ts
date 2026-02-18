@@ -1,4 +1,4 @@
-// Types for statuses, flags, and etc.
+// #region Types for statuses, flags, and etc.
 export type StatusCollection = {
     UUID: string;
     name: string;
@@ -56,10 +56,20 @@ export type SimpleStatus = {
     defaultFlagUUID: string;
     flagUUIDs: string[]; // Only store the UUIDs of the flags
 }
+// #endregion
 
-// 3D Vector type
+// #region 3D Vector type
 export type Vector3D = {
     x: number;
     y: number;
     z: number;
 };
+// #endregion
+
+// #region File Types
+export type FileMetadata = {
+    name: string;
+    lastModified: string;
+    fileSize: number;
+    [additionalField: string]: any;
+}

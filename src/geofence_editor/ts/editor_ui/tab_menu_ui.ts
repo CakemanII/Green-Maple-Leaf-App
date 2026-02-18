@@ -49,6 +49,7 @@ class TabMenuUI {
      * Initializes button event listeners for the tab menu UI.
      */
     private initializeButtonEventListeners(): void {
+        return;
         // Save Button
         this.saveButton.addEventListener('click', async () => {
             // Trigger save functionality

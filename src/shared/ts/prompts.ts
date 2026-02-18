@@ -1,9 +1,3 @@
-/**
- * Prompt Types:
- * File List Viewer
- * Input & Confirmation Dialog
- */
-
 // #region Base Prompt Classes
 /**
  * Base class for prompts
@@ -862,6 +856,92 @@ export class ColorPickerPrompt extends PopoutMenuPrompt {
 // #endregion
 
 
+export abstract class FileListViewerPrompt extends InputPrompt {
+    private fileMetadatasGetPath!: string;
+    
+    private filesFetched: boolean = false;
+    private populated: boolean = false;
+
+    private fileMetadatas: Array<{ name: string, lastModified: string, fileSize: number, UUID: string }> = [];
+
+    constructor(
+        promptTitle: string, 
+        confirmButtonText: string, 
+        cancelButtonText: string, 
+        onConfirm: (file: any) => void, onCancel: () => void = () => {},
+        fileMetadatasGetPath: string,
+        columnLabels: string[] = ['Name', 'Date Modified', 'Size'],
+    ) {
+        // Call base class constructor
+        super(promptTitle, "", confirmButtonText, cancelButtonText, onConfirm, onCancel);
+
+        // Set file metadata endpoint
+        this.fileMetadatasGetPath = fileMetadatasGetPath;
+
+        // Initialize the DOM structure for the specific prompt.
+        this.initializePrimaryDOM();
+
+        // Fetch file metadata and populate the file list and then populate the file list in the DOM
+        this.fetchFileMetadatas().then((fileMetadatas) => {
+            // Set flag to true
+            this.filesFetched = true;
+            this.fileMetadatas = fileMetadatas;
+
+            // Now that we have the file metadata, we can populate the file list in the DOM
+            this.populateFileListInDOM();
+        });
+    }
+
+    private async fetchFileMetadatas(): Promise<Array<{ name: string, lastModified: string, fileSize: number, UUID: string }>> {
+        try {
+            const response = await fetch(this.fileMetadatasGetPath);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch file metadatas: ${response.statusText}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching file metadatas:', error);
+            return [];
+        }
+    }
+
+    private populateFileListInDOM(): void {
+        
+    }
+
+    protected intializeAdditionalDOM(): void {
+        // Initialize the table in the DOM
+
+    }
+
+    protected collectInput(): any[] {
+        return [];
+    }
+
+    protected abstract initializeFileItemDOM(...metadata: any[]): HTMLElement;
+}
+
+
+export class GeoeditFileListViewerPrompt extends FileListViewerPrompt {
+    constructor(onConfirm: (file: any) => void, onCancel: () => void = () => {})
+    {
+        // Call base class constructor
+        super(
+            'Load Geoedit File',
+            'Load',
+            'Cancel',
+            onConfirm,
+            onCancel,
+            "/geofence/list_metadatas"
+        );
+    }
+
+    protected initializeFileItemDOM(...metadata: any[]): HTMLElement {
+        const [name, lastModified, fileSize, UUID] = metadata;
+    }
+}
+
+
 /**
  * Large file list dialog for displaying geoedit files with metadata
  */
@@ -1068,6 +1148,10 @@ export class MapEditorUIFileListDialog {
         document.addEventListener('keydown', escapeHandler);
     }
 }
+
+
+
+
 
 /**
  * Simple confirmation dialog utility class
