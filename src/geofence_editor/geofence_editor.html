@@ -1079,6 +1079,151 @@
             flex: 1;
             letter-spacing: 0.2px;
         }
+
+        /* Popup Prompt Styles */
+        .popup-prompt {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10000;
+            pointer-events: none;
+        }
+
+        .popup-prompt-content {
+            /* Position will be set via JavaScript */
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            /* Ensure minimum dimensions for layout calculation */
+            min-width: 200px;
+            min-height: 100px;
+        }
+
+        /* Color Picker Styles */
+        .color-picker-left {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            flex-shrink: 0;
+        }
+
+        .color-picker-canvas {
+            cursor: crosshair;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .color-picker-hue-slider {
+            width: 100%;
+            height: 20px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(
+                to right,
+                hsl(0, 100%, 50%),
+                hsl(60, 100%, 50%),
+                hsl(120, 100%, 50%),
+                hsl(180, 100%, 50%),
+                hsl(240, 100%, 50%),
+                hsl(300, 100%, 50%),
+                hsl(360, 100%, 50%)
+            );
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+            margin: 12px 0;
+        }
+
+        .color-picker-hue-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 24px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .color-picker-hue-slider::-moz-range-thumb {
+            width: 16px;
+            height: 24px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .color-picker-right {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-width: 200px;
+        }
+
+        .color-picker-compare-box {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .color-picker-previous-color,
+        .color-picker-current-color {
+            flex: 1;
+            height: 50px;
+            border-radius: 4px;
+            border: 2px solid #444;
+        }
+
+        .color-picker-bottom-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .color-picker-hex-input {
+            flex: 1;
+            padding: 8px 12px;
+            background-color: #1a1a1a;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+        }
+
+        .color-picker-hex-input:focus {
+            outline: none;
+            border-color: #6ba3ff;
+        }
+
+        .color-picker-confirm-btn {
+            padding: 8px 16px;
+            background-color: #6ba3ff;
+            color: #181a1b;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background-color 0.15s ease;
+        }
+
+        .color-picker-confirm-btn:hover {
+            background-color: #5a92ee;
+        }
+
+        .color-picker-confirm-btn:active {
+            background-color: #497acc;
+        }
     </style>
 </head>
 <body>

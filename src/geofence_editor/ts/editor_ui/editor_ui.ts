@@ -565,16 +565,32 @@ export class MapEditorUIRegionInfoManager {
      * Sets up event listeners for color swatch clicks.
      */
     private setupColorSwatchListeners(): void {
+        console.log('Setting up color swatch listeners');
+        
+        // Track if a color picker is already open to prevent duplicates
+        let colorPickerOpen = false;
+        
         // Fill color swatch click
         this.regionInfoFillColorSwatch.addEventListener('click', (e) => {
+            console.log('Fill color swatch clicked, colorPickerOpen:', colorPickerOpen);
+            if (colorPickerOpen) {
+                console.warn('Color picker already open, ignoring click');
+                return;
+            }
+            
+            e.stopPropagation(); // Prevent event bubbling
+            e.preventDefault(); // Prevent default action
+            
             const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
             if (activeRegion) {
+                colorPickerOpen = true;
                 const originalColor = activeRegion.RegionData.Style.FillColor;
                 new ColorPickerPrompt(
                     originalColor,
                     e,
                     (selectedColor) => {
                         // On confirm
+                        colorPickerOpen = false;
                         if (!this.isValidHexColor(selectedColor)) return;
                         const newRegionData: RegionData = activeRegion.RegionData;
                         newRegionData.Style.FillColor = selectedColor;
@@ -591,6 +607,7 @@ export class MapEditorUIRegionInfoManager {
                     },
                     () => {
                         // On cancel (revert)
+                        colorPickerOpen = false;
                         const newRegionData: RegionData = activeRegion.RegionData;
                         newRegionData.Style.FillColor = originalColor;
 
@@ -630,14 +647,25 @@ export class MapEditorUIRegionInfoManager {
 
         // Border color swatch click
         this.regionInfoBorderColorSwatch.addEventListener('click', (e) => {
+            console.log('Border color swatch clicked, colorPickerOpen:', colorPickerOpen);
+            if (colorPickerOpen) {
+                console.warn('Color picker already open, ignoring click');
+                return;
+            }
+            
+            e.stopPropagation(); // Prevent event bubbling
+            e.preventDefault(); // Prevent default action
+            
             const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
             if (activeRegion) {
+                colorPickerOpen = true;
                 const originalColor = activeRegion.RegionData.Style.StrokeColor;
                 new ColorPickerPrompt(
                     originalColor,
                     e,
                     (selectedColor) => {
                         // On confirm
+                        colorPickerOpen = false;
                         const newRegionData: RegionData = activeRegion.RegionData;
                         newRegionData.Style.StrokeColor = selectedColor;
 
@@ -652,6 +680,7 @@ export class MapEditorUIRegionInfoManager {
                     },
                     () => {
                         // On cancel (revert)
+                        colorPickerOpen = false;
                         const newRegionData: RegionData = activeRegion.RegionData;
                         newRegionData.Style.StrokeColor = originalColor;
 

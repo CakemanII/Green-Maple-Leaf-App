@@ -344,11 +344,18 @@ export abstract class PopoutMenuPrompt {
     private initializeBaseDOM(): void {
         // Create modal container
         this.promptContainer = document.createElement('div');
-        this.promptContainer.className = 'popup-prompt';
+        this.promptContainer.className = 'popup-prompt active';  // Add 'active' to enable display: block
 
         // Create content
         this.promptContentContainer = document.createElement('div');
         this.promptContentContainer.className = 'popup-prompt-content';
+        // Start with position fixed at 0,0 and opacity 0 (invisible but allows layout calculation)
+        // This is CRITICAL - positioning off-screen prevents browser from calculating dimensions
+        this.promptContentContainer.style.position = 'fixed';
+        this.promptContentContainer.style.left = '0px';
+        this.promptContentContainer.style.top = '0px';
+        this.promptContentContainer.style.opacity = '0';
+        this.promptContentContainer.style.pointerEvents = 'none';
         this.promptContainer.appendChild(this.promptContentContainer);
 
         // Add to document
@@ -357,20 +364,29 @@ export abstract class PopoutMenuPrompt {
         // Setup escape key listener
         this.escapeKeyListener = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
+                this.onCancel();
                 this.closePrompt();
             }
         };
+        document.addEventListener('keydown', this.escapeKeyListener);
 
-        // Setup click off listener
-        return;
+        // TEMPORARILY DISABLED: Setup click off listener
+        // The click event that opens the prompt is still propagating even with setTimeout
+        // Need to investigate the event flow more carefully
+        /*
         this.clickOffListener = (e: MouseEvent) => {
+            console.log('Click detected:', e.target, 'time:', Date.now());
             if (this.promptContentContainer && !this.promptContentContainer.contains(e.target as Node)) {
                 this.onConfirm();
                 console.log('Clicked outside prompt, confirming and closing');
                 this.closePrompt();
             }
         };
-        document.addEventListener('click', this.clickOffListener);
+        setTimeout(() => {
+            console.log('Adding click listener at:', Date.now());
+            document.addEventListener('click', this.clickOffListener);
+        }, 0);
+        */
     }
 
     /**
@@ -378,7 +394,8 @@ export abstract class PopoutMenuPrompt {
      */
     protected closePrompt(): void {
         console.log('Closing prompt');
-        
+        console.trace('closePrompt called from:');
+
         // Clean up DOM elements and event listeners
         document.removeEventListener('keydown', this.escapeKeyListener);
         document.removeEventListener('click', this.clickOffListener);
@@ -393,22 +410,70 @@ export abstract class PopoutMenuPrompt {
      * Method for positioning the prompt according to the click event that triggered it, ensuring it stays within the viewport and doesn't intersect with the footer bar. 
      */
     protected positionPrompt(clickEvent: MouseEvent): void {
+        console.log('Positioning prompt at click coordinates:', clickEvent.clientX, clickEvent.clientY);
+        
         // Position top based on click event
         if (clickEvent) {
+            // Force a layout recalculation by reading offsetHeight
+            // This ensures the browser has calculated dimensions
+            const forceLayoutW = this.promptContentContainer.offsetWidth;
+            const forceLayoutH = this.promptContentContainer.offsetHeight;
+            console.log('Forced layout, width:', forceLayoutW, 'height:', forceLayoutH);
+            
             const contentRect = this.promptContentContainer.getBoundingClientRect();
+            console.log('Content rect:', contentRect);
             
-            // Get footer bar height to prevent intersection
-            const footerBar = document.querySelector('.map-info');
-            const footerHeight = footerBar ? footerBar.getBoundingClientRect().height : 0;
+            // If rect is still zero, wait one more frame and try again
+            if (contentRect.width === 0 || contentRect.height === 0) {
+                console.warn('Content rect has zero dimensions after first check. Retrying in next frame...');
+                requestAnimationFrame(() => {
+                    const retryRect = this.promptContentContainer.getBoundingClientRect();
+                    console.log('Retry content rect:', retryRect);
+                    
+                    if (retryRect.width === 0 || retryRect.height === 0) {
+                        console.error('Content rect STILL has zero dimensions. Using basic positioning.');
+                        // Just position at click location as fallback and make visible
+                        this.promptContentContainer.style.top = clickEvent.clientY + 'px';
+                        this.promptContentContainer.style.left = clickEvent.clientX + 'px';
+                        this.promptContentContainer.style.opacity = '1';
+                        this.promptContentContainer.style.pointerEvents = 'auto';
+                        return;
+                    }
+                    
+                    // Now we have dimensions, position properly
+                    this.positionWithDimensions(clickEvent, retryRect);
+                });
+                return;
+            }
             
-            // Position vertically based on click, ensure it doesn't intersect footer or go below viewport
-            let top = clickEvent.clientY;
-            const maxTop = window.innerHeight - contentRect.height - footerHeight - 10;
-            top = Math.min(Math.max(10, top), maxTop);
-            
-            this.promptContentContainer.style.position = 'fixed';
-            this.promptContentContainer.style.top = top + 'px';
+            // We have dimensions, position properly
+            this.positionWithDimensions(clickEvent, contentRect);
         }
+    }
+    
+    private positionWithDimensions(clickEvent: MouseEvent, contentRect: DOMRect): void {
+        // Get footer bar height to prevent intersection
+        const footerBar = document.querySelector('.map-info');
+        const footerHeight = footerBar ? footerBar.getBoundingClientRect().height : 0;
+        
+        // Position vertically based on click, ensure it doesn't intersect footer or go below viewport
+        let top = clickEvent.clientY;
+        const maxTop = window.innerHeight - contentRect.height - footerHeight - 10;
+        top = Math.min(Math.max(10, top), maxTop);
+        
+        // Position horizontally, ensure it stays within viewport
+        let left = clickEvent.clientX;
+        const maxLeft = window.innerWidth - contentRect.width - 10;
+        left = Math.min(Math.max(10, left), maxLeft);
+        
+        // Now set the final position and make visible
+        this.promptContentContainer.style.position = 'fixed';
+        this.promptContentContainer.style.top = top + 'px';
+        this.promptContentContainer.style.left = left + 'px';
+        this.promptContentContainer.style.opacity = '1';
+        this.promptContentContainer.style.pointerEvents = 'auto';
+        
+        console.log('Positioned at:', top, left, 'with dimensions:', contentRect.width, 'x', contentRect.height);
     }
 }
 
@@ -439,11 +504,18 @@ export class ColorPickerPrompt extends PopoutMenuPrompt {
         onChange: (color: string) => void | null, 
         onCancel: () => void
     ) {
+        console.log('ColorPickerPrompt constructor started at:', Date.now());
+        console.log('Opening click event:', clickEvent.type, clickEvent.target);
+        
         // Call base class constructor
         super(onConfirm, onCancel);
 
-        // Set variables for initial color and callbacks
-        this.initialColor = initialColor;
+        // Validate and set initial color (default to white if invalid)
+        if (!initialColor || !/^#[0-9A-Fa-f]{6}$/.test(initialColor)) {
+            this.initialColor = '#ffffff';
+        } else {
+            this.initialColor = initialColor;
+        }
         this.onChange = onChange;
 
         // Parse initial color to set current hue, saturation, and lightness
@@ -455,11 +527,22 @@ export class ColorPickerPrompt extends PopoutMenuPrompt {
         // Setup event listeners for the color picker interactions
         this.setupEventListeners();
 
-        // Position the prompt based on the click event that triggered it (if applicable)
-        this.positionPrompt(clickEvent);
+        // Draw initial color square and selector
+        this.drawColorSquare();
+        this.drawSelector();
+
+        // Position the prompt AFTER the browser has calculated layout
+        // requestAnimationFrame ensures the DOM has been rendered and sized
+        requestAnimationFrame(() => {
+            this.positionPrompt(clickEvent);
+        });
+        
+        console.log('ColorPickerPrompt constructor completed at:', Date.now());
     }
 
     private initializePrimaryDOM(): void {
+        console.log('initializePrimaryDOM: Starting DOM construction');
+        
         // Create canvas for color square
         this.canvas = document.createElement('canvas');
         this.canvas.className = 'color-picker-canvas';
@@ -467,6 +550,7 @@ export class ColorPickerPrompt extends PopoutMenuPrompt {
         // Calculate canvas size based on current font size for responsive scaling
         const baseFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
         const canvasSize = Math.floor(17.5 * baseFontSize);
+        console.log('Canvas size calculated:', canvasSize, 'baseFontSize:', baseFontSize);
         this.canvas.width = canvasSize;
         this.canvas.height = canvasSize;
         this.ctx = this.canvas.getContext('2d')!;
@@ -516,14 +600,23 @@ export class ColorPickerPrompt extends PopoutMenuPrompt {
         this.confirmBtn.className = 'color-picker-confirm-btn';
         this.confirmBtn.textContent = 'Confirm';
 
+        // Create left container to wrap canvas and hue slider
+        const leftContainer = document.createElement('div');
+        leftContainer.className = 'color-picker-left';
+        leftContainer.appendChild(this.canvas);
+        leftContainer.appendChild(this.hueSlider);
+
         // Assemble elements
         bottomControls.appendChild(this.hexInput);
         bottomControls.appendChild(this.confirmBtn);
         rightContainer.appendChild(colorCompareBox);
         rightContainer.appendChild(bottomControls);
-        this.promptContentContainer.appendChild(this.canvas);
-        this.promptContentContainer.appendChild(this.hueSlider);
+        this.promptContentContainer.appendChild(leftContainer);
         this.promptContentContainer.appendChild(rightContainer);
+        
+        console.log('initializePrimaryDOM: DOM construction complete');
+        console.log('Canvas dimensions:', this.canvas.width, 'x', this.canvas.height);
+        console.log('promptContentContainer children:', this.promptContentContainer.children.length);
     }
 
     private setupEventListeners(): void {
@@ -600,6 +693,11 @@ export class ColorPickerPrompt extends PopoutMenuPrompt {
 
     // #region Utility methods
     private parseHexColor(hex: string): void {
+        // Validate hex format
+        if (!hex || !/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+            hex = '#ffffff'; // Default to white
+        }
+        
         const r = parseInt(hex.slice(1, 3), 16) / 255;
         const g = parseInt(hex.slice(3, 5), 16) / 255;
         const b = parseInt(hex.slice(5, 7), 16) / 255;
