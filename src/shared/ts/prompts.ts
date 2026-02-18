@@ -331,12 +331,20 @@ export abstract class PopoutMenuPrompt {
 
     protected onConfirm: (...args: any[]) => void;
     protected onCancel: () => void;
+    private rightSidePreferred!: boolean;
+    private minHorizontalGapFromClick!: number;
 
-    constructor(OnConfirm: (...args: any[]) => void, onCancel: () => void) {
+    constructor(
+        OnConfirm: (...args: any[]) => void, 
+        onCancel: () => void, 
+        rightSidePreferred: boolean = true,
+        minHorizontalGapFromClick: number = 20
+    ) {
         // Store callbacks
         this.onConfirm = OnConfirm;
         this.onCancel = onCancel;
-
+        this.rightSidePreferred = rightSidePreferred;
+        this.minHorizontalGapFromClick = minHorizontalGapFromClick;
         // Create basic prompt structure
         this.initializeBaseDOM();
     }
@@ -453,10 +461,18 @@ export abstract class PopoutMenuPrompt {
         const maxTop = window.innerHeight - contentRect.height - footerHeight - 10;
         top = Math.min(Math.max(10, top), maxTop);
         
-        // Position horizontally, ensure it stays within viewport
-        let left = clickEvent.clientX;
-        const maxLeft = window.innerWidth - contentRect.width - 10;
-        left = Math.min(Math.max(10, left), maxLeft);
+        // Position horizontally based on side preference, ensure it stays within viewport
+        let left: number;
+        if (this.rightSidePreferred) {
+            // Left edge of prompt starts at click X + gap → extends to the right
+            left = clickEvent.clientX + this.minHorizontalGapFromClick;
+            const maxLeft = window.innerWidth - contentRect.width - 10;
+            left = Math.min(Math.max(10, left), maxLeft);
+        } else {
+            // Right edge of prompt ends at click X - gap → extends to the left
+            left = clickEvent.clientX - contentRect.width - this.minHorizontalGapFromClick;
+            left = Math.min(Math.max(10, left), window.innerWidth - contentRect.width - 10);
+        }
         
         // Now set the final position and make visible
         this.promptContentContainer.style.position = 'fixed';
@@ -467,10 +483,15 @@ export abstract class PopoutMenuPrompt {
         
         console.log('Positioned at:', top, left, 'with dimensions:', contentRect.width, 'x', contentRect.height);
     }
+
+    public forceCancelAndClose(): void {
+        this.onCancel();
+        this.closePrompt();
+    }
 }
 
 export class ColorPickerPrompt extends PopoutMenuPrompt {
-    private onChange!: (color: string) => void | null;
+    private onChange!: ((color: string) => void) | null
     private initialColor!: string;
 
     // Color DOM elements
@@ -493,8 +514,10 @@ export class ColorPickerPrompt extends PopoutMenuPrompt {
         initialColor: string,
         clickEvent: MouseEvent,
         onConfirm: (color: string) => void, 
-        onChange: (color: string) => void | null, 
-        onCancel: () => void
+        onChange: ((color: string) => void) | null, 
+        onCancel: () => void,
+        rightSidePreferred: boolean = true,
+        minHorizontalGapFromClick: number = 20,
     ) {        
         // Call base class constructor
         super(onConfirm, onCancel);

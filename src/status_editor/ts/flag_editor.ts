@@ -3,7 +3,7 @@ import { GeneralUtilities } from '../../shared/compiled_js/utilities.js';
 import { Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition, StatusCollection } from '../../shared/compiled_js/types.js';
 import { CollectionEditor } from './collection_saving.js';
 import { CollectionEditorUI } from './collection_editor.js';
-import { ConfirmationPrompt } from '../../shared/compiled_js/prompts.js';
+import { ConfirmationPrompt, ColorPickerPrompt } from '../../shared/compiled_js/prompts.js';
 
 
 export class FlagEditorUI {
@@ -59,6 +59,8 @@ export class FlagEditorUI {
     private draggedElementPreviousParent: HTMLElement | null = null;
     private draggedElementPreviousIndex: number = -1;
     private mainConditionalGroup: HTMLElement | null = null;
+
+    private currentColorSelectorPrompt: ColorPickerPrompt | null = null;
 
     constructor() {
         // Ensure singleton
@@ -236,18 +238,27 @@ export class FlagEditorUI {
 
         // Make the border change with the color indicator
         const colorIndicator = conditionRow.querySelector('.color-indicator') as HTMLDivElement;
+        // Cycle colors if left click
         colorIndicator.addEventListener('click', () => {
             // Cycle through colors (temp)
             const currentColor = colorIndicator.style.backgroundColor;
-            console.log(colorIndicator.style.backgroundColor);
             let currentIndex = colors.indexOf(currentColor);
-            console.log(currentIndex);
             currentIndex = (currentIndex + 1) % colors.length;
             const newColor = colors[currentIndex];
             colorIndicator.style.backgroundColor = newColor;
 
             // Set the colors
             this.updateConditionalGroupStyle(conditionRow);
+        });
+
+        // Pick color if right click
+        colorIndicator.addEventListener('contextmenu', (e) => {
+            // Prevent default context menu
+            e.preventDefault();
+            console.log("Right click on color indicator - open color picker");
+
+            // Open color picker dialog
+            this.openNewColorSelector(e, colorIndicator, conditionRow);
         });
 
         // Make the delete button remove the entire group
@@ -304,12 +315,11 @@ export class FlagEditorUI {
 
         // Make the border change with the color indicator
         const colorIndicator = conditionRow.querySelector('.color-indicator') as HTMLDivElement;
+        // Cycle colors if left click
         colorIndicator.addEventListener('click', () => {
             // Cycle through colors (temp)
             const currentColor = colorIndicator.style.backgroundColor;
-            console.log(colorIndicator.style.backgroundColor);
             let currentIndex = colors.indexOf(currentColor);
-            console.log(currentIndex);
             currentIndex = (currentIndex + 1) % colors.length;
             const newColor = colors[currentIndex];
             colorIndicator.style.backgroundColor = newColor;
@@ -318,6 +328,15 @@ export class FlagEditorUI {
             this.updateConditionalGroupStyle(conditionRow);
         });
 
+        // Pick color if right click
+        colorIndicator.addEventListener('contextmenu', (e) => {
+            // Prevent default context menu
+            e.preventDefault();
+            console.log("Right click on color indicator - open color picker");
+
+            // Open color picker dialog
+            this.openNewColorSelector(e, colorIndicator, conditionRow);
+        });
         // Make the delete button remove the entire group
         const deleteBtn = conditionRow.querySelector('.delete-btn') as HTMLButtonElement;
         deleteBtn.addEventListener('dblclick', () => {
@@ -369,18 +388,27 @@ export class FlagEditorUI {
 
         // Make the border change with the color indicator
         const colorIndicator = conditionGroup.querySelector('.color-indicator') as HTMLDivElement;
+        // Cycle colors if left click
         colorIndicator.addEventListener('click', () => {
             // Cycle through colors (temp)
             const currentColor = colorIndicator.style.backgroundColor;
-            console.log(colorIndicator.style.backgroundColor);
             let currentIndex = colors.indexOf(currentColor);
-            console.log(currentIndex);
             currentIndex = (currentIndex + 1) % colors.length;
             const newColor = colors[currentIndex];
             colorIndicator.style.backgroundColor = newColor;
 
             // Set the colors
             this.updateConditionalGroupStyle(conditionGroup);
+        });
+
+        // Pick color if right click
+        colorIndicator.addEventListener('contextmenu', (e) => {
+            // Prevent default context menu
+            e.preventDefault();
+            console.log("Right click on color indicator - open color picker");
+
+            // Open color picker dialog
+            this.openNewColorSelector(e, colorIndicator, conditionGroup);
         });
 
         // Make the delete button remove the entire group
@@ -427,6 +455,41 @@ export class FlagEditorUI {
         
         // Clear conditionals
         this.flagConditionsContainerElement.innerHTML = '<div class="condition-body"></div>';
+    }
+
+    private openNewColorSelector(e: MouseEvent, colorIndicator: HTMLDivElement, conditionGroupOrTelemetryOrStatus: HTMLDivElement): void {
+        // Remove old color selector if it exists
+        if (this.currentColorSelectorPrompt) {
+            this.currentColorSelectorPrompt.forceCancelAndClose();
+            this.currentColorSelectorPrompt = null;
+        }
+
+        // Open color picker dialog
+        const currentColor = colorIndicator.style.backgroundColor;
+        this.currentColorSelectorPrompt = new ColorPickerPrompt(
+            "",
+            e,
+            (selectedColor: string | null) => {
+                if (selectedColor) {
+                    colorIndicator.style.backgroundColor = selectedColor;
+                    this.updateConditionalGroupStyle(conditionGroupOrTelemetryOrStatus);
+                    this.currentColorSelectorPrompt = null;
+                }
+            },
+            (selectedColor: string | null) => {
+                if (selectedColor) {
+                    colorIndicator.style.backgroundColor = selectedColor;
+                    this.updateConditionalGroupStyle(conditionGroupOrTelemetryOrStatus);
+                }
+            },
+            () => {
+                // Reset the color back to normal
+                colorIndicator.style.backgroundColor = currentColor;
+                this.updateConditionalGroupStyle(conditionGroupOrTelemetryOrStatus);
+                this.currentColorSelectorPrompt = null;
+            },
+            false
+        );
     }
     // #endregion
 
