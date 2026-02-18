@@ -99,13 +99,13 @@ def save_config():
     data = request.get_json(silent=True)
     if not data:
         return ('No JSON data provided', 400)
-    success: bool = FileHandler.save_file(data, r"C:\Users\tyler\OneDrive\Desktop\Green Maple Leaf App\preferences.json")
+    success: bool = FileHandler.save_file(data, "preferences.json")
     return ('', 200) if success else ('Error saving preferences', 500)
 
 @app.route('/config/load', methods=['GET'])
 def load_config():
     # Return current preferences data
-    preferences_data = FileHandler.load_file(r"C:\Users\tyler\OneDrive\Desktop\Green Maple Leaf App\preferences.json")
+    preferences_data = FileHandler.load_file("preferences.json")
     return preferences_data, 200
 
 #endregion

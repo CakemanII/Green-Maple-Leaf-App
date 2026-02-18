@@ -4,7 +4,7 @@ import { GeoeditFileManager } from "../geofence_filing.js";
 import { InteractiveMap } from "../interactable_map/map.js";
 import { ToolType, MapRegionEditorAddHandlesTool, MapRegionEditorConvertToFreeformTool, MapRegionEditorDeleteTool } from "../interactable_map/map_region_editor_tools.js";
 import { MapRegionEditor, MapRegionRegionManager, MapRegionEditorKeyStates, MapRegionDataManager } from "../interactable_map/map_region_editor.js";
-import { RegionType, RegionData } from "../interactable_map/region.js";
+import { RegionType, RegionData, MapRegion } from "../interactable_map/region.js";
 
 export class MapEditorUI {
     private static instance: MapEditorUI;
@@ -240,7 +240,7 @@ export class MapEditorUI {
                     // Show the prompt dialog for selecting a geoedit file
                     let finished = false;
                     let decision = false;
-                    new FileListViewerPrompt(
+                    /*new FileListViewerPrompt(
                         "Load Geoedit File",
                         "Load",
                         "Cancel",
@@ -250,7 +250,7 @@ export class MapEditorUI {
                         },
                         () => { finished = true; },
                         "/geofence/list_metadatas"
-                    );
+                    );*/
 
                     MapEditorUIFileListDialog.show(
                         await GeoeditFileManager.Instance.fetchAvailableGeoeditFiles(),
@@ -467,6 +467,8 @@ export class MapEditorUIRegionInfoManager {
     private regionInfoFillOpacityField!: HTMLInputElement;
     private regionInfoBorderOpacityField!: HTMLInputElement;
 
+    private currentColorSelectorPrompt: ColorPickerPrompt | null = null;
+
     constructor() {
         // Ensure singleton instance
         if (MapEditorUIRegionInfoManager.instance) {
@@ -595,137 +597,18 @@ export class MapEditorUIRegionInfoManager {
             
             const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
             if (activeRegion) {
-                colorPickerOpen = true;
-                const originalColor = activeRegion.RegionData.Style.FillColor;
-                new ColorPickerPrompt(
-                    originalColor,
-                    e,
-                    (selectedColor) => {
-                        // On confirm
-                        colorPickerOpen = false;
-                        if (!this.isValidHexColor(selectedColor)) return;
-                        const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.FillColor = selectedColor;
-
-                        this.updateRegionDataInManager(newRegionData);
-                    },
-                    (color) => {
-                        // On change (real-time update)
-                        if (!this.isValidHexColor(color)) return;
-                        const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.FillColor = color;
-
-                        this.updateRegionDataInManager(newRegionData);
-                    },
-                    () => {
-                        // On cancel (revert)
-                        colorPickerOpen = false;
-                        const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.FillColor = originalColor;
-
-                        this.updateRegionDataInManager(newRegionData);
-                    }
-                )
-
-                /*new MapEditorUIColorPicker(
-                    originalColor,
-                    (selectedColor) => {
-                        // On confirm
-                        if (!this.isValidHexColor(selectedColor)) return;
-                        const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.FillColor = selectedColor;
-
-                        this.updateRegionDataInManager(newRegionData);
-                    },
-                    e,
-                    (color) => {
-                        // On change (real-time update)
-                        if (!this.isValidHexColor(color)) return;
-                        const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.FillColor = color;
-
-                        this.updateRegionDataInManager(newRegionData);
-                    },
-                    () => {
-                        // On cancel (revert)
-                        const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.FillColor = originalColor;
-
-                        this.updateRegionDataInManager(newRegionData);
-                    }
-                );*/
+                this.openNewColorSelector(e, activeRegion, false);
             }
         });
 
         // Border color swatch click
-        this.regionInfoBorderColorSwatch.addEventListener('click', (e) => {
-            console.log('Border color swatch clicked, colorPickerOpen:', colorPickerOpen);
-            if (colorPickerOpen) {
-                console.warn('Color picker already open, ignoring click');
-                return;
-            }
-            
+        this.regionInfoBorderColorSwatch.addEventListener('click', (e) => {            
             e.stopPropagation(); // Prevent event bubbling
             e.preventDefault(); // Prevent default action
             
-            const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
-            if (activeRegion) {
-                colorPickerOpen = true;
-                const originalColor = activeRegion.RegionData.Style.StrokeColor;
-                new ColorPickerPrompt(
-                    originalColor,
-                    e,
-                    (selectedColor) => {
-                        // On confirm
-                        colorPickerOpen = false;
-                        const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.StrokeColor = selectedColor;
-
-                        this.updateRegionDataInManager(newRegionData);
-                    },
-                    (color) => {
-                        // On change (real-time update)
-                        const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.StrokeColor = color;
-
-                        this.updateRegionDataInManager(newRegionData);
-                    },
-                    () => {
-                        // On cancel (revert)
-                        colorPickerOpen = false;
-                        const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.StrokeColor = originalColor;
-
-                        this.updateRegionDataInManager(newRegionData);
-                    }
-                )
-                
-                /*new MapEditorUIColorPicker(
-                    originalColor,
-                    (selectedColor) => {
-                        // On confirm
-                        const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.StrokeColor = selectedColor;
-
-                        this.updateRegionDataInManager(newRegionData);
-                    },
-                    e,
-                    (color) => {
-                        // On change (real-time update)
-                        const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.StrokeColor = color;
-
-                        this.updateRegionDataInManager(newRegionData);
-                    },
-                    () => {
-                        // On cancel (revert)
-                        const newRegionData: RegionData = activeRegion.RegionData;
-                        newRegionData.Style.StrokeColor = originalColor;
-
-                        this.updateRegionDataInManager(newRegionData);
-                    }
-                );*/
-            }
+            const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion!;
+            if (activeRegion)
+                this.openNewColorSelector(e, activeRegion, true);
         });
     }
 
@@ -757,6 +640,55 @@ export class MapEditorUIRegionInfoManager {
         // Update opacities
         this.regionInfoFillOpacityField.value = regionData.Style.FillOpacity.toString();
         this.regionInfoBorderOpacityField.value = regionData.Style.StrokeOpacity.toString();
+    }
+
+    private openNewColorSelector(e: MouseEvent, activeRegion: MapRegion, isStroke: boolean): void {
+        // Remove old color selector if it exists
+        if (this.currentColorSelectorPrompt) {
+            this.currentColorSelectorPrompt.forceCancelAndClose();
+            this.currentColorSelectorPrompt = null;
+        }
+
+        // Open color picker dialog
+        const currentColor = isStroke ? activeRegion.RegionData.Style.StrokeColor : activeRegion.RegionData.Style.FillColor;
+        this.currentColorSelectorPrompt = new ColorPickerPrompt(
+            currentColor,
+            e,
+            (selectedColor) => {
+                this.currentColorSelectorPrompt = null;
+                // On confirm
+                if (!this.isValidHexColor(selectedColor)) return;
+                const newRegionData: RegionData = activeRegion.RegionData;
+                if (isStroke)
+                    newRegionData.Style.StrokeColor = selectedColor;
+                else
+                    newRegionData.Style.FillColor = selectedColor;
+
+                this.updateRegionDataInManager(newRegionData);
+            },
+            (color) => {
+                // On change (real-time update)
+                if (!this.isValidHexColor(color)) return;
+                const newRegionData: RegionData = activeRegion.RegionData;
+                if (isStroke)
+                    newRegionData.Style.StrokeColor = color;
+                else
+                    newRegionData.Style.FillColor = color;
+
+                this.updateRegionDataInManager(newRegionData);
+            },
+            () => {
+                this.currentColorSelectorPrompt = null;
+                // On cancel (revert)
+                const newRegionData: RegionData = activeRegion.RegionData;
+                if (isStroke)
+                    newRegionData.Style.StrokeColor = currentColor;
+                else
+                    newRegionData.Style.FillColor = currentColor;
+
+                this.updateRegionDataInManager(newRegionData);
+            }
+        );
     }
 }
 
