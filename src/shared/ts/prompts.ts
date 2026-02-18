@@ -370,23 +370,15 @@ export abstract class PopoutMenuPrompt {
         };
         document.addEventListener('keydown', this.escapeKeyListener);
 
-        // TEMPORARILY DISABLED: Setup click off listener
-        // The click event that opens the prompt is still propagating even with setTimeout
-        // Need to investigate the event flow more carefully
-        /*
         this.clickOffListener = (e: MouseEvent) => {
-            console.log('Click detected:', e.target, 'time:', Date.now());
             if (this.promptContentContainer && !this.promptContentContainer.contains(e.target as Node)) {
                 this.onConfirm();
-                console.log('Clicked outside prompt, confirming and closing');
                 this.closePrompt();
             }
         };
         setTimeout(() => {
-            console.log('Adding click listener at:', Date.now());
             document.addEventListener('click', this.clickOffListener);
         }, 0);
-        */
     }
 
     /**
@@ -503,10 +495,7 @@ export class ColorPickerPrompt extends PopoutMenuPrompt {
         onConfirm: (color: string) => void, 
         onChange: (color: string) => void | null, 
         onCancel: () => void
-    ) {
-        console.log('ColorPickerPrompt constructor started at:', Date.now());
-        console.log('Opening click event:', clickEvent.type, clickEvent.target);
-        
+    ) {        
         // Call base class constructor
         super(onConfirm, onCancel);
 
@@ -536,8 +525,6 @@ export class ColorPickerPrompt extends PopoutMenuPrompt {
         requestAnimationFrame(() => {
             this.positionPrompt(clickEvent);
         });
-        
-        console.log('ColorPickerPrompt constructor completed at:', Date.now());
     }
 
     private initializePrimaryDOM(): void {
@@ -566,8 +553,6 @@ export class ColorPickerPrompt extends PopoutMenuPrompt {
         // Create right side container for inputs
         const rightContainer = document.createElement('div');
         rightContainer.className = 'color-picker-right';
-        // Set height to match canvas
-        rightContainer.style.height = canvasSize + 'px';
 
         // Create color comparison box
         const colorCompareBox = document.createElement('div');
@@ -600,18 +585,37 @@ export class ColorPickerPrompt extends PopoutMenuPrompt {
         this.confirmBtn.className = 'color-picker-confirm-btn';
         this.confirmBtn.textContent = 'Confirm';
 
-        // Create left container to wrap canvas and hue slider
-        const leftContainer = document.createElement('div');
-        leftContainer.className = 'color-picker-left';
-        leftContainer.appendChild(this.canvas);
-        leftContainer.appendChild(this.hueSlider);
+        // Create controls column (color compare + hex/confirm stacked)
+        const controlsColumn = document.createElement('div');
+        controlsColumn.className = 'color-picker-controls-column';
+
+        // Create hue slider wrapper — clips the rotated slider so it never overflows the prompt
+        const hueSliderWrapper = document.createElement('div');
+        hueSliderWrapper.className = 'color-picker-hue-wrapper';
+        const barThickness = 18;
+        hueSliderWrapper.style.width = barThickness + 'px';
+        hueSliderWrapper.style.height = canvasSize + 'px';
+
+        // Rotate the slider -90deg and offset so it fills the wrapper exactly
+        const offset = (canvasSize - barThickness) / 2;
+        this.hueSlider.style.width = canvasSize + 'px';
+        this.hueSlider.style.height = barThickness + 'px';
+        this.hueSlider.style.position = 'absolute';
+        this.hueSlider.style.top = offset + 'px';
+        this.hueSlider.style.left = (-offset) + 'px';
+        this.hueSlider.style.transform = 'rotate(-90deg)';
+        this.hueSlider.style.transformOrigin = 'center';
+        this.hueSlider.style.margin = '0';
+        hueSliderWrapper.appendChild(this.hueSlider);
 
         // Assemble elements
         bottomControls.appendChild(this.hexInput);
         bottomControls.appendChild(this.confirmBtn);
-        rightContainer.appendChild(colorCompareBox);
-        rightContainer.appendChild(bottomControls);
-        this.promptContentContainer.appendChild(leftContainer);
+        controlsColumn.appendChild(colorCompareBox);
+        controlsColumn.appendChild(bottomControls);
+        rightContainer.appendChild(controlsColumn);
+        rightContainer.appendChild(hueSliderWrapper);
+        this.promptContentContainer.appendChild(this.canvas);
         this.promptContentContainer.appendChild(rightContainer);
         
         console.log('initializePrimaryDOM: DOM construction complete');
