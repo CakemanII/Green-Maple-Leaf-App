@@ -19,11 +19,22 @@ export abstract class FullscreenPrompt {
     protected confirmButton!: HTMLButtonElement;
     protected cancelButton!: HTMLButtonElement;
 
-    constructor(promptTitle: string, onConfirm: (...args: any[]) => void, onCancel: () => void = () => {}) {
+    private promptWidth: number;
+    private promptHeight?: number;
+
+    constructor(
+        promptTitle: string, 
+        onConfirm: (...args: any[]) => void,
+        onCancel: () => void = () => {},
+        promptWidth: number = 550,
+        promptHeight?: number
+    ) {
         // Store callbacks
         this.promptTitle = promptTitle;
         this.onConfirm = onConfirm;
         this.onCancel = onCancel;
+        this.promptWidth = promptWidth;
+        this.promptHeight = promptHeight;
         // Initialize base DOM structure (overlay, dialog, title, buttons)
         this.initializeBaseDOM();
     }
@@ -51,9 +62,14 @@ export abstract class FullscreenPrompt {
             background-color: #2a2a2a;
             border-radius: 8px;
             padding: 24px;
-            min-width: 450px;
-            max-width: 550px;
+            width: ${this.promptWidth}px;
+            min-width: ${this.promptWidth}px;
+            max-width: ${this.promptWidth}px;
+            ${this.promptHeight !== undefined ? `height: ${this.promptHeight}px; max-height: ${this.promptHeight}px;` : ''}
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
         `;
         this.dialog = dialog;
 
@@ -73,6 +89,9 @@ export abstract class FullscreenPrompt {
             display: flex;
             gap: 12px;
             justify-content: flex-end;
+            flex-shrink: 0;
+            margin-top: auto;
+            padding-top: 16px;
         `;
 
         // Create Cancel button
@@ -128,7 +147,7 @@ export abstract class FullscreenPrompt {
         });
 
         confirmButton.addEventListener('click', () => {
-            this.onConfirm();
+            this.confirm();
         });
 
         overlay.addEventListener('click', (e) => {
@@ -162,8 +181,8 @@ export abstract class FullscreenPrompt {
         }
     }
 
-    protected confirm(): void {
-        this.onConfirm();
+    protected confirm(...args: any[]): void {
+        this.onConfirm(...args);
     }
 
     protected cancel(): void {
@@ -179,146 +198,6 @@ export abstract class FullscreenPrompt {
     protected abstract initializePrimaryDOM(): void;
 }
 
-/**
- * Input prompt with customizable text, confirm/cancel callbacks, and input validation
- */
-export abstract class InputPrompt extends FullscreenPrompt {
-    private promptHTML!: string;
-
-    private confirmButtonText!: string;
-    private cancelButtonText!: string;
-
-    constructor(
-        promptTitle: string,
-        promptHTML: string, 
-        confirmButtonText: string,
-        cancelButtonText: string,
-        onConfirm: (...args: any[]) => void, onCancel: () => void = () => {}
-    ) {
-            
-        // Call base class constructor
-        super(
-            promptTitle,
-            (...args: any[]) => {
-                onConfirm(...args);
-                this.closePrompt();
-            }, 
-            () => {
-                onCancel();
-                this.closePrompt();
-            }
-        );
-
-        // Set button text variables
-        this.promptHTML = promptHTML;
-        this.confirmButtonText = confirmButtonText;
-        this.cancelButtonText = cancelButtonText;
-        // Initialize the DOM structure for the specific prompt.
-        this.initializePrimaryDOM();
-    }
-
-    protected initializePrimaryDOM(): void {
-        // Set confirmation button text
-        this.confirmButton.textContent = this.confirmButtonText;
-        
-        // Set cancel button text
-        this.cancelButton.textContent = this.cancelButtonText;
-
-        // Create prompt message element
-        const messageEl = document.createElement('p');
-        messageEl.innerHTML = this.promptHTML;
-        messageEl.style.cssText = `
-            margin: 0 0 20px 0;
-            color: #cccccc;
-            font-size: 14px;
-            line-height: 1.5;
-        `;
-
-        // Insert message into the dialog, above the buttons
-        this.insertElementIntoDialog(messageEl);
-    }
-
-    protected abstract intializeAdditionalDOM(): void;
-    
-    protected abstract collectInput(): any[];
-}
-
-/**
- * File list viewer prompt for displaying a list of files with metadata and allowing selection
- */
-/*export abstract class FileListViewerPrompt extends InputPrompt {
-    constructor(promptTitle: string, onConfirm: () => void, onCancel: () => void = () => {}) {
-        // Call base class constructor
-        super(promptTitle, onConfirm, onCancel);
-    }
-
-    protected abstract initializePrimaryDOM(): void;
-
-    protected abstract loadFileList(): Array<{ name: string, lastModified: string, fileSize: number, UUID: string }>;
-}*/
-// #endregion
-
-/**
- * Simple confirmation prompt with customizable text and confirm/cancel callbacks
- */
-export class ConfirmationPrompt extends FullscreenPrompt {
-    private promptHTML!: string;
-
-    private confirmButtonText!: string;
-    private cancelButtonText!: string;
-
-    constructor(
-        promptTitle: string,
-        promptHTML: string, 
-        confirmButtonText: string,
-        cancelButtonText: string,
-        onConfirm: () => void, onCancel: () => void = () => {}
-    ) {
-            
-        // Call base class constructor
-        super(
-            promptTitle,
-            () => {
-                onConfirm();
-                this.closePrompt();
-            }, 
-            () => {
-                onCancel();
-                this.closePrompt();
-            }
-        );
-
-        // Set button text variables
-        this.promptHTML = promptHTML;
-        this.confirmButtonText = confirmButtonText;
-        this.cancelButtonText = cancelButtonText;
-        // Initialize the DOM structure for the specific prompt.
-        this.initializePrimaryDOM();
-    }
-
-    protected initializePrimaryDOM(): void {
-        // Set confirmation button text
-        this.confirmButton.textContent = this.confirmButtonText;
-        
-        // Set cancel button text
-        this.cancelButton.textContent = this.cancelButtonText;
-
-        // Create prompt message element
-        const messageEl = document.createElement('p');
-        messageEl.innerHTML = this.promptHTML;
-        messageEl.style.cssText = `
-            margin: 0 0 20px 0;
-            color: #cccccc;
-            font-size: 14px;
-            line-height: 1.5;
-        `;
-
-        // Insert message into the dialog, above the buttons
-        this.insertElementIntoDialog(messageEl);
-    }
-}
-
-// #region Popout Menu Prompts
 export abstract class PopoutMenuPrompt {
     protected promptContainer!: HTMLDivElement;
     protected promptContentContainer!: HTMLDivElement;
@@ -486,7 +365,69 @@ export abstract class PopoutMenuPrompt {
         this.closePrompt();
     }
 }
+// #endregion
 
+/**
+ * Simple confirmation prompt with customizable text and confirm/cancel callbacks
+ */
+export class ConfirmationPrompt extends FullscreenPrompt {
+    private promptHTML!: string;
+
+    private confirmButtonText!: string;
+    private cancelButtonText!: string;
+
+    constructor(
+        promptTitle: string,
+        promptHTML: string, 
+        confirmButtonText: string,
+        cancelButtonText: string,
+        onConfirm: () => void, onCancel: () => void = () => {}
+    ) {
+            
+        // Call base class constructor
+        super(
+            promptTitle,
+            () => {
+                onConfirm();
+                this.closePrompt();
+            }, 
+            () => {
+                onCancel();
+                this.closePrompt();
+            }
+        );
+
+        // Set button text variables
+        this.promptHTML = promptHTML;
+        this.confirmButtonText = confirmButtonText;
+        this.cancelButtonText = cancelButtonText;
+        // Initialize the DOM structure for the specific prompt.
+        this.initializePrimaryDOM();
+    }
+
+    protected initializePrimaryDOM(): void {
+        // Set confirmation button text
+        this.confirmButton.textContent = this.confirmButtonText;
+        
+        // Set cancel button text
+        this.cancelButton.textContent = this.cancelButtonText;
+
+        // Create prompt message element
+        const messageEl = document.createElement('p');
+        messageEl.innerHTML = this.promptHTML;
+        messageEl.style.cssText = `
+            margin: 0 0 20px 0;
+            color: #cccccc;
+            font-size: 14px;
+            line-height: 1.5;
+        `;
+
+        // Insert message into the dialog, above the buttons
+        this.insertElementIntoDialog(messageEl);
+    }
+}
+
+// #region Popout Menu Prompts
 export class ColorPickerPrompt extends PopoutMenuPrompt {
     private onChange!: ((color: string) => void) | null
     private initialColor!: string;
@@ -858,6 +799,82 @@ export class ColorPickerPrompt extends PopoutMenuPrompt {
 }
 // #endregion
 
+/**
+ * Input prompt with customizable text, confirm/cancel callbacks, and input validation
+ */
+export abstract class InputPrompt extends FullscreenPrompt {
+    private promptHTML!: string;
+
+    private confirmButtonText!: string;
+    private cancelButtonText!: string;
+
+    constructor(
+        promptTitle: string,
+        promptHTML: string, 
+        confirmButtonText: string,
+        cancelButtonText: string,
+        onConfirm: (...args: any[]) => void,
+        onCancel: () => void = () => {},
+        promptWidth?: number,
+        promptHeight?: number
+    ) {
+            
+        // Call base class constructor
+        super(
+            promptTitle,
+            (...args: any[]) => {
+                onConfirm(...args);
+                this.closePrompt();
+            }, 
+            () => {
+                onCancel();
+                this.closePrompt();
+            },
+            promptWidth,
+            promptHeight
+        );
+
+        // Set button text variables
+        this.promptHTML = promptHTML;
+        this.confirmButtonText = confirmButtonText;
+        this.cancelButtonText = cancelButtonText;
+        // Initialize the DOM structure for the specific prompt.
+        this.initializePrimaryDOM();
+    }
+
+    protected initializePrimaryDOM(): void {
+        // Set confirmation button text
+        this.confirmButton.textContent = this.confirmButtonText;
+        
+        // Set cancel button text
+        this.cancelButton.textContent = this.cancelButtonText;
+
+        // Create prompt message element
+        const messageEl = document.createElement('p');
+        messageEl.innerHTML = this.promptHTML;
+        messageEl.style.cssText = `
+            margin: 0 0 20px 0;
+            color: #cccccc;
+            font-size: 14px;
+            line-height: 1.5;
+        `;
+
+        // Insert message into the dialog, above the buttons
+        this.insertElementIntoDialog(messageEl);
+    }
+
+    protected abstract initializeAdditionalDOM(): void;
+    
+    protected abstract collectInput(): any[];
+}
+
+// #region File List Viewer Prompts
+export enum FileSortType {
+    ALPHA,
+    DATE,
+    NUMBER,
+    NONE
+}
 
 export abstract class FileListViewerPrompt extends InputPrompt {
     private fileMetadatasGetPath!: string;
@@ -865,23 +882,42 @@ export abstract class FileListViewerPrompt extends InputPrompt {
     private filesFetched: boolean = false;
     private populated: boolean = false;
 
-    private fileMetadatas: Array<FileMetadata> = [];
+    protected fileMetadatas: Array<FileMetadata> = [];
+    private columnLabels: {[name: string]: FileSortType};
+    private sortColumn: string | null = null;
+    private sortAscending: boolean = true;
+    private sortArrows: Map<string, HTMLSpanElement> = new Map();
 
     protected selectedRow!: HTMLTableRowElement | null;
+    protected selectedFileMetadata: FileMetadata | null = null;
     protected tBody!: HTMLTableSectionElement;
+    protected fileCountElement!: HTMLSpanElement;
+    protected emptyStateElement!: HTMLDivElement;
+
+    protected override confirm(): void {
+        if (this.selectedFileMetadata) super.confirm(this.selectedFileMetadata);
+    }
 
     constructor(
         promptTitle: string, 
         confirmButtonText: string, 
         cancelButtonText: string, 
-        onConfirm: (fileMetadata: FileMetadata) => void, onCancel: () => void = () => {},
+        onConfirm: (fileMetadata: FileMetadata) => void,
+        onCancel: () => void = () => {},
         fileMetadatasGetPath: string,
-        columnLabels: string[] = ['Name', 'Date Modified', 'Size'],
+        columnLabels: {[name: string]: FileSortType} = {
+            'Name': FileSortType.ALPHA, 
+            'Date Modified': FileSortType.DATE, 
+            'File Size': FileSortType.NUMBER
+        },
+        promptWidth: number = 820,
+        promptHeight: number = 580
     ) {
-        const 
-
         // Call base class constructor
-        super(promptTitle, "", confirmButtonText, cancelButtonText, onConfirm, onCancel);
+        super(promptTitle, "", confirmButtonText, cancelButtonText, onConfirm, onCancel, promptWidth, promptHeight);
+
+        // Store column labels
+        this.columnLabels = columnLabels;
 
         // Set file metadata endpoint
         this.fileMetadatasGetPath = fileMetadatasGetPath;
@@ -916,57 +952,274 @@ export abstract class FileListViewerPrompt extends InputPrompt {
     }
 
     private populateFileListInDOM(): void {
-        for (const metadata of this.fileMetadatas) {
-            this.initializeFileItemDOM(metadata.name, metadata.lastModified, metadata.fileSize, metadata.UUID);
+        // Clear existing rows before re-rendering
+        while (this.tBody.firstChild) this.tBody.removeChild(this.tBody.firstChild);
+
+        for (const metadata of this.fileMetadatas.reverse()) {
+            this.initializeFileItemDOM(metadata.name, metadata.lastModified, metadata.fileSize, metadata.UUID, metadata);
+        }
+        const count = this.fileMetadatas.length;
+        this.updateFileCount(count, count);
+        if (this.emptyStateElement) {
+            this.emptyStateElement.style.display = count === 0 ? 'flex' : 'none';
+            if (count === 0) this.emptyStateElement.textContent = 'No files found.';
         }
     }
 
-    protected intializeAdditionalDOM(): void {
-        // Initialize the table in the DOM
-        // File list container (static height, scrollable)
-        const listContainer = document.createElement('div');
-        listContainer.style.cssText = `
-            flex: 1 1 auto;
-            overflow-y: auto;
-            background: #242424;
-            padding: 0 40px;
-            max-height: 350px;
-            min-height: 350px;
-            border-bottom: 1px solid #333333;
+    private updateFileCount(visible: number, total: number): void {
+        if (this.fileCountElement) {
+            this.fileCountElement.textContent = visible === total
+                ? `${total} file${total !== 1 ? 's' : ''}`
+                : `${visible} of ${total} file${total !== 1 ? 's' : ''}`;
+        }
+    }
+
+    /**
+     * Returns the sort key for a given column label. Override in subclasses for custom mappings.
+     */
+    protected getSortKey(metadata: FileMetadata, columnLabel: string): string | number {
+        const label = columnLabel.toLowerCase();
+        if (label.includes('name'))                          return metadata.name.toLowerCase();
+        if (label.includes('date') || label.includes('modified')) return new Date(metadata.lastModified).getTime();
+        if (label.includes('size'))                          return metadata.fileSize;
+        if (label.includes('uuid'))                          return metadata.UUID.toLowerCase();
+        return metadata.name.toLowerCase();
+    }
+
+    private sortAndRender(column: string): void {
+        if (this.sortColumn === column) {
+            this.sortAscending = !this.sortAscending;
+        } else {
+            this.sortColumn = column;
+            this.sortAscending = true;
+        }
+
+        // Update arrow visuals on all header arrows
+        for (const [label, arrow] of this.sortArrows) {
+            if (label === this.sortColumn) {
+                arrow.textContent = this.sortAscending ? '↑' : '↓';
+                arrow.style.color = '#6ba3ff';
+                arrow.style.opacity = '1';
+            } else {
+                arrow.textContent = '↕';
+                arrow.style.color = '#555';
+                arrow.style.opacity = '0.5';
+            }
+        }
+
+        // Sort fileMetadatas in-place
+        if (this.sortColumn !== null) {
+            const col = this.sortColumn;
+            const asc = this.sortAscending;
+            this.fileMetadatas.sort((a, b) => {
+                const ka = this.getSortKey(a, col);
+                const kb = this.getSortKey(b, col);
+                if (ka < kb) return asc ? -1 : 1;
+                if (ka > kb) return asc ? 1 : -1;
+                return 0;
+            });
+        }
+
+        // Deselect current selection (row indices changed)
+        if (this.selectedRow) {
+            this.selectedRow.style.background = '';
+            this.selectedRow.style.color = '';
+        }
+        this.selectedRow = null;
+        this.selectedFileMetadata = null;
+        this.confirmButton.disabled = true;
+
+        // Re-render rows
+        this.populateFileListInDOM();
+    }
+
+    protected initializeAdditionalDOM(): void {
+        // Outer wrapper - fills remaining dialog space between title and buttons
+        const outerWrapper = document.createElement('div');
+        outerWrapper.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 0;
+            min-height: 0;
+            overflow: hidden;
+            border-radius: 6px;
+            border: 1px solid #333;
+            margin-bottom: 4px;
+            background: #1e1e1e;
         `;
 
-        // Custom scrollbar
-        listContainer.style.scrollbarWidth = 'thin';
-        listContainer.style.scrollbarColor = '#3a3a3a #0d0d0d';
-        listContainer.style.setProperty('scrollbar-width', 'thin');
+        // Toolbar: search input + file count
+        const toolbar = document.createElement('div');
+        toolbar.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: #252525;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0;
+        `;
+
+        const searchIcon = document.createElement('span');
+        searchIcon.textContent = '⌕';
+        searchIcon.style.cssText = `color: #666; font-size: 16px; line-height: 1; flex-shrink: 0;`;
+
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = 'Search files...';
+        searchInput.style.cssText = `
+            flex: 1;
+            padding: 6px 10px;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.15s;
+        `;
+        searchInput.addEventListener('focus', () => { searchInput.style.borderColor = '#6ba3ff'; });
+        searchInput.addEventListener('blur',  () => { searchInput.style.borderColor = '#3a3a3a'; });
+
+        this.fileCountElement = document.createElement('span');
+        this.fileCountElement.style.cssText = `
+            font-size: 11px;
+            color: #666;
+            white-space: nowrap;
+            flex-shrink: 0;
+            font-variant-numeric: tabular-nums;
+        `;
+        this.fileCountElement.textContent = 'Loading...';
+
+        toolbar.appendChild(searchIcon);
+        toolbar.appendChild(searchInput);
+        toolbar.appendChild(this.fileCountElement);
+
+        // Scrollable table area
+        const scrollArea = document.createElement('div');
+        scrollArea.style.cssText = `
+            flex: 1 1 0;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+        `;
+        (scrollArea.style as any).scrollbarWidth = 'thin';
+        (scrollArea.style as any).scrollbarColor = '#3a3a3a #1a1a1a';
 
         // Table
         const table = document.createElement('table');
         table.style.cssText = `
             width: 100%;
             border-collapse: collapse;
-            color: #fff;
-            font-size: 1.08rem;
+            color: #ddd;
+            font-size: 13px;
+            table-layout: fixed;
         `;
 
-        // Table header
+        // Sticky header — built dynamically from columnLabels
         const thead = document.createElement('thead');
-        thead.innerHTML = `
-            <tr style="background:#1a1a1a;">
-                <th style="padding: 0.75rem 1rem; text-align:left; font-weight:700;">Name</th>
-                <th style="padding: 0.75rem 1rem; text-align:left; font-weight:700;">Date Modified</th>
-                <th style="padding: 0.75rem 1rem; text-align:right; font-weight:700;">Size</th>
-                <th style="padding: 0.75rem 1rem; text-align:left; font-weight:700;">UUID</th>
-            </tr>
-        `;
+        thead.style.cssText = `position: sticky; top: 0; z-index: 1;`;
+        const headerRow = document.createElement('tr');
+        headerRow.style.background = '#252525';
+
+        for (const [label, sortType] of Object.entries(this.columnLabels)) {
+            const th = document.createElement('th');
+            th.style.cssText = `
+                padding: 9px 14px;
+                font-weight: 600;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                color: #888;
+                border-bottom: 1px solid #333;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                user-select: none;
+            `;
+
+            const labelSpan = document.createElement('span');
+            labelSpan.textContent = label;
+
+            th.appendChild(labelSpan);
+
+            if (sortType !== FileSortType.NONE) {
+                th.style.cursor = 'pointer';
+
+                const arrow = document.createElement('span');
+                arrow.textContent = '↕';
+                arrow.style.cssText = `
+                    margin-left: 5px;
+                    font-size: 11px;
+                    color: #555;
+                    opacity: 0.5;
+                    transition: color 0.15s, opacity 0.15s;
+                `;
+                th.appendChild(arrow);
+                this.sortArrows.set(label, arrow);
+
+                th.addEventListener('mouseenter', () => {
+                    if (this.sortColumn !== label) arrow.style.opacity = '1';
+                    th.style.color = '#aaa';
+                    th.style.background = '#2e2e2e';
+                });
+                th.addEventListener('mouseleave', () => {
+                    if (this.sortColumn !== label) arrow.style.opacity = '0.5';
+                    th.style.color = '';
+                    th.style.background = '';
+                });
+                th.addEventListener('click', () => this.sortAndRender(label));
+            }
+
+            headerRow.appendChild(th);
+        }
+        thead.appendChild(headerRow);
         table.appendChild(thead);
 
-        // Table body
         this.tBody = document.createElement('tbody');
-
         table.appendChild(this.tBody);
-        listContainer.appendChild(table);
-        this.insertElementIntoDialog(listContainer);
+        scrollArea.appendChild(table);
+
+        // Empty / loading state
+        this.emptyStateElement = document.createElement('div');
+        this.emptyStateElement.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 24px;
+            color: #555;
+            font-size: 13px;
+            font-style: italic;
+        `;
+        this.emptyStateElement.textContent = 'Loading files...';
+        scrollArea.appendChild(this.emptyStateElement);
+
+        outerWrapper.appendChild(toolbar);
+        outerWrapper.appendChild(scrollArea);
+        this.insertElementIntoDialog(outerWrapper);
+
+        // Search filtering
+        searchInput.addEventListener('input', () => {
+            const term = searchInput.value.toLowerCase();
+            let visible = 0;
+            const total = this.tBody.rows.length;
+            for (const row of Array.from(this.tBody.rows)) {
+                const match = (row.textContent ?? '').toLowerCase().includes(term);
+                row.style.display = match ? '' : 'none';
+                if (match) visible++;
+            }
+            // Deselect row if now hidden
+            if (this.selectedRow && this.selectedRow.style.display === 'none') {
+                this.selectedRow.style.background = '';
+                this.selectedRow.style.color = '';
+                this.selectedRow = null;
+                this.selectedFileMetadata = null;
+                this.confirmButton.disabled = true;
+            }
+            this.updateFileCount(visible, total);
+            this.emptyStateElement.style.display = visible === 0 ? 'flex' : 'none';
+            this.emptyStateElement.textContent = term ? 'No files match your search.' : 'No files found.';
+        });
     }
 
     protected collectInput(): any[] {
@@ -975,7 +1228,6 @@ export abstract class FileListViewerPrompt extends InputPrompt {
 
     protected abstract initializeFileItemDOM(...metadata: any[]): void;
 }
-
 
 export class GeoeditFileListViewerPrompt extends FileListViewerPrompt {
     constructor(onConfirm: (fileMetadata: FileMetadata) => void, onCancel: () => void = () => {})
@@ -987,255 +1239,71 @@ export class GeoeditFileListViewerPrompt extends FileListViewerPrompt {
             'Cancel',
             onConfirm,
             onCancel,
-            "/geofence/list_metadatas"
+            "/geofence/list_metadatas",
+            {
+                'Name':          FileSortType.ALPHA,
+                'Date Modified': FileSortType.DATE,
+                'Size':          FileSortType.NUMBER,
+                'UUID':          FileSortType.NONE,
+            }
         );
 
-        this.intializeAdditionalDOM();
+        this.initializeAdditionalDOM();
     }
 
     protected initializeFileItemDOM(...metadata: any[]): void {
-        const [name, lastModified, fileSize, UUID] = metadata;
+        const [name, lastModified, fileSize, UUID, fullMetadata] = metadata;
         const tr = document.createElement('tr');
-        tr.style.cursor = 'pointer';
+        tr.style.cssText = `cursor: pointer; color: #ddd; border-bottom: 1px solid #2a2a2a;`;
         tr.tabIndex = 0;
-        tr.style.color = '#fff';
-        tr.onmouseenter = () => {
-            if (tr !==this.selectedRow) tr.style.background = '#3a3a3a';
-        };
-        tr.onmouseleave = () => {
-            if (tr !==this.selectedRow) tr.style.background = '';
-        };
+
+        const cellStyle = `padding: 9px 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`;
+
+        const tdName = document.createElement('td');
+        tdName.style.cssText = cellStyle + ' font-weight: 500;';
+        tdName.textContent = name;
+        tdName.title = name;
+
+        const tdDate = document.createElement('td');
+        tdDate.style.cssText = cellStyle + ' color: #aaa;';
+        tdDate.textContent = new Date(lastModified).toLocaleString();
+
+        const tdSize = document.createElement('td');
+        tdSize.style.cssText = cellStyle + ' text-align: right; color: #aaa; font-variant-numeric: tabular-nums;';
+        tdSize.textContent = (fileSize / 1024).toFixed(1) + ' KB';
+
+        const tdUUID = document.createElement('td');
+        tdUUID.style.cssText = cellStyle + ' font-family: monospace; font-size: 11px; color: #666;';
+        tdUUID.textContent = UUID;
+        tdUUID.title = UUID;
+
+        tr.appendChild(tdName);
+        tr.appendChild(tdDate);
+        tr.appendChild(tdSize);
+        tr.appendChild(tdUUID);
+
+        tr.onmouseenter = () => { if (tr !== this.selectedRow) tr.style.background = '#2c2c2c'; };
+        tr.onmouseleave = () => { if (tr !== this.selectedRow) tr.style.background = ''; };
         tr.onclick = () => {
             if (this.selectedRow) {
-               this.selectedRow.style.background = '';
-               this.selectedRow.style.color = '#fff';
+                this.selectedRow.style.background = '';
+                this.selectedRow.style.color = '#ddd';
+                this.selectedRow.querySelectorAll('td').forEach(td => (td as HTMLElement).style.color = '');
             }
-           this.selectedRow = tr;
-            tr.style.background = '#6ba3ff'; // Sidebar accent color for selection
-            tr.style.color = '#181a1b';
+            this.selectedRow = tr;
+            this.selectedFileMetadata = fullMetadata;
+            tr.style.background = '#1c3557';
+            tr.style.color = '#e8f1ff';
+            tdDate.style.color = '#b0c8f0';
+            tdSize.style.color = '#b0c8f0';
+            tdUUID.style.color = '#7a9cc8';
             this.confirmButton.disabled = false;
         };
-        tr.innerHTML = `
-            <td style="padding: 0.6rem 1rem; font-weight:600;">${name}</td>
-            <td style="padding: 0.6rem 1rem;">${new Date(lastModified).toLocaleString()}</td>
-            <td style="padding: 0.6rem 1rem; text-align:right;">${(fileSize/1024).toFixed(1)} KB</td>
-            <td style="padding: 0.6rem 1rem; font-family:monospace;">${UUID}</td>
-        `;
+
         this.tBody.appendChild(tr);
     }
 }
-
-
-/**
- * Large file list dialog for displaying geoedit files with metadata
- */
-// export class MapEditorUIFileListDialog {
-//     /**
-//      * Show a large file list dialog
-//      * @param files - Array of file metadata objects
-//      * @param onSelect - Callback when a file is selected (clicked)
-//      */
-//     public static show(
-//         files: Array<{ name: string, lastModified: string, fileSize: number, UUID: string }>,
-//         onConfirmSelection: (uuid: string) => void,
-//         onCancel?: () => void
-//     ): void {
-//         // Overlay
-//         const overlay = document.createElement('div');
-//         overlay.style.cssText = `
-//             position: fixed;
-//             top: 0;
-//             left: 0;
-//             width: 100vw;
-//             height: 100vh;
-//             background: rgba(0,0,0,0.7);
-//             display: flex;
-//             align-items: center;
-//             justify-content: center;
-//             z-index: 10001;
-//         `;
-
-//         // Dialog
-//         const dialog = document.createElement('div');
-//         dialog.style.cssText = `
-//             background: #1a1a1a;
-//             border-radius: 12px;
-//             padding: 0;
-//             min-width: 720px;
-//             max-width: 1100px;
-//             min-height: 540px;
-//             max-height: 700px;
-//             display: flex;
-//             flex-direction: column;
-//             box-shadow: 0 8px 40px rgba(0,0,0,0.7);
-//             border: 1px solid #333333;
-//         `;
-
-//         // Title
-//         const title = document.createElement('div');
-//         title.textContent = 'Load Geoedit File';
-//         title.style.cssText = `
-//             color: #6ba3ff;
-//             font-size: 2.1rem;
-//             font-weight: 700;
-//             background: #1a1a1a;
-//             padding: 28px 40px 18px 40px;
-//             border-radius: 18px 4px 0 0 / 8px 18px 0 0; /* Beveled corners */
-//             border-bottom: 1px solid #333333;
-//             letter-spacing: 0.02em;
-//         `;
-//         dialog.appendChild(title);
-
-//         // File list container (static height, scrollable)
-//         const listContainer = document.createElement('div');
-//         listContainer.style.cssText = `
-//             flex: 1 1 auto;
-//             overflow-y: auto;
-//             background: #242424;
-//             padding: 0 40px;
-//             max-height: 350px;
-//             min-height: 350px;
-//             border-bottom: 1px solid #333333;
-//         `;
-//         // Custom scrollbar
-//         listContainer.style.scrollbarWidth = 'thin';
-//         listContainer.style.scrollbarColor = '#3a3a3a #0d0d0d';
-//         listContainer.style.setProperty('scrollbar-width', 'thin');
-
-
-//         // Table
-//         const table = document.createElement('table');
-//         table.style.cssText = `
-//             width: 100%;
-//             border-collapse: collapse;
-//             color: #fff;
-//             font-size: 1.08rem;
-//         `;
-
-//         // Table header
-//         const thead = document.createElement('thead');
-//         thead.innerHTML = `
-//             <tr style="background:#1a1a1a;">
-//                 <th style="padding: 0.75rem 1rem; text-align:left; font-weight:700;">Name</th>
-//                 <th style="padding: 0.75rem 1rem; text-align:left; font-weight:700;">Date Modified</th>
-//                 <th style="padding: 0.75rem 1rem; text-align:right; font-weight:700;">Size</th>
-//                 <th style="padding: 0.75rem 1rem; text-align:left; font-weight:700;">UUID</th>
-//             </tr>
-//         `;
-//         table.appendChild(thead);
-
-//         // Table body
-//         const tbody = document.createElement('tbody');
-//         files.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime());
-//         let selectedRow: HTMLTableRowElement | null = null;
-//         let selectedUUID: string | null = null;
-//         for (const file of files) {
-//             const tr = document.createElement('tr');
-//             tr.style.cursor = 'pointer';
-//             tr.tabIndex = 0;
-//             tr.style.color = '#fff';
-//             tr.onmouseenter = () => {
-//                 if (tr !== selectedRow) tr.style.background = '#3a3a3a';
-//             };
-//             tr.onmouseleave = () => {
-//                 if (tr !==selectedRow) tr.style.background = '';
-//             };
-//             tr.onclick = () => {
-//                 if (selectedRow) {
-//                    selectedRow.style.background = '';
-//                    selectedRow.style.color = '#fff';
-//                 }
-//                selectedRow = tr;
-//                 selectedUUID = file.UUID;
-//                 tr.style.background = '#6ba3ff'; // Sidebar accent color for selection
-//                 tr.style.color = '#181a1b';
-//                 confirmBtn.disabled = false;
-//             };
-//             tr.innerHTML = `
-//                 <td style="padding: 0.6rem 1rem; font-weight:600;">${file.name}</td>
-//                 <td style="padding: 0.6rem 1rem;">${new Date(file.lastModified).toLocaleString()}</td>
-//                 <td style="padding: 0.6rem 1rem; text-align:right;">${(file.fileSize/1024).toFixed(1)} KB</td>
-//                 <td style="padding: 0.6rem 1rem; font-family:monospace;">${file.UUID}</td>
-//             `;
-//             tbody.appendChild(tr);
-//         }
-//         table.appendChild(tbody);
-//         listContainer.appendChild(table);
-//         dialog.appendChild(listContainer);
-
-//         // Footer (confirm and close buttons)
-//         const footer = document.createElement('div');
-//         footer.style.cssText = `
-//             display: flex;
-//             flex-direction: row;
-//             align-items: center;
-//             justify-content: space-between;
-//             padding: 18px 40px 28px 40px;
-//             background: #1a1a1a;
-//             border-radius: 0 0 12px 12px;
-//         `;
-
-//         // Confirm button (bottom left)
-//         const confirmBtn = document.createElement('button');
-//         confirmBtn.textContent = 'Confirm';
-//         confirmBtn.disabled = true;
-//         confirmBtn.style.cssText = `
-//             padding: 0.85rem 2.5rem;
-//             background: #6ba3ff;
-//             color: #181a1b;
-//             border: none;
-//             border-radius: 6px;
-//             font-size: 1.15rem;
-//             font-weight: 700;
-//             cursor: pointer;
-//             opacity: 1;
-//             transition: background 0.2s;
-//         `;
-//         confirmBtn.onclick = () => {
-//             if (selectedUUID) {
-//                 document.body.removeChild(overlay);
-//                 onConfirmSelection(selectedUUID);
-//                 document.removeEventListener('keydown', escapeHandler);
-//             }
-//         };
-
-//         // Close button (bottom right)
-//         const closeBtn = document.createElement('button');
-//         closeBtn.textContent = 'Close';
-//         closeBtn.style.cssText = `
-//             padding: 0.85rem 2.5rem;
-//             background: #3a3a3a;
-//             color: #fff;
-//             border: none;
-//             border-radius: 6px;
-//             font-size: 1.15rem;
-//             font-weight: 700;
-//             cursor: pointer;
-//         `;
-//         closeBtn.onclick = () => { document.body.removeChild(overlay); document.removeEventListener('keydown', escapeHandler); if (onCancel) onCancel(); };
-
-//         footer.appendChild(confirmBtn);
-//         footer.appendChild(closeBtn);
-//         dialog.appendChild(footer);
-
-//         overlay.appendChild(dialog);
-//         document.body.appendChild(overlay);
-
-//         // Escape key closes dialog
-//         const escapeHandler = (e: KeyboardEvent) => {
-//             if (e.key === 'Escape') {
-//                 document.body.removeChild(overlay);
-//                 document.removeEventListener('keydown', escapeHandler);
-//                 if (onCancel) onCancel();
-//             }
-//         };
-//         document.addEventListener('keydown', escapeHandler);
-//     }
-// }
-
-
-
-
+// #endregion
 
 /**
  * Simple confirmation dialog utility class

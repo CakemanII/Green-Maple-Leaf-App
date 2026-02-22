@@ -1,5 +1,4 @@
 import { GeoeditFileManager } from "../geofence_filing.js";
-import { MapEditorUIFileListDialog } from "../../../shared/compiled_js/prompts.js";
 
 class TabMenuUI {
     // Element IDs

@@ -1,4 +1,4 @@
-import { MapEditorUITextInputDialog } from "../../shared/compiled_js/prompts.js";
+import { InputPrompt } from "../../shared/compiled_js/prompts.js";
 import { MapRegionRegionManager, MapRegionDataManager } from "./interactable_map/map_region_editor.js";
 import { RegionData } from "./interactable_map/region.js";
 import { GeneralUtilities } from "../../shared/compiled_js/utilities.js";
@@ -138,9 +138,7 @@ export class GeoeditFileManager {
         
         // Get name of new geoedit file from user - wrap in Promise
         return new Promise<void>((resolve) => {
-            MapEditorUITextInputDialog.show(
-                "Save Geoedit File", 
-                "Enter a name for the new geoedit file:",
+            new FileInfoPrompt(
                 async (inputName: string) => {
                     // Create new UUID for the file.
                     this.activeFileUUID = GeneralUtilities.generateUUID();
@@ -148,10 +146,7 @@ export class GeoeditFileManager {
                     await this.saveCurrentToGeoeditFile(inputName);
                     resolve();
                 },
-                (inputName: string) => {
-                    // Verify the input name is valid (non-empty).
-                    return inputName.trim().length > 0 ? true : "Please enter a valid file name.";
-                }
+                () => { /* cancelled */ }
             );
         });
     }
@@ -219,11 +214,89 @@ export class GeoeditFileManager {
     //#endregion
 }
 
-/**
- * Classes for managing geofence files.
- */
-export class GeofenceFileManager {
+class FileInfoPrompt extends InputPrompt {
+    private nameInput!: HTMLInputElement;
+    private feedbackEl!: HTMLDivElement;
 
+    constructor(
+        onConfirm: (inputName: string) => void,
+        onCancel: () => void = () => {}
+    ) {
+        super(
+            "Save Geoedit File",
+            "Enter a name for the new geoedit file:",
+            "Save",
+            "Cancel",
+            (...args: any[]) => onConfirm(args[0]),
+            onCancel
+        );
+        this.initializeAdditionalDOM();
+    }
+
+    protected override confirm(): void {
+        const value = this.nameInput.value.trim();
+        if (value.length === 0) {
+            this.feedbackEl.textContent = "Please enter a valid file name.";
+            this.nameInput.style.borderColor = '#ff6b6b';
+            return;
+        }
+        super.confirm(value);
+    }
+
+    protected initializeAdditionalDOM(): void {
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = `margin-bottom: 4px;`;
+
+        this.nameInput = document.createElement('input');
+        this.nameInput.type = 'text';
+        this.nameInput.placeholder = 'File name...';
+        this.nameInput.style.cssText = `
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 12px;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 14px;
+            outline: none;
+            margin-bottom: 6px;
+            transition: border-color 0.15s;
+        `;
+        this.nameInput.addEventListener('focus', () => {
+            this.nameInput.style.borderColor = '#6ba3ff';
+        });
+        this.nameInput.addEventListener('blur', () => {
+            if (this.feedbackEl.textContent === '') this.nameInput.style.borderColor = '#3a3a3a';
+        });
+        this.nameInput.addEventListener('input', () => {
+            if (this.nameInput.value.trim().length > 0) {
+                this.feedbackEl.textContent = '';
+                this.nameInput.style.borderColor = '#6ba3ff';
+            }
+        });
+        this.nameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.confirm();
+        });
+
+        this.feedbackEl = document.createElement('div');
+        this.feedbackEl.style.cssText = `
+            color: #ff6b6b;
+            font-size: 12px;
+            min-height: 16px;
+        `;
+
+        wrapper.appendChild(this.nameInput);
+        wrapper.appendChild(this.feedbackEl);
+        this.insertElementIntoDialog(wrapper);
+
+        // Auto-focus the input after the dialog is in the DOM
+        setTimeout(() => this.nameInput.focus(), 0);
+    }
+
+    protected collectInput(): any[] {
+        return [this.nameInput.value.trim()];
+    }
 }
 
 new GeoeditFileManager();

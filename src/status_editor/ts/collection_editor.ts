@@ -47,10 +47,10 @@ class EditCollectionInfoPrompt extends InputPrompt {
         this.onRemove = onRemove;
 
         // Set up input elements in the DOM
-        this.intializeAdditionalDOM();
+        this.initializeAdditionalDOM();
     }
 
-    protected intializeAdditionalDOM(): void {
+    protected initializeAdditionalDOM(): void {
  // Create form fields
         const formContainer = document.createElement('div');
         formContainer.style.cssText = `
@@ -252,10 +252,10 @@ class EditStatusInfoPrompt extends InputPrompt {
         this.onDelete = onDelete;
 
         // Set up input elements in the DOM
-        this.intializeAdditionalDOM();
+        this.initializeAdditionalDOM();
     }
 
-    protected intializeAdditionalDOM(): void {
+    protected initializeAdditionalDOM(): void {
         // Create name & description fields
         // Create form fields
         const formContainer = document.createElement('div');
