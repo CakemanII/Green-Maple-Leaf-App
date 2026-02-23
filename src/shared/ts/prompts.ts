@@ -1,6 +1,6 @@
 // #region Base Prompt Classes
 
-import { FileMetadata } from "./types";
+import { FileMetadata, MediaFileMetadata } from "./types";
 
 /**
  * Base class for prompts
@@ -1301,6 +1301,185 @@ export class GeoeditFileListViewerPrompt extends FileListViewerPrompt {
         };
 
         this.tBody.appendChild(tr);
+    }
+}
+
+export class MediaFileListViewerPrompt extends FileListViewerPrompt {
+    private mediaType: 'images' | 'audio';
+    private activeAudio: HTMLAudioElement | null = null;
+    private activePlayBtn: HTMLButtonElement | null = null;
+
+    constructor(
+        mediaType: 'images' | 'audio',
+        onConfirm: (fileMetadata: MediaFileMetadata) => void,
+        onCancel: () => void = () => {}
+    ) {
+        const title = mediaType === 'images' ? 'Select Image' : 'Select Audio File';
+        super(
+            title,
+            'Select',
+            'Cancel',
+            onConfirm as (fileMetadata: FileMetadata) => void,
+            onCancel,
+            `/media/list_metadatas?type=${mediaType}`,
+            {
+                'Preview':       FileSortType.NONE,
+                'Name':          FileSortType.ALPHA,
+                'Date Modified': FileSortType.DATE,
+                'Size':          FileSortType.NUMBER,
+            },
+            860,
+        );
+        this.mediaType = mediaType;
+        this.initializeAdditionalDOM();
+    }
+
+    protected initializeFileItemDOM(...args: any[]): void {
+        const [name, lastModified, fileSize, _uuid, fullMetadata] = args as [string, string, number, string, MediaFileMetadata];
+
+        const tr = document.createElement('tr');
+        tr.style.cssText = `cursor: pointer; color: #ddd; border-bottom: 1px solid #2a2a2a;`;
+        tr.tabIndex = 0;
+
+        const cellStyle = `padding: 9px 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`;
+
+        // Thumbnail preview cell
+        const tdPreview = document.createElement('td');
+        tdPreview.style.cssText = `padding: 4px 10px; width: 52px; text-align: center; vertical-align: middle;`;
+        if (this.mediaType === 'images') {
+            const img = document.createElement('img');
+            img.src = `/media/serve_file?path=${encodeURIComponent(fullMetadata.relative_filepath)}`;
+            img.style.cssText = `width: 36px; height: 36px; object-fit: cover; border-radius: 4px; display: block; margin: auto;`;
+            img.onerror = () => { img.style.display = 'none'; };
+            tdPreview.appendChild(img);
+        } else {
+            const audioUrl = `/media/serve_file?path=${encodeURIComponent(fullMetadata.relative_filepath)}`;
+            const playBtn = document.createElement('button');
+            playBtn.textContent = '▶';
+            playBtn.title = 'Preview audio';
+            playBtn.style.cssText = `
+                background: #2e2e2e;
+                border: 1px solid #444;
+                border-radius: 50%;
+                color: #aaa;
+                cursor: pointer;
+                width: 30px;
+                height: 30px;
+                font-size: 11px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: auto;
+                flex-shrink: 0;
+                transition: background 0.15s, color 0.15s;
+            `;
+            playBtn.onmouseenter = () => { playBtn.style.background = '#3a3a3a'; playBtn.style.color = '#fff'; };
+            playBtn.onmouseleave = () => { playBtn.style.background = '#2e2e2e'; playBtn.style.color = '#aaa'; };
+
+            const stopCurrent = () => {
+                if (this.activeAudio) {
+                    this.activeAudio.pause();
+                    this.activeAudio.currentTime = 0;
+                    this.activeAudio = null;
+                }
+                if (this.activePlayBtn) {
+                    this.activePlayBtn.textContent = '▶';
+                    this.activePlayBtn.title = 'Preview audio';
+                    this.activePlayBtn.style.borderColor = '#444';
+                    this.activePlayBtn.style.color = '#aaa';
+                    this.activePlayBtn = null;
+                }
+            };
+
+            playBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // don't trigger row selection
+
+                // If this button is already playing, stop it
+                if (this.activeAudio && this.activePlayBtn === playBtn) {
+                    stopCurrent();
+                    return;
+                }
+
+                // Stop whatever else is playing
+                stopCurrent();
+
+                // Start new audio
+                const audio = new Audio(audioUrl);
+                this.activeAudio = audio;
+                this.activePlayBtn = playBtn;
+                playBtn.textContent = '⏹';
+                playBtn.title = 'Stop preview';
+                playBtn.style.borderColor = '#6ba3ff';
+                playBtn.style.color = '#6ba3ff';
+
+                audio.play().catch(() => {
+                    playBtn.textContent = '▶';
+                    playBtn.style.borderColor = '#444';
+                    playBtn.style.color = '#aaa';
+                    this.activeAudio = null;
+                    this.activePlayBtn = null;
+                });
+
+                audio.addEventListener('ended', () => {
+                    if (this.activePlayBtn === playBtn) {
+                        playBtn.textContent = '▶';
+                        playBtn.title = 'Preview audio';
+                        playBtn.style.borderColor = '#444';
+                        playBtn.style.color = '#aaa';
+                        this.activeAudio = null;
+                        this.activePlayBtn = null;
+                    }
+                });
+            });
+
+            tdPreview.appendChild(playBtn);
+        }
+
+        const tdName = document.createElement('td');
+        tdName.style.cssText = cellStyle + ' font-weight: 500;';
+        tdName.textContent = name;
+        tdName.title = name;
+
+        const tdDate = document.createElement('td');
+        tdDate.style.cssText = cellStyle + ' color: #aaa;';
+        tdDate.textContent = new Date(lastModified).toLocaleString();
+
+        const tdSize = document.createElement('td');
+        tdSize.style.cssText = cellStyle + ' text-align: right; color: #aaa; font-variant-numeric: tabular-nums;';
+        tdSize.textContent = (fileSize / 1024).toFixed(1) + ' KB';
+
+        tr.appendChild(tdPreview);
+        tr.appendChild(tdName);
+        tr.appendChild(tdDate);
+        tr.appendChild(tdSize);
+
+        tr.onmouseenter = () => { if (tr !== this.selectedRow) tr.style.background = '#2c2c2c'; };
+        tr.onmouseleave = () => { if (tr !== this.selectedRow) tr.style.background = ''; };
+        tr.onclick = () => {
+            if (this.selectedRow) {
+                this.selectedRow.style.background = '';
+                this.selectedRow.style.color = '#ddd';
+                this.selectedRow.querySelectorAll('td').forEach(td => (td as HTMLElement).style.color = '');
+            }
+            this.selectedRow = tr;
+            this.selectedFileMetadata = fullMetadata;
+            tr.style.background = '#1c3557';
+            tr.style.color = '#e8f1ff';
+            tdDate.style.color = '#b0c8f0';
+            tdSize.style.color = '#b0c8f0';
+            this.confirmButton.disabled = false;
+        };
+
+        this.tBody.appendChild(tr);
+    }
+
+    protected override closePrompt(): void {
+        if (this.activeAudio) {
+            this.activeAudio.pause();
+            this.activeAudio = null;
+        }
+        this.activePlayBtn = null;
+        super.closePrompt();
     }
 }
 // #endregion

@@ -346,7 +346,8 @@ export class CollectionEditor
             UUID: newUUID,
             name: "New Flag",
             description: "",
-            imagePath: "",
+            imagePath: null,
+            audioPath: null,
             primaryConditionalGroup: isDefaultFlag ? null : {
                 name: "Main Conditional Group",
                 not: false,

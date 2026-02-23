@@ -3,6 +3,8 @@ from flask_socketio import SocketIO, emit
 import os
 import mimetypes
 import logging
+import uuid
+import datetime
 
 # Ensure .js files are served with correct MIME type
 mimetypes.add_type('application/javascript', '.js')
@@ -27,6 +29,8 @@ log = logging.getLogger('werkzeug')
 log.addFilter(RouteFilter())
 
 SRC_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+ROOT_DIR: str = os.path.abspath(os.path.join(SRC_DIR, '..'))
+SAVES_DIR: str = os.path.join(ROOT_DIR, 'saves')
 MAIN_DIR: str = os.path.join(SRC_DIR, 'main')
 GEOFENCE_EDITOR_DIR: str = os.path.join(SRC_DIR, 'geofence_editor')
 LIVE_DATA_DIR: str = os.path.join(SRC_DIR, 'live_data')
@@ -158,43 +162,113 @@ def list_geoedit_files():
     return {'metadatas': metadata_list}, 200
 #endregion
 
-#region Image/Audio File Upload, Delete, List Routes
-@app.route('/upload', methods=['POST'])
-def upload_file():
+#region Image/Audio File Upload, Delete, List, Serve Routes
+@app.route('/media/upload', methods=['POST'])
+def upload_media():
     if 'file' not in request.files:
-        return 'No file part in the request', 400
-    
+        return 'No file part', 400
+
     file = request.files['file']
     if file.filename == '':
         return 'No selected file', 400
-    
-    # Save the uploaded file to a temporary location
-    temp_path = os.path.join('temp_uploads', file.filename)
-    os.makedirs('temp_uploads', exist_ok=True)
-    file.save(temp_path)
-    
-    # Process the file as needed (e.g., move to a permanent location, read contents, etc.)
-    # For this example, we'll just move it to an "uploads" directory
-    uploads_dir = 'uploads'
-    os.makedirs(uploads_dir, exist_ok=True)
-    final_path = os.path.join(uploads_dir, file.filename)
-    os.rename(temp_path, final_path)
-    
-    return 'File uploaded successfully', 200
 
-@app.route('/remove_file', methods=['POST'])
-def remove_file():
-    filename = request.json.get('filename', '')
-    if not filename:
-        return 'No filename provided', 400
-    file_path = os.path.join('uploads', filename)
-    if os.path.exists(file_path):
-        os.remove(file_path)
-        metadata_file = file_path.replace(os.path.splitext(file_path)[1], '.json')
-        if os.path.exists(metadata_file):
-            os.remove(metadata_file)
-        return 'File removed successfully', 200
-    return 'File not found', 404
+    # Determine media type from MIME type
+    mime_type = file.content_type or ''
+    if mime_type.startswith('image/'):
+        media_folder = 'images'
+        file_type_key = 'img'
+    elif mime_type.startswith('audio/'):
+        media_folder = 'audio'
+        file_type_key = 'aud'
+    else:
+        return 'Unsupported file type', 400
+
+    # Generate UUID and keep original extension
+    file_uuid = str(uuid.uuid4())
+    _, file_ext = os.path.splitext(file.filename)
+    filename = f'{file_uuid}{file_ext}'
+
+    # Ensure directory exists and save file
+    files_dir = os.path.join(SAVES_DIR, 'media', media_folder, 'files')
+    os.makedirs(files_dir, exist_ok=True)
+    save_path = os.path.join(files_dir, filename)
+    file.save(save_path)
+
+    # Build metadata
+    name = request.form.get('name', os.path.splitext(file.filename)[0])
+    file_size = os.path.getsize(save_path)
+    relative_filepath = f'saves/media/{media_folder}/files/{filename}'
+    metadata = {
+        'UUID': file_uuid,
+        'name': name,
+        'file_type': file_type_key,
+        'relative_filepath': relative_filepath,
+        'lastModified': datetime.datetime.now().isoformat(),
+        'fileSize': file_size,
+    }
+
+    # Save metadata JSON
+    metadata_dir = os.path.join(SAVES_DIR, 'media', media_folder, 'metadata')
+    os.makedirs(metadata_dir, exist_ok=True)
+    FileHandler.save_file(metadata, os.path.join(metadata_dir, f'{file_uuid}.json'))
+
+    return jsonify(metadata), 200
+
+
+@app.route('/media/delete', methods=['POST'])
+def delete_media():
+    data = request.get_json(silent=True)
+    if not data:
+        return 'No JSON data provided', 400
+
+    file_uuid = data.get('UUID', '')
+    media_type = data.get('media_type', '')  # 'images' or 'audio'
+    if not file_uuid or media_type not in ('images', 'audio'):
+        return 'Invalid parameters', 400
+
+    metadata_path = os.path.join(SAVES_DIR, 'media', media_type, 'metadata', f'{file_uuid}.json')
+    raw = FileHandler.load_file(metadata_path)
+    if raw is None:
+        return 'Metadata not found', 404
+
+    metadata_obj = json.loads(raw)
+    relative = metadata_obj.get('relative_filepath', '')
+    if relative:
+        abs_file = os.path.normpath(os.path.join(ROOT_DIR, relative.replace('/', os.sep)))
+        FileHandler.delete_file(abs_file)  # non-fatal if file already missing
+
+    FileHandler.delete_file(metadata_path)
+    return '', 200
+
+
+@app.route('/media/list_metadatas', methods=['GET'])
+def list_media_metadatas():
+    media_type = request.args.get('type', '')  # 'images' or 'audio'
+    if media_type not in ('images', 'audio'):
+        return 'Invalid or missing type parameter', 400
+
+    metadata_dir = os.path.join(SAVES_DIR, 'media', media_type, 'metadata')
+    if not os.path.isdir(metadata_dir):
+        return jsonify({'metadatas': []}), 200
+
+    metadatas = FileHandler.list_files_in_directory(metadata_dir, '.json')
+    return jsonify({'metadatas': metadatas}), 200
+
+
+@app.route('/media/serve_file', methods=['GET'])
+def serve_media_file():
+    relative_path = request.args.get('path', '')
+    if not relative_path:
+        return 'No path provided', 400
+
+    abs_path = os.path.normpath(os.path.join(ROOT_DIR, relative_path))
+    # Prevent path traversal outside ROOT_DIR
+    if not abs_path.startswith(ROOT_DIR):
+        return 'Forbidden', 403
+    if not os.path.isfile(abs_path):
+        return 'File not found', 404
+
+    return send_from_directory(os.path.dirname(abs_path), os.path.basename(abs_path))
 #endregion
 
 #region Active / Disable Rocket Communication Server Routes

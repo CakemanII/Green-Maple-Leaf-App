@@ -33,6 +33,7 @@ const ExampleStatus1: Status = {
         UUID: "defaultflagtemp",
         description: "",
         imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp\\do_not_deploy_parachute.png",
+        audioPath: null,
         primaryConditionalGroup: null,
     },
     flags: [
@@ -41,6 +42,7 @@ const ExampleStatus1: Status = {
             name: "Yes, Deploy Parachute",
             description: "Parachute Deployment Conditions Met",
             imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp\\parachute_deploy.png",
+            audioPath: null,
             primaryConditionalGroup: {
                 type: 'AND',
                 not: false,
@@ -96,6 +98,7 @@ const ExampleStatus2: Status = {
         UUID: "defaultflagtemp2",
         description: "",
         imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\all-good.png",
+        audioPath: null,
         primaryConditionalGroup: null,
     },
     flags: [
@@ -104,6 +107,7 @@ const ExampleStatus2: Status = {
             name: "Terminal Velocity Reached, It's Over Twin",
             description: "Rocket has reached terminal velocity indicating free-fall impact.",
             imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\its_over.jpg",
+            audioPath: null,
             primaryConditionalGroup: {
                 type: 'AND',
                 not: false,
@@ -143,6 +147,7 @@ const ExampleStatus2: Status = {
             name: "Yes, Critical Impact Detected",
             description: "Rocket impact conditions met indicating critical impact.",
             imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\critical.png",
+            audioPath: null,
             primaryConditionalGroup: {
                 type: 'AND',
                 not: false,
@@ -225,7 +230,7 @@ export class GlobalStatusesManager {
                     this.sendStatusUpdateToIframes(
                         status.UUID, 
                         activeFlag.name, 
-                        activeFlag.imagePath
+                        activeFlag.imagePath ?? null
                     );
                 }
             );
@@ -280,7 +285,7 @@ export class GlobalStatusesManager {
     /**
      * Send status update to iframes.
      */
-    private sendStatusUpdateToIframes(statusUUID: string, flagName: string, flagImage: string): void {
+    private sendStatusUpdateToIframes(statusUUID: string, flagName: string, flagImage: string | null): void {
         // Send message to all status iframes
         this.telemetryIframes.forEach(iframe => {
             iframe.contentWindow?.postMessage({ 
@@ -306,7 +311,7 @@ export class GlobalStatusesManager {
                         statusUUID: status.UUID,
                         statusName: status.name,
                         currentActiveFlagName: activeFlag.name,
-                        currentActiveFlagImage: activeFlag.imagePath
+                        currentActiveFlagImage: activeFlag.imagePath ?? null
                     };
                 });
                 return statusesData;

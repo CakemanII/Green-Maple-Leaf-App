@@ -23,7 +23,7 @@ class FileHandler:
         If the file does not exist, returns None.
         '''
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, 'r', encoding='utf-8-sig') as f:
                 data = f.read()
             return data
         except FileNotFoundError:
@@ -40,7 +40,7 @@ class FileHandler:
         for filename in os.listdir(directory):
             if filename.endswith(extension):
                 file_path: str = os.path.join(directory, filename)
-                with open(file_path, 'r') as f:
+                with open(file_path, 'r', encoding='utf-8-sig') as f:
                     data = json.load(f)
                 files_list.append(data)
 

@@ -1,9 +1,9 @@
 // Imports
 import { GeneralUtilities } from '../../shared/compiled_js/utilities.js';
-import { Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition, StatusCollection } from '../../shared/compiled_js/types.js';
+import { Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition, StatusCollection, MediaFileMetadata } from '../../shared/compiled_js/types.js';
 import { CollectionEditor } from './collection_saving.js';
 import { CollectionEditorUI } from './collection_editor.js';
-import { ConfirmationPrompt, ColorPickerPrompt } from '../../shared/compiled_js/prompts.js';
+import { ConfirmationPrompt, ColorPickerPrompt, MediaFileListViewerPrompt } from '../../shared/compiled_js/prompts.js';
 
 
 export class FlagEditorUI {
@@ -29,12 +29,12 @@ export class FlagEditorUI {
 
     private flagTitleElement!: HTMLInputElement;
     private flagDescriptionElement!: HTMLTextAreaElement;
-    private flagImageInputElement!: HTMLInputElement;
-    private flagAudioInputElement!: HTMLInputElement;
+    private flagImageInputElement!: HTMLButtonElement;
+    private flagAudioInputElement!: HTMLButtonElement;
 
     private confirmFlagBtnElement!: HTMLButtonElement;
 
-    private flagPreviewElement!: HTMLImageElement;
+    private flagPreviewElement!: HTMLDivElement;
     private flagConditionsContainerTitleElement!: HTMLHeadingElement;
     private flagConditionsContainerElement!: HTMLDivElement;
 
@@ -52,6 +52,10 @@ export class FlagEditorUI {
     private currentFlagCollectionUUID: string | null = null;
     private isNewFlag: boolean = false;
     private isDefaultFlag: boolean = false;
+
+    // Selected Media Paths
+    private currentImageFilepath: string | null = null;
+    private currentAudioFilepath: string | null = null;
 
     // Drag and Drop State
     private draggedElement: HTMLElement | null = null;
@@ -77,12 +81,12 @@ export class FlagEditorUI {
 
         this.flagTitleElement = this.flagCreationPromptElement.querySelector('#flag-title-input') as HTMLInputElement;
         this.flagDescriptionElement = this.flagCreationPromptElement.querySelector('#flag-description-input') as HTMLTextAreaElement;
-        this.flagImageInputElement = this.flagCreationPromptElement.querySelector('#flag-image-input') as HTMLInputElement;
-        this.flagAudioInputElement = this.flagCreationPromptElement.querySelector('#flag-audio-input') as HTMLInputElement;
+        this.flagImageInputElement = this.flagCreationPromptElement.querySelector('#flag-image-input') as HTMLButtonElement;
+        this.flagAudioInputElement = this.flagCreationPromptElement.querySelector('#flag-audio-input') as HTMLButtonElement;
 
         this.confirmFlagBtnElement = this.flagCreationPromptElement.querySelector('#save-flag-btn') as HTMLButtonElement;
 
-        this.flagPreviewElement = this.flagCreationPromptElement.querySelector('#flag-image-preview') as HTMLImageElement;
+        this.flagPreviewElement = this.flagCreationPromptElement.querySelector('#flag-image-preview') as HTMLDivElement;
         this.flagConditionsContainerElement = this.flagCreationPromptElement.querySelector('#flag-conditions-container') as HTMLDivElement;
         this.flagConditionsContainerTitleElement = this.flagCreationPromptElement.querySelector('#flag-conditions-section-title') as HTMLHeadingElement;
 
@@ -106,6 +110,31 @@ export class FlagEditorUI {
         // Setup confirmation dialog button events
         this.confirmationYesBtnElement.addEventListener('click', () => this.handleConfirmationResponse(true));
         this.confirmationNoBtnElement.addEventListener('click', () => this.handleConfirmationResponse(false));
+
+        // Setup image picker button
+        this.flagImageInputElement.addEventListener('click', () => {
+            new MediaFileListViewerPrompt(
+                'images',
+                (metadata: MediaFileMetadata) => {
+                    this.currentImageFilepath = metadata.relative_filepath;
+                    this.flagImageInputElement.textContent = `🖼️ ${metadata.name}`;
+                    this.updateFlagImagePreview(metadata.relative_filepath);
+                },
+                () => {}
+            );
+        });
+
+        // Setup audio picker button
+        this.flagAudioInputElement.addEventListener('click', () => {
+            new MediaFileListViewerPrompt(
+                'audio',
+                (metadata: MediaFileMetadata) => {
+                    this.currentAudioFilepath = metadata.relative_filepath;
+                    this.flagAudioInputElement.textContent = `🔊 ${metadata.name}`;
+                },
+                () => {}
+            );
+        });
 
         // Setup condition button events using event delegation
         this.setupConditionButtonEvents();
@@ -450,11 +479,32 @@ export class FlagEditorUI {
         this.flagDescriptionElement.value = '';
         
         // Image
+        this.currentImageFilepath = null;
+        this.flagImageInputElement.textContent = '\ud83d\udcc1 Choose File';
+        this.flagPreviewElement.innerHTML = '<span>Image preview will appear here</span>';
         // Audio
-        this.flagPreviewElement.src = ''; // temp
+        this.currentAudioFilepath = null;
+        this.flagAudioInputElement.textContent = '\ud83d\udcc1 Choose File';
         
         // Clear conditionals
         this.flagConditionsContainerElement.innerHTML = '<div class="condition-body"></div>';
+    }
+
+    private updateFlagImagePreview(relativePath: string | null): void {
+        this.flagPreviewElement.innerHTML = '';
+        if (!relativePath) {
+            this.flagPreviewElement.innerHTML = '<span>Image preview will appear here</span>';
+            return;
+        }
+        const url = `/media/serve_file?path=${encodeURIComponent(relativePath)}`;
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = 'Flag Image';
+        img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;border-radius:4px;';
+        img.onerror = () => {
+            this.flagPreviewElement.innerHTML = '<span>Preview unavailable</span>';
+        };
+        this.flagPreviewElement.appendChild(img);
     }
 
     private openNewColorSelector(e: MouseEvent, colorIndicator: HTMLDivElement, conditionGroupOrTelemetryOrStatus: HTMLDivElement): void {
@@ -583,7 +633,8 @@ export class FlagEditorUI {
             UUID: uuid,
             name: this.flagTitleElement.value,
             description: this.flagDescriptionElement.value,
-            imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp\\parachute_deploy.png", // temp
+            imagePath: this.currentImageFilepath,
+            audioPath: this.currentAudioFilepath,
             primaryConditionalGroup: primaryConditionalGroupJSON
         };
 
@@ -782,10 +833,24 @@ export class FlagEditorUI {
         // Set basic fields
         this.flagTitleElement.value = flag.name;
         this.flagDescriptionElement.value = flag.description;
-        this.flagPreviewElement.src = ''; // temp
 
         // Image
+        this.currentImageFilepath = flag.imagePath ?? null;
+        if (flag.imagePath) {
+            this.flagImageInputElement.textContent = `\ud83d\uddbc\ufe0f ${flag.imagePath.split('/').pop() ?? flag.imagePath}`;
+            this.updateFlagImagePreview(flag.imagePath);
+        } else {
+            this.flagImageInputElement.textContent = '\ud83d\udcc1 Choose File';
+            this.flagPreviewElement.innerHTML = '<span>Image preview will appear here</span>';
+        }
+
         // Audio
+        this.currentAudioFilepath = flag.audioPath ?? null;
+        if (flag.audioPath) {
+            this.flagAudioInputElement.textContent = `\ud83d\udd0a ${flag.audioPath.split('/').pop() ?? flag.audioPath}`;
+        } else {
+            this.flagAudioInputElement.textContent = '\ud83d\udcc1 Choose File';
+        }
 
         // Recursively populate condition groups if not default flag.
         if (!this.isDefaultFlag) {

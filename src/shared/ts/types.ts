@@ -17,7 +17,8 @@ export type Flag = {
     UUID: string;
     name: string;
     description: string;
-    imagePath: string
+    imagePath: string | null;
+    audioPath: string | null;
     primaryConditionalGroup: ConditionalGroup | null;
 }
 
@@ -73,3 +74,10 @@ export type FileMetadata = {
     fileSize: number;
     [additionalField: string]: any;
 }
+
+export type MediaFileMetadata = FileMetadata & {
+    UUID: string;
+    file_type: 'img' | 'aud';
+    relative_filepath: string;
+}
+// #endregion
