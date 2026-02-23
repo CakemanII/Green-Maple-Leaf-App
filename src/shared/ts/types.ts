@@ -81,4 +81,10 @@ export type MediaFileMetadata = FileMetadata & {
     file_type: 'img' | 'aud';
     relative_filepath: string;
 }
+
+export type StatusCollectionFileMetadata = FileMetadata & {
+    UUID: string;
+    name: string;
+    description: string;
+}
 // #endregion

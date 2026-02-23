@@ -243,7 +243,7 @@ export class MapEditorUI {
 
                     new GeoeditFileListViewerPrompt(
                         async (fileMetadata) => {
-                            await GeoeditFileManager.Instance.loadGeoeditFile(fileMetadata.UUID);
+                            await GeoeditFileManager.Instance.loadGeoeditFile(fileMetadata);
                             finished = true; decision = true;
                         },
                         () => { finished = true; }

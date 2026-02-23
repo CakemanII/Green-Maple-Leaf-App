@@ -11,7 +11,6 @@ export type GeofenceFileMetadata = {
 }
 
 export type GeoeditFileData = {
-    metadata: GeofenceFileMetadata;
     regions: RegionData[];
 }
 
@@ -23,6 +22,7 @@ export class GeoeditFileManager {
     public static get Instance(): GeoeditFileManager { return this.instance }
 
     private activeFileUUID: string = "";
+    private activeFileName: string = "";
 
     constructor() {
         // Ensure Singleton pattern
@@ -74,12 +74,6 @@ export class GeoeditFileManager {
         if (
             typeof data === "object" &&
             data !== null &&
-            typeof data.metadata === "object" &&
-            data.metadata !== null &&
-            typeof data.metadata.UUID === "string" &&
-            typeof data.metadata.name === "string" &&
-            typeof data.metadata.lastModified === "string" &&
-            typeof data.metadata.fileSize === "number" &&
             Array.isArray(data.regions)
         ) {
             return true;
@@ -111,11 +105,12 @@ export class GeoeditFileManager {
     /**
      * Gets and loads a geoedit file with specific UUID.
      */
-    public async loadGeoeditFile(fileUUID: string): Promise<void> {
-        const geoditData: GeoeditFileData = await this.getActiveGeoeditFileUUID(fileUUID);
+    public async loadGeoeditFile(metadata: GeofenceFileMetadata): Promise<void> {
+        const geoditData: GeoeditFileData = await this.getActiveGeoeditFileUUID(metadata.UUID);
 
-        // Set the active file UUID.
-        this.activeFileUUID = fileUUID;
+        // Set the active file UUID and name.
+        this.activeFileUUID = metadata.UUID;
+        this.activeFileName = metadata.name;
         
         // Load regions into the map editor.
         MapRegionRegionManager.INSTANCE.loadGeoeditFileContents(geoditData);
@@ -129,10 +124,7 @@ export class GeoeditFileManager {
     public async attemptSaveCurrentToGeoeditFile(forceNewFile: boolean): Promise<void> {
         // Continue if there is already an active region file.
         if (this.activeFileUUID !== "" && !forceNewFile) { 
-            const results: GeoeditFileData = await this.getActiveGeoeditFileUUID(this.activeFileUUID);
-            const name: string = results["metadata"]["name"];
-
-            await this.saveCurrentToGeoeditFile(name); 
+            await this.saveCurrentToGeoeditFile(this.activeFileName); 
             return; 
         }
         
