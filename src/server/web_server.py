@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, request, jsonify
+from flask import Flask, json, send_from_directory, request, jsonify
 from flask_socketio import SocketIO, emit
 import os
 import mimetypes
@@ -156,6 +156,45 @@ def list_geoedit_files():
     for file_data in geoedit_list:
         metadata_list.append(file_data['metadata'])
     return {'metadatas': metadata_list}, 200
+#endregion
+
+#region Image/Audio File Upload, Delete, List Routes
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return 'No file part in the request', 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return 'No selected file', 400
+    
+    # Save the uploaded file to a temporary location
+    temp_path = os.path.join('temp_uploads', file.filename)
+    os.makedirs('temp_uploads', exist_ok=True)
+    file.save(temp_path)
+    
+    # Process the file as needed (e.g., move to a permanent location, read contents, etc.)
+    # For this example, we'll just move it to an "uploads" directory
+    uploads_dir = 'uploads'
+    os.makedirs(uploads_dir, exist_ok=True)
+    final_path = os.path.join(uploads_dir, file.filename)
+    os.rename(temp_path, final_path)
+    
+    return 'File uploaded successfully', 200
+
+@app.route('/remove_file', methods=['POST'])
+def remove_file():
+    filename = request.json.get('filename', '')
+    if not filename:
+        return 'No filename provided', 400
+    file_path = os.path.join('uploads', filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        metadata_file = file_path.replace(os.path.splitext(file_path)[1], '.json')
+        if os.path.exists(metadata_file):
+            os.remove(metadata_file)
+        return 'File removed successfully', 200
+    return 'File not found', 404
 #endregion
 
 #region Active / Disable Rocket Communication Server Routes

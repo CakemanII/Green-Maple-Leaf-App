@@ -45,3 +45,16 @@ class FileHandler:
                 files_list.append(data)
 
         return files_list
+    
+
+    @staticmethod
+    def delete_file(file_path: str) -> bool:
+        '''
+        Deletes the specified file. Returns True if successful, False otherwise.
+        '''
+        try:
+            os.remove(file_path)
+            return True
+        except Exception as e:
+            print(f'Error deleting file: {e}')
+            return False
