@@ -34,6 +34,7 @@ const ExampleStatus1: Status = {
         description: "",
         imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp\\do_not_deploy_parachute.png",
         audioPath: null,
+        audioRepeat: false,
         primaryConditionalGroup: null,
     },
     flags: [
@@ -43,6 +44,7 @@ const ExampleStatus1: Status = {
             description: "Parachute Deployment Conditions Met",
             imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp\\parachute_deploy.png",
             audioPath: null,
+            audioRepeat: false,
             primaryConditionalGroup: {
                 type: 'AND',
                 not: false,
@@ -99,6 +101,7 @@ const ExampleStatus2: Status = {
         description: "",
         imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\all-good.png",
         audioPath: null,
+        audioRepeat: false,
         primaryConditionalGroup: null,
     },
     flags: [
@@ -108,6 +111,7 @@ const ExampleStatus2: Status = {
             description: "Rocket has reached terminal velocity indicating free-fall impact.",
             imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\its_over.jpg",
             audioPath: null,
+            audioRepeat: false,
             primaryConditionalGroup: {
                 type: 'AND',
                 not: false,
@@ -148,6 +152,7 @@ const ExampleStatus2: Status = {
             description: "Rocket impact conditions met indicating critical impact.",
             imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\critical.png",
             audioPath: null,
+            audioRepeat: false,
             primaryConditionalGroup: {
                 type: 'AND',
                 not: false,

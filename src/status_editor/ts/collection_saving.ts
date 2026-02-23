@@ -348,6 +348,7 @@ export class CollectionEditor
             description: "",
             imagePath: null,
             audioPath: null,
+            audioRepeat: false,
             primaryConditionalGroup: isDefaultFlag ? null : {
                 name: "Main Conditional Group",
                 not: false,

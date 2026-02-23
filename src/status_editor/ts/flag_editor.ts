@@ -31,6 +31,7 @@ export class FlagEditorUI {
     private flagDescriptionElement!: HTMLTextAreaElement;
     private flagImageInputElement!: HTMLButtonElement;
     private flagAudioInputElement!: HTMLButtonElement;
+    private audioRepeatToggleElement!: HTMLButtonElement;
 
     private confirmFlagBtnElement!: HTMLButtonElement;
 
@@ -56,6 +57,7 @@ export class FlagEditorUI {
     // Selected Media Paths
     private currentImageFilepath: string | null = null;
     private currentAudioFilepath: string | null = null;
+    private currentAudioRepeat: boolean = false;
 
     // Drag and Drop State
     private draggedElement: HTMLElement | null = null;
@@ -83,6 +85,7 @@ export class FlagEditorUI {
         this.flagDescriptionElement = this.flagCreationPromptElement.querySelector('#flag-description-input') as HTMLTextAreaElement;
         this.flagImageInputElement = this.flagCreationPromptElement.querySelector('#flag-image-input') as HTMLButtonElement;
         this.flagAudioInputElement = this.flagCreationPromptElement.querySelector('#flag-audio-input') as HTMLButtonElement;
+        this.audioRepeatToggleElement = this.flagCreationPromptElement.querySelector('#flag-audio-repeat-toggle') as HTMLButtonElement;
 
         this.confirmFlagBtnElement = this.flagCreationPromptElement.querySelector('#save-flag-btn') as HTMLButtonElement;
 
@@ -134,6 +137,13 @@ export class FlagEditorUI {
                 },
                 () => {}
             );
+        });
+
+        // Setup audio repeat toggle button
+        this.audioRepeatToggleElement.addEventListener('click', () => {
+            this.currentAudioRepeat = !this.currentAudioRepeat;
+            this.audioRepeatToggleElement.classList.toggle('active', this.currentAudioRepeat);
+            this.audioRepeatToggleElement.textContent = this.currentAudioRepeat ? '🔁 Repeat On' : '🔁 Repeat Off';
         });
 
         // Setup condition button events using event delegation
@@ -485,6 +495,9 @@ export class FlagEditorUI {
         // Audio
         this.currentAudioFilepath = null;
         this.flagAudioInputElement.textContent = '\ud83d\udcc1 Choose File';
+        this.currentAudioRepeat = false;
+        this.audioRepeatToggleElement.classList.remove('active');
+        this.audioRepeatToggleElement.textContent = '🔁 Repeat Off';
         
         // Clear conditionals
         this.flagConditionsContainerElement.innerHTML = '<div class="condition-body"></div>';
@@ -635,6 +648,7 @@ export class FlagEditorUI {
             description: this.flagDescriptionElement.value,
             imagePath: this.currentImageFilepath,
             audioPath: this.currentAudioFilepath,
+            audioRepeat: this.currentAudioRepeat,
             primaryConditionalGroup: primaryConditionalGroupJSON
         };
 
@@ -851,6 +865,11 @@ export class FlagEditorUI {
         } else {
             this.flagAudioInputElement.textContent = '\ud83d\udcc1 Choose File';
         }
+
+        // Audio repeat
+        this.currentAudioRepeat = flag.audioRepeat ?? false;
+        this.audioRepeatToggleElement.classList.toggle('active', this.currentAudioRepeat);
+        this.audioRepeatToggleElement.textContent = this.currentAudioRepeat ? '🔁 Repeat On' : '🔁 Repeat Off';
 
         // Recursively populate condition groups if not default flag.
         if (!this.isDefaultFlag) {

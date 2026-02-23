@@ -19,6 +19,7 @@ export type Flag = {
     description: string;
     imagePath: string | null;
     audioPath: string | null;
+    audioRepeat: boolean;
     primaryConditionalGroup: ConditionalGroup | null;
 }
 
