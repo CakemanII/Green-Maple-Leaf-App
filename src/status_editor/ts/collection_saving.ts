@@ -336,6 +336,54 @@ export class CollectionEditor
     }
     // #endregion
 
+    // #region New Collection / Status Creation
+    /**
+     * Creates and registers a brand-new empty collection, then adds it to the DOM.
+     */
+    public addNewCollection(name: string, description: string): void {
+        const collectionUUID = GeneralUtilities.generateUUID();
+
+        const newCollection: SimpleStatusCollection = {
+            UUID: collectionUUID,
+            name: name || 'New Collection',
+            description: description,
+            statusesUUIDs: [],
+        };
+
+        this.visualStatusCollections.push(newCollection);
+        CollectionEditorUI.INSTANCE.addNewCollectionToDOM(collectionUUID, newCollection.name, newCollection.description);
+
+        this.changesMade = true;
+        CollectionEditorUI.INSTANCE.updateSaveRevertButtonStates(this.changesMade);
+    }
+
+    /**
+     * Creates and registers a new status inside an existing collection, then adds it to the DOM.
+     */
+    public addNewStatus(collectionUUID: string, name: string, description: string = ''): void {
+        const statusUUID = GeneralUtilities.generateUUID();
+        const defaultFlag = this.generateNewFlag(true);
+
+        const newStatus: SimpleStatus = {
+            UUID: statusUUID,
+            name: name || 'New Status',
+            defaultFlagUUID: defaultFlag.UUID,
+            flagUUIDs: [],
+        };
+
+        this.flags.push(defaultFlag);
+        this.visualStatuses.push(newStatus);
+
+        const collection = this.visualStatusCollections.find(c => c.UUID === collectionUUID);
+        if (collection) collection.statusesUUIDs.push(statusUUID);
+
+        CollectionEditorUI.INSTANCE.addStatusToCollection(collectionUUID, statusUUID, newStatus.name, description, defaultFlag.UUID);
+
+        this.changesMade = true;
+        CollectionEditorUI.INSTANCE.updateSaveRevertButtonStates(this.changesMade);
+    }
+    // #endregion
+
     // #region New Flag Creation
     public generateNewFlag(isDefaultFlag: boolean): Flag {
         // Generate a new UUID for the flag

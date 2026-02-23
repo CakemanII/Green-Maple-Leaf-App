@@ -314,6 +314,87 @@ body {
     border-color: var(--accent);
 }
 
+/* Add Status Button — sits at bottom of statuses-container */
+.add-status-btn {
+    width: 100%;
+    height: 64px;
+    background-color: transparent;
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    opacity: 0;
+    pointer-events: none;
+    margin-top: 4px;
+}
+
+.add-status-btn svg {
+    width: 28px;
+    height: 28px;
+    color: var(--muted);
+    transition: all 0.2s ease;
+}
+
+.status-collection:hover .add-status-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.add-status-btn:hover {
+    background-color: rgba(107, 163, 255, 0.1);
+    border-color: var(--accent);
+    border-style: solid;
+}
+
+.add-status-btn:hover svg {
+    color: var(--accent);
+    transform: scale(1.1);
+}
+
+/* Add Collection Button — sits at bottom of collections-container */
+.add-collection-btn {
+    width: 100%;
+    height: 64px;
+    background-color: transparent;
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.add-collection-btn svg {
+    width: 28px;
+    height: 28px;
+    color: var(--muted);
+    transition: all 0.2s ease;
+}
+
+.collections-container:hover .add-collection-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.add-collection-btn:hover {
+    background-color: rgba(107, 163, 255, 0.1);
+    border-color: var(--accent);
+    border-style: solid;
+}
+
+.add-collection-btn:hover svg {
+    color: var(--accent);
+    transform: scale(1.1);
+}
+
 /* Add Flag Button */
 .add-flag-btn {
     width: 120px;

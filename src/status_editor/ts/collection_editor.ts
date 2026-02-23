@@ -367,6 +367,118 @@ class EditStatusInfoPrompt extends InputPrompt {
 }
 
 
+/**
+ * Prompt for creating a new collection.
+ */
+class AddCollectionPrompt extends InputPrompt {
+    private nameInputElement!: HTMLInputElement;
+    private descriptionInputElement!: HTMLTextAreaElement;
+
+    constructor(onConfirm: (name: string, description: string) => void, onCancel: () => void) {
+        const confirm = () => {
+            const inputs = this.collectInput();
+            onConfirm(inputs[0], inputs[1]);
+        };
+        super('New Collection', '', 'Create', 'Cancel', confirm, onCancel);
+        this.initializeAdditionalDOM();
+    }
+
+    protected initializeAdditionalDOM(): void {
+        const formContainer = document.createElement('div');
+        formContainer.style.cssText = `display:flex;flex-direction:column;gap:16px;margin-bottom:24px;`;
+
+        const nameLabel = document.createElement('label');
+        nameLabel.textContent = 'Collection Name:';
+        nameLabel.style.cssText = `color:#cccccc;font-size:14px;font-weight:500;margin-bottom:4px;`;
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.placeholder = 'Enter collection name...';
+        nameInput.style.cssText = `padding:10px 12px;border:1px solid #555555;border-radius:4px;background-color:#3a3a3a;color:white;font-size:14px;width:100%;box-sizing:border-box;`;
+        const nameField = document.createElement('div');
+        nameField.appendChild(nameLabel);
+        nameField.appendChild(nameInput);
+
+        const descriptionLabel = document.createElement('label');
+        descriptionLabel.textContent = 'Description:';
+        descriptionLabel.style.cssText = `color:#cccccc;font-size:14px;font-weight:500;margin-bottom:4px;`;
+        const descriptionInput = document.createElement('textarea');
+        descriptionInput.placeholder = 'Enter description...';
+        descriptionInput.rows = 3;
+        descriptionInput.style.cssText = `padding:10px 12px;border:1px solid #555555;border-radius:4px;background-color:#3a3a3a;color:white;font-size:14px;width:100%;box-sizing:border-box;resize:vertical;font-family:inherit;`;
+        const descField = document.createElement('div');
+        descField.appendChild(descriptionLabel);
+        descField.appendChild(descriptionInput);
+
+        formContainer.appendChild(nameField);
+        formContainer.appendChild(descField);
+        this.insertElementIntoDialog(formContainer);
+
+        this.nameInputElement = nameInput;
+        this.descriptionInputElement = descriptionInput;
+        setTimeout(() => nameInput.focus(), 0);
+    }
+
+    public collectInput(): any[] {
+        return [this.nameInputElement.value.trim(), this.descriptionInputElement.value.trim()];
+    }
+}
+
+/**
+ * Prompt for adding a new status to an existing collection.
+ */
+class AddStatusPrompt extends InputPrompt {
+    private nameInputElement!: HTMLInputElement;
+    private descriptionInputElement!: HTMLTextAreaElement;
+
+    constructor(onConfirm: (name: string, description: string) => void, onCancel: () => void) {
+        const confirm = () => {
+            const inputs = this.collectInput();
+            onConfirm(inputs[0], inputs[1]);
+        };
+        super('New Status', '', 'Create', 'Cancel', confirm, onCancel);
+        this.initializeAdditionalDOM();
+    }
+
+    protected initializeAdditionalDOM(): void {
+        const formContainer = document.createElement('div');
+        formContainer.style.cssText = `display:flex;flex-direction:column;gap:16px;margin-bottom:24px;`;
+
+        const nameLabel = document.createElement('label');
+        nameLabel.textContent = 'Status Name:';
+        nameLabel.style.cssText = `color:#cccccc;font-size:14px;font-weight:500;margin-bottom:4px;`;
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.placeholder = 'Enter status name...';
+        nameInput.style.cssText = `padding:10px 12px;border:1px solid #555555;border-radius:4px;background-color:#3a3a3a;color:white;font-size:14px;width:100%;box-sizing:border-box;`;
+        const nameField = document.createElement('div');
+        nameField.appendChild(nameLabel);
+        nameField.appendChild(nameInput);
+
+        const descriptionLabel = document.createElement('label');
+        descriptionLabel.textContent = 'Description:';
+        descriptionLabel.style.cssText = `color:#cccccc;font-size:14px;font-weight:500;margin-bottom:4px;`;
+        const descriptionInput = document.createElement('textarea');
+        descriptionInput.placeholder = 'Enter description...';
+        descriptionInput.rows = 3;
+        descriptionInput.style.cssText = `padding:10px 12px;border:1px solid #555555;border-radius:4px;background-color:#3a3a3a;color:white;font-size:14px;width:100%;box-sizing:border-box;resize:vertical;font-family:inherit;`;
+        const descField = document.createElement('div');
+        descField.appendChild(descriptionLabel);
+        descField.appendChild(descriptionInput);
+
+        formContainer.appendChild(nameField);
+        formContainer.appendChild(descField);
+        this.insertElementIntoDialog(formContainer);
+
+        this.nameInputElement = nameInput;
+        this.descriptionInputElement = descriptionInput;
+        setTimeout(() => nameInput.focus(), 0);
+    }
+
+    public collectInput(): any[] {
+        return [this.nameInputElement.value.trim(), this.descriptionInputElement.value.trim()];
+    }
+}
+
 export class CollectionEditorUI {
     private static instance: CollectionEditorUI;
     public static get INSTANCE(): CollectionEditorUI { return CollectionEditorUI.instance; }
@@ -394,8 +506,9 @@ export class CollectionEditorUI {
         // Initialize drag and drop
         this.initializeDragAndDrop();
 
-        // Initialize revert and save buttons
+        // Initialize revert, save, and add-collection buttons
         this.initializeRevertAndSaveButtons();
+        this.initializeAddCollectionButton();
     }
 
     // #region DOM Initialization Methods
@@ -426,8 +539,25 @@ export class CollectionEditorUI {
         collectionName.className = 'collection-name';
         collectionName.textContent = name;
         
+        // Add Status button — appended to statuses container, shown on collection hover
+        const addStatusButton = document.createElement('button');
+        addStatusButton.className = 'add-status-btn';
+        addStatusButton.title = 'Add a new status to this collection';
+        addStatusButton.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+        `;
+        addStatusButton.addEventListener('click', () => {
+            new AddStatusPrompt(
+                (name, description) => { CollectionEditor.INSTANCE.addNewStatus(collectionUUID, name, description); },
+                () => {}
+            );
+        });
+
         headerTopRow.appendChild(collectionName);
-        
+
         const descriptionElement = document.createElement('p');
         descriptionElement.className = 'collection-description';
         descriptionElement.textContent = description;
@@ -441,6 +571,7 @@ export class CollectionEditorUI {
         
         collection.appendChild(header);
         collection.appendChild(statusesContainer);
+        statusesContainer.appendChild(addStatusButton);
         
         // Add cog button to collection name
         const cogSVG = `
@@ -491,7 +622,7 @@ export class CollectionEditorUI {
     /**
      * Initialize a status in the DOM.
      */
-    private initializeStatusElement(collectionStatusContainer: HTMLDivElement, collectionUUID: string, statusUUID: string, name: string): HTMLDivElement {
+    private initializeStatusElement(collectionStatusContainer: HTMLDivElement, collectionUUID: string, statusUUID: string, name: string, description: string = ''): HTMLDivElement {
         const status = document.createElement('div');
         status.className = 'status';
         status.setAttribute('data-uuid', statusUUID);
@@ -505,7 +636,7 @@ export class CollectionEditorUI {
         // Create status description
         const statusDescription = document.createElement('p');
         statusDescription.className = 'status-description';
-        statusDescription.textContent = ''; // Empty by default, can be set later
+        statusDescription.textContent = description;
         
         // Create flags container
         const flagsContainer = document.createElement('div');
@@ -578,8 +709,13 @@ export class CollectionEditorUI {
             )
         });
         
-        // Add status to collection
-        collectionStatusContainer.appendChild(status);
+        // Add status before the add-status button so it stays at the bottom
+        const addStatusBtn = collectionStatusContainer.querySelector('.add-status-btn');
+        if (addStatusBtn) {
+            collectionStatusContainer.insertBefore(status, addStatusBtn);
+        } else {
+            collectionStatusContainer.appendChild(status);
+        }
         
         return status;
     }
@@ -694,6 +830,21 @@ export class CollectionEditorUI {
 
     // #region Revert and Save Buttons
     /**
+     * Initialize the Add Collection button.
+     */
+    private initializeAddCollectionButton(): void {
+        const addCollectionButton = document.querySelector('#main-add-collection-btn') as HTMLButtonElement;
+        // Move button to end of container so new collections appear above it
+        this.collectionsContainer.appendChild(addCollectionButton);
+        addCollectionButton.addEventListener('click', () => {
+            new AddCollectionPrompt(
+                (name, description) => { CollectionEditor.INSTANCE.addNewCollection(name, description); },
+                () => {}
+            );
+        });
+    }
+
+    /**
      * Initialize revert and save buttons.
      */
     private initializeRevertAndSaveButtons(): void {
@@ -805,6 +956,30 @@ export class CollectionEditorUI {
 
         // Remove from DOM
         statusElement.remove();
+    }
+
+    /**
+     * Add a new collection to the DOM.
+     */
+    public addNewCollectionToDOM(uuid: string, name: string, description: string): void {
+        this.initializeStatusCollection(uuid, name, description);
+    }
+
+    /**
+     * Add a new status into an existing collection in the DOM.
+     */
+    public addStatusToCollection(collectionUUID: string, statusUUID: string, name: string, description: string, defaultFlagUUID: string): void {
+        const collectionElement = this.getElementInContainerByUUID(collectionUUID, this.collectionsContainer, '.status-collection');
+        if (!collectionElement) throw new Error(`Collection not found: ${collectionUUID}`);
+
+        const statusesContainer = collectionElement.querySelector('.statuses-container') as HTMLDivElement;
+        const statusElement = this.initializeStatusElement(statusesContainer, collectionUUID, statusUUID, name, description);
+
+        const flagData: Flag | null = CollectionEditor.INSTANCE.getFlagByUUID(defaultFlagUUID);
+        if (flagData) {
+            const flagsContainer = statusElement.querySelector('.flags-container') as HTMLDivElement;
+            this.initializeFlagElement(flagsContainer, collectionUUID, statusUUID, defaultFlagUUID, flagData.name, true, flagData.imagePath ?? null);
+        }
     }
 
     /**
