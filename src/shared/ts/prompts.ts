@@ -868,6 +868,64 @@ export abstract class InputPrompt extends FullscreenPrompt {
     protected abstract collectInput(): any[];
 }
 
+/**
+ * A simple single-text-field input prompt.
+ */
+export class SingleTextInputPrompt extends InputPrompt {
+    private textInput!: HTMLInputElement;
+    private readonly defaultValue: string;
+
+    constructor(
+        promptTitle: string,
+        labelHTML: string,
+        defaultValue: string = '',
+        confirmButtonText: string = 'Confirm',
+        cancelButtonText: string = 'Cancel',
+        onConfirm: (value: string) => void,
+        onCancel: () => void = () => {},
+        promptWidth: number = 440
+    ) {
+        super(promptTitle, labelHTML, confirmButtonText, cancelButtonText,
+              (v: string) => onConfirm(v), onCancel, promptWidth);
+        this.defaultValue = defaultValue;
+        this.initializeAdditionalDOM();
+    }
+
+    protected initializeAdditionalDOM(): void {
+        this.textInput = document.createElement('input');
+        this.textInput.type = 'text';
+        this.textInput.value = this.defaultValue;
+        this.textInput.style.cssText = `
+            width: 100%;
+            padding: 8px 12px;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 14px;
+            outline: none;
+            box-sizing: border-box;
+            margin-bottom: 16px;
+            transition: border-color 0.15s;
+        `;
+        this.textInput.addEventListener('focus', () => { this.textInput.style.borderColor = '#6ba3ff'; });
+        this.textInput.addEventListener('blur',  () => { this.textInput.style.borderColor = '#3a3a3a'; });
+        this.textInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.confirm();
+        });
+        this.insertElementIntoDialog(this.textInput);
+        setTimeout(() => { this.textInput.focus(); this.textInput.select(); }, 50);
+    }
+
+    protected override confirm(): void {
+        super.confirm(this.textInput.value);
+    }
+
+    protected collectInput(): any[] {
+        return [this.textInput.value];
+    }
+}
+
 // #region File List Viewer Prompts
 export enum FileSortType {
     ALPHA,
@@ -889,10 +947,23 @@ export abstract class FileListViewerPrompt extends InputPrompt {
     private sortArrows: Map<string, HTMLSpanElement> = new Map();
 
     protected selectedRow!: HTMLTableRowElement | null;
-    protected selectedFileMetadata: FileMetadata | null = null;
+    private _selectedFileMetadata: FileMetadata | null = null;
+    protected get selectedFileMetadata(): FileMetadata | null { return this._selectedFileMetadata; }
+    protected set selectedFileMetadata(v: FileMetadata | null) {
+        this._selectedFileMetadata = v;
+        if (this.deleteBtn) this.deleteBtn.disabled = v === null;
+    }
     protected tBody!: HTMLTableSectionElement;
     protected fileCountElement!: HTMLSpanElement;
     protected emptyStateElement!: HTMLDivElement;
+
+    private showUploadButton: boolean = false;
+    private uploadPath: string | null = null;
+    private uploadAcceptTypes: string = '';
+
+    private showDeleteButton: boolean = false;
+    private deleteEndpoint: string | null = null;
+    private deleteBtn: HTMLButtonElement | null = null;
 
     protected override confirm(): void {
         if (this.selectedFileMetadata) super.confirm(this.selectedFileMetadata);
@@ -911,7 +982,12 @@ export abstract class FileListViewerPrompt extends InputPrompt {
             'File Size': FileSortType.NUMBER
         },
         promptWidth: number = 820,
-        promptHeight: number = 580
+        promptHeight: number = 580,
+        showUploadButton: boolean = false,
+        uploadPath: string | null = null,
+        uploadAcceptTypes: string = '',
+        showDeleteButton: boolean = false,
+        deleteEndpoint: string | null = null
     ) {
         // Call base class constructor
         super(promptTitle, "", confirmButtonText, cancelButtonText, onConfirm, onCancel, promptWidth, promptHeight);
@@ -921,6 +997,15 @@ export abstract class FileListViewerPrompt extends InputPrompt {
 
         // Set file metadata endpoint
         this.fileMetadatasGetPath = fileMetadatasGetPath;
+
+        // Upload button settings
+        this.showUploadButton = showUploadButton;
+        this.uploadPath = uploadPath;
+        this.uploadAcceptTypes = uploadAcceptTypes;
+
+        // Delete button settings
+        this.showDeleteButton = showDeleteButton;
+        this.deleteEndpoint = deleteEndpoint;
 
         // Initialize the DOM structure for the specific prompt.
         this.initializePrimaryDOM();
@@ -1095,6 +1180,173 @@ export abstract class FileListViewerPrompt extends InputPrompt {
         toolbar.appendChild(searchInput);
         toolbar.appendChild(this.fileCountElement);
 
+        // Delete button (shown when showDeleteButton is true and deleteEndpoint is set)
+        if (this.showDeleteButton && this.deleteEndpoint) {
+            const deleteEndpoint = this.deleteEndpoint;
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = '🗑 Delete';
+            deleteBtn.disabled = true;
+            deleteBtn.style.cssText = `
+                padding: 5px 12px;
+                background: #4a2e2e;
+                border: 1px solid #6b3d3d;
+                border-radius: 4px;
+                color: #c87f7f;
+                font-size: 12px;
+                cursor: pointer;
+                white-space: nowrap;
+                flex-shrink: 0;
+                transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+            `;
+            deleteBtn.onmouseenter = () => {
+                if (!deleteBtn.disabled) {
+                    deleteBtn.style.background = '#6b3d3d';
+                    deleteBtn.style.borderColor = '#9e5a5a';
+                }
+            };
+            deleteBtn.onmouseleave = () => {
+                deleteBtn.style.background = '#4a2e2e';
+                deleteBtn.style.borderColor = '#6b3d3d';
+            };
+
+            // Style disabled state via observer so CSS :disabled can't fight us
+            const applyDisabledStyle = () => {
+                deleteBtn.style.opacity = deleteBtn.disabled ? '0.4' : '1';
+                deleteBtn.style.cursor  = deleteBtn.disabled ? 'not-allowed' : 'pointer';
+            };
+            new MutationObserver(applyDisabledStyle).observe(deleteBtn, { attributes: true, attributeFilter: ['disabled'] });
+            applyDisabledStyle();
+
+            deleteBtn.addEventListener('click', () => {
+                const metadata = this.selectedFileMetadata;
+                if (!metadata) return;
+
+                new ConfirmationPrompt(
+                    'Delete File',
+                    `Are you sure you want to permanently delete <strong>${metadata.name}</strong>? This cannot be undone.`,
+                    'Delete',
+                    'Cancel',
+                    async () => {
+                        const prevText = deleteBtn.textContent ?? '🗑 Delete';
+                        deleteBtn.disabled = true;
+                        deleteBtn.textContent = '⏳ Deleting...';
+
+                        try {
+                            const resp = await fetch(deleteEndpoint, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(this.buildDeleteBody(metadata)),
+                            });
+
+                            if (!resp.ok) throw new Error(await resp.text());
+
+                            // Deselect and refresh list
+                            this.selectedRow = null;
+                            this.selectedFileMetadata = null;
+                            this.confirmButton.disabled = true;
+                            this.fileMetadatas = await this.fetchFileMetadatas();
+                            this.populateFileListInDOM();
+                        } catch (err) {
+                            console.error('Delete failed:', err);
+                        } finally {
+                            deleteBtn.textContent = prevText;
+                        }
+                    }
+                );
+            });
+
+            this.deleteBtn = deleteBtn;
+            toolbar.appendChild(deleteBtn);
+        }
+
+        // Upload button (shown when showUploadButton is true and uploadPath is set)
+        if (this.showUploadButton && this.uploadPath) {
+            const uploadPath = this.uploadPath;
+            const uploadAcceptTypes = this.uploadAcceptTypes;
+
+            const uploadBtn = document.createElement('button');
+            uploadBtn.textContent = '⬆ Upload';
+            uploadBtn.style.cssText = `
+                padding: 5px 12px;
+                background: #2e4a2e;
+                border: 1px solid #3d6b3d;
+                border-radius: 4px;
+                color: #7fc87f;
+                font-size: 12px;
+                cursor: pointer;
+                white-space: nowrap;
+                flex-shrink: 0;
+                transition: background 0.15s, border-color 0.15s;
+            `;
+            uploadBtn.onmouseenter = () => {
+                uploadBtn.style.background = '#3d6b3d';
+                uploadBtn.style.borderColor = '#5a9e5a';
+            };
+            uploadBtn.onmouseleave = () => {
+                uploadBtn.style.background = '#2e4a2e';
+                uploadBtn.style.borderColor = '#3d6b3d';
+            };
+
+            uploadBtn.addEventListener('click', () => {
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                if (uploadAcceptTypes) fileInput.accept = uploadAcceptTypes;
+                fileInput.style.display = 'none';
+                document.body.appendChild(fileInput);
+
+                fileInput.addEventListener('change', () => {
+                    const file = fileInput.files?.[0];
+                    document.body.removeChild(fileInput);
+                    if (!file) return;
+
+                    const defaultName = file.name.replace(/\.[^/.]+$/, '');
+
+                    new SingleTextInputPrompt(
+                        'Name Your File',
+                        'Enter a display name for the uploaded file:',
+                        defaultName,
+                        'Upload',
+                        'Cancel',
+                        async (name: string) => {
+                            const trimmed = name.trim();
+                            if (!trimmed) return;
+
+                            const prevText = uploadBtn.textContent ?? '⬆ Upload';
+                            uploadBtn.disabled = true;
+                            uploadBtn.textContent = '⏳ Uploading...';
+
+                            try {
+                                const formData = new FormData();
+                                formData.append('file', file);
+                                formData.append('name', trimmed);
+
+                                const resp = await fetch(uploadPath, {
+                                    method: 'POST',
+                                    body: formData,
+                                });
+
+                                if (!resp.ok) throw new Error(await resp.text());
+
+                                // Refresh the file list
+                                this.fileMetadatas = await this.fetchFileMetadatas();
+                                this.populateFileListInDOM();
+                            } catch (err) {
+                                console.error('Upload failed:', err);
+                            } finally {
+                                uploadBtn.disabled = false;
+                                uploadBtn.textContent = prevText;
+                            }
+                        }
+                    );
+                });
+
+                fileInput.click();
+            });
+
+            toolbar.appendChild(uploadBtn);
+        }
+
         // Scrollable table area
         const scrollArea = document.createElement('div');
         scrollArea.style.cssText = `
@@ -1226,6 +1478,14 @@ export abstract class FileListViewerPrompt extends InputPrompt {
         return [];
     }
 
+    /**
+     * Override in subclasses to customise the JSON body sent to the delete endpoint.
+     * By default sends `{ UUID }` of the selected file.
+     */
+    protected buildDeleteBody(metadata: FileMetadata): object {
+        return { UUID: metadata.UUID };
+    }
+
     protected abstract initializeFileItemDOM(...metadata: any[]): void;
 }
 
@@ -1309,6 +1569,11 @@ export class MediaFileListViewerPrompt extends FileListViewerPrompt {
     private activeAudio: HTMLAudioElement | null = null;
     private activePlayBtn: HTMLButtonElement | null = null;
 
+    protected override buildDeleteBody(metadata: FileMetadata): object {
+        const m = metadata as MediaFileMetadata;
+        return { UUID: m.UUID, media_type: this.mediaType };
+    }
+
     constructor(
         mediaType: 'images' | 'audio',
         onConfirm: (fileMetadata: MediaFileMetadata) => void,
@@ -1329,6 +1594,12 @@ export class MediaFileListViewerPrompt extends FileListViewerPrompt {
                 'Size':          FileSortType.NUMBER,
             },
             860,
+            580,
+            true,
+            '/media/upload',
+            mediaType === 'images' ? 'image/*' : 'audio/*',
+            true,
+            '/media/delete',
         );
         this.mediaType = mediaType;
         this.initializeAdditionalDOM();
