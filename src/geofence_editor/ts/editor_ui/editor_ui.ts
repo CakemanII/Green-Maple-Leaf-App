@@ -240,17 +240,6 @@ export class MapEditorUI {
                     // Show the prompt dialog for selecting a geoedit file
                     let finished = false;
                     let decision = false;
-                    /*new FileListViewerPrompt(
-                        "Load Geoedit File",
-                        "Load",
-                        "Cancel",
-                        async (file: any) => {
-                            await GeoeditFileManager.Instance.loadGeoeditFile(file.uuid);
-                            finished = true; decision = true;
-                        },
-                        () => { finished = true; },
-                        "/geofence/list_metadatas"
-                    );*/
 
                     new GeoeditFileListViewerPrompt(
                         async (fileMetadata) => {
@@ -259,14 +248,6 @@ export class MapEditorUI {
                         },
                         () => { finished = true; }
                     )
-                    /*MapEditorUIFileListDialog.show(
-                        await GeoeditFileManager.Instance.fetchAvailableGeoeditFiles(),
-                        async (uuid: string) => {
-                            await GeoeditFileManager.Instance.loadGeoeditFile(uuid);
-                            finished = true; decision = true;
-                        },
-                        () => { finished = true; }
-                    );*/
 
                     // Wait for finished to be true 
                     while (!finished) {
