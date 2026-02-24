@@ -510,6 +510,9 @@ export class CollectionEditorUI {
         this.initializeRevertAndSaveButtons();
         this.initializeAddCollectionButton();
         this.initializeLoadCollectionButton();
+
+        // Restore previously open collections from the last session
+        CollectionEditor.INSTANCE.restoreFromSession();
     }
 
     // #region DOM Initialization Methods
@@ -836,9 +839,9 @@ export class CollectionEditorUI {
         loadBtn.addEventListener('click', () => {
             new StatusCollectionFileListViewerPrompt(
                 (meta) => {
-                    CollectionEditor.INSTANCE.loadCollectionByUUID(meta.UUID).catch(err =>
+                    CollectionEditor.INSTANCE.loadCollectionByUUID(meta.UUID, true).catch(err =>
                         console.error('Failed to load collection:', err)
-                    );
+                    )
                 },
                 () => {}
             );

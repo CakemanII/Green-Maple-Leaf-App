@@ -182,6 +182,9 @@ export class CollectionEditor
         for (const collection of newStatusCollections)
             await this.saveCollectionToServer(collection);
 
+        // Save session to server (track open collections)
+        await this.saveSessionToServer();
+
         // Un-Mark that changes have been made
         this.changesMade = false;
         CollectionEditorUI.INSTANCE.updateSaveRevertButtonStates(this.changesMade);
@@ -308,12 +311,57 @@ export class CollectionEditor
     }
     // #endregion
 
+    // #region Session Persistence
+    /**
+     * Saves the currently open collection UUIDs to session.json on the server.
+     */
+    private async saveSessionToServer(): Promise<void> {
+        // Read the current session first so we don't overwrite unrelated keys
+        let current: { [key: string]: any } = {};
+        try {
+            const res = await fetch('/session/load');
+            if (res.ok) current = await res.json();
+        } catch { /* ignore */ }
+
+        current['collection_editor_collection_UUIDs_open'] = this.visualStatusCollections.map(c => c.UUID);
+
+        await fetch('/session/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(current),
+        });
+    }
+
+    /**
+     * Loads the session from the server and restores any previously open collections.
+     * Collections that can no longer be found on the server are silently skipped.
+     */
+    public async restoreFromSession(): Promise<void> {
+        let uuidsToOpen: string[] = [];
+        try {
+            const res = await fetch('/session/load');
+            if (res.ok) {
+                const data = await res.json();
+                uuidsToOpen = data['collection_editor_collection_UUIDs_open'] ?? [];
+            }
+        } catch { return; }
+
+        for (const uuid of uuidsToOpen) {
+            try {
+                await this.loadCollectionByUUID(uuid);
+            } catch {
+                console.warn(`Failed to load collection ${uuid} from session — skipping.`);
+            }
+        }
+    }
+    // #endregion
+
     // #region Load Collection by UUID
     /**
      * Load a collection from the server by UUID and add it to the editor.
      * Returns false if it is already loaded.
      */
-    public async loadCollectionByUUID(collectionUUID: string): Promise<boolean> {
+    public async loadCollectionByUUID(collectionUUID: string, setChangesFlag: boolean = false): Promise<boolean> {
         // Don't load if already visible in the editor
         if (this.visualStatusCollections.some(c => c.UUID === collectionUUID)) return false;
 
@@ -323,6 +371,12 @@ export class CollectionEditor
         // Track in previousStatusCollections (avoid duplicates — collection may have been unloaded and re-loaded)
         if (!this.previousStatusCollections.some(c => c.UUID === collectionUUID))
             this.previousStatusCollections.push(collection);
+
+        // Set the changes flag if this load should be considered a change (default false since loading from session on page load shouldn't be a "change")
+        if (setChangesFlag) {
+            this.changesMade = true;
+            CollectionEditorUI.INSTANCE.updateSaveRevertButtonStates(this.changesMade);
+        }
 
         return true;
     }

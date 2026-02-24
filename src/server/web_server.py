@@ -114,6 +114,23 @@ def load_config():
 
 #endregion
 
+#region Session Data Routes
+@app.route('/session/save', methods=['POST'])
+def save_session():
+    data = request.get_json(silent=True)
+    if not data:
+        return ('No JSON data provided', 400)
+    success: bool = FileHandler.save_file(data, "session.json")
+    return ('', 200) if success else ('Error saving session', 500)
+
+@app.route('/session/load', methods=['GET'])
+def load_session():
+    session_data = FileHandler.load_file("session.json")
+    if session_data is None:
+        return app.response_class(response='{}', status=200, mimetype='application/json')
+    return app.response_class(response=session_data, status=200, mimetype='application/json')
+#endregion
+
 #region Status Collection Data Routes
 @app.route('/status_collection/save', methods=['POST'])
 def save_status_collection_file():
