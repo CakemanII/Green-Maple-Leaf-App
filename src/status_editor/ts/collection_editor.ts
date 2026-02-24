@@ -612,12 +612,11 @@ export class CollectionEditorUI {
                 },
                 () => {},
                 () => {
-                    // Remove collection from DOM
+                    // Unload from data model (server file is left untouched)
+                    CollectionEditor.INSTANCE.unloadCollection(collectionUUID);
+
+                    // Remove from DOM
                     this.removeCollectionFromDOM(collectionUUID);
-                    
-                    // Save changes to data model
-                    const visualData = this.translateDOMToVisualData();
-                    CollectionEditor.INSTANCE.modifyStatusCollectionChange(visualData.visualCollections, visualData.visualStatuses);
                 }
             )
         });

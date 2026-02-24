@@ -10,7 +10,7 @@ export class CollectionEditor
     // Represents the current status collection states.
     private changesMade: boolean = false;
     private previousStatusCollections: StatusCollection[] = [];
-    
+
     private visualStatusCollections: SimpleStatusCollection[] = [];
     private visualStatuses: SimpleStatus[] = [];
     private flags: Flag[] = [];
@@ -57,28 +57,32 @@ export class CollectionEditor
     }
 
     /**
-     * Unload a collection from the editor given its JSON.
+     * Unloads a collection from the editor (removes from data model only — does not touch the server file).
+     * The collection can be re-loaded via Load at any time.
      */
-    private unloadCollectionFromJSON(collectionUUID: string): void {
-        // Remove collection from local changes
-        this.visualStatusCollections = this.visualStatusCollections.filter(c => c.UUID !== collectionUUID);
+    public unloadCollection(uuid: string): void {
+        // Find the collection BEFORE removing it so we have the status UUID list
+        const collection = this.visualStatusCollections.find(c => c.UUID === uuid);
+        if (!collection) return;
 
-        // Remove associated statuses and flags
-        const statusesToRemove = this.visualStatuses.filter(s => {
-            const collection = this.visualStatusCollections.find(c => c.UUID === collectionUUID);
-            return collection ? collection.statusesUUIDs.includes(s.UUID) : false;
-        });
+        const statusUUIDs = collection.statusesUUIDs;
 
+        // Remove all flags that belong to these statuses
+        const statusesToRemove = this.visualStatuses.filter(s => statusUUIDs.includes(s.UUID));
         for (const status of statusesToRemove) {
-            this.visualStatuses = this.visualStatuses.filter(s => s.UUID !== status.UUID);
-
-            for (const flagUUID of status.flagUUIDs.concat([status.defaultFlagUUID])) {
-                this.flags = this.flags.filter(f => f.UUID !== flagUUID);
-            }
+            const allFlagUUIDs = status.flagUUIDs.concat([status.defaultFlagUUID]);
+            this.flags = this.flags.filter(f => !allFlagUUIDs.includes(f.UUID));
         }
 
-        // Remove from the editor UI
-        CollectionEditorUI.INSTANCE.removeAllCollectionsFromDOM();
+        // Remove the statuses
+        this.visualStatuses = this.visualStatuses.filter(s => !statusUUIDs.includes(s.UUID));
+
+        // Remove the collection
+        this.visualStatusCollections = this.visualStatusCollections.filter(c => c.UUID !== uuid);
+
+        // Mark changes made
+        this.changesMade = true;
+        CollectionEditorUI.INSTANCE.updateSaveRevertButtonStates(this.changesMade);
     }
 
     // #region Adding/Editing Local Changes
@@ -160,6 +164,7 @@ export class CollectionEditor
     // #region Applying Changes to Server
     /**
      * Save the local changes to server storage.
+     * Collections that were unloaded from the editor are simply not saved — their server files are left untouched.
      */
     public async saveAllChangesToServer(): Promise<void>
     {
@@ -309,12 +314,16 @@ export class CollectionEditor
      * Returns false if it is already loaded.
      */
     public async loadCollectionByUUID(collectionUUID: string): Promise<boolean> {
-        // Don't load if already present
+        // Don't load if already visible in the editor
         if (this.visualStatusCollections.some(c => c.UUID === collectionUUID)) return false;
 
         const collection = await this.fetchStatusCollectionFromServer(collectionUUID);
         this.loadCollectionFromJSON(collection);
-        this.previousStatusCollections.push(collection);
+
+        // Track in previousStatusCollections (avoid duplicates — collection may have been unloaded and re-loaded)
+        if (!this.previousStatusCollections.some(c => c.UUID === collectionUUID))
+            this.previousStatusCollections.push(collection);
+
         return true;
     }
     // #endregion
