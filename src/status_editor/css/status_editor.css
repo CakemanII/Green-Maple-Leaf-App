@@ -202,6 +202,24 @@ body {
     color: white;
 }
 
+.load-btn {
+    background-color: var(--card);
+    border-color: var(--border);
+    color: #cccccc;
+}
+.load-btn:hover {
+    background-color: #3a4a3a;
+    border-color: #5a8a5a;
+    color: #88cc88;
+}
+
+.editor-actions-divider {
+    width: 1px;
+    height: 24px;
+    background-color: var(--border);
+    margin: 0 4px;
+}
+
 /* Settings Cog Button */
 .settings-cog {
     width: 24px;

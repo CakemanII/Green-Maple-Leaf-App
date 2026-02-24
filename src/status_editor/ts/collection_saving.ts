@@ -21,13 +21,6 @@ export class CollectionEditor
         if (CollectionEditor.instance)
             throw new Error("Use CollectionEditorServerCommunication.INSTANCE to access the singleton instance.");
         CollectionEditor.instance = this;
-
-        // Testing
-        this.fetchStatusCollectionFromServer('test123')
-        .then((collection => {
-            this.loadCollectionFromJSON(collection);
-            this.previousStatusCollections = [collection];
-        }));
     }
 
     /**
@@ -307,6 +300,22 @@ export class CollectionEditor
             return true;
         }
         return false;
+    }
+    // #endregion
+
+    // #region Load Collection by UUID
+    /**
+     * Load a collection from the server by UUID and add it to the editor.
+     * Returns false if it is already loaded.
+     */
+    public async loadCollectionByUUID(collectionUUID: string): Promise<boolean> {
+        // Don't load if already present
+        if (this.visualStatusCollections.some(c => c.UUID === collectionUUID)) return false;
+
+        const collection = await this.fetchStatusCollectionFromServer(collectionUUID);
+        this.loadCollectionFromJSON(collection);
+        this.previousStatusCollections.push(collection);
+        return true;
     }
     // #endregion
 

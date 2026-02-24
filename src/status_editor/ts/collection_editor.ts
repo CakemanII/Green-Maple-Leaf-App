@@ -1,7 +1,7 @@
 import { SimpleStatus, SimpleStatusCollection, Flag } from '../../shared/compiled_js/types.js';
 import { CollectionEditor } from './collection_saving.js';
 import { FlagEditorUI } from './flag_editor.js';
-import { InputPrompt } from "../../shared/compiled_js/prompts.js";
+import { InputPrompt, StatusCollectionFileListViewerPrompt } from "../../shared/compiled_js/prompts.js";
 
 
 /**
@@ -509,6 +509,7 @@ export class CollectionEditorUI {
         // Initialize revert, save, and add-collection buttons
         this.initializeRevertAndSaveButtons();
         this.initializeAddCollectionButton();
+        this.initializeLoadCollectionButton();
     }
 
     // #region DOM Initialization Methods
@@ -523,7 +524,12 @@ export class CollectionEditorUI {
         }
 
         const collection = document.createElement('div');
-        this.collectionsContainer.appendChild(collection);
+        const addCollectionBtn = this.collectionsContainer.querySelector('#main-add-collection-btn');
+        if (addCollectionBtn) {
+            this.collectionsContainer.insertBefore(collection, addCollectionBtn);
+        } else {
+            this.collectionsContainer.appendChild(collection);
+        }
         collection.className = 'status-collection';
         collection.setAttribute('data-uuid', collectionUUID);
         
@@ -571,7 +577,7 @@ export class CollectionEditorUI {
         
         collection.appendChild(header);
         collection.appendChild(statusesContainer);
-        statusesContainer.appendChild(addStatusButton);
+        statusesContainer.appendChild(addStatusButton); // Add button at the end of the container
         
         // Add cog button to collection name
         const cogSVG = `
@@ -626,7 +632,7 @@ export class CollectionEditorUI {
         const status = document.createElement('div');
         status.className = 'status';
         status.setAttribute('data-uuid', statusUUID);
-        status.setAttribute('data-uuid', collectionUUID);
+        status.setAttribute('data-collection-uuid', collectionUUID);
         
         // Create status name
         const statusName = document.createElement('h3');
@@ -752,9 +758,9 @@ export class CollectionEditorUI {
     private initializeFlagElement(statusFlagContainer: HTMLDivElement, collectionUUID: string, statusUUID: string, flagUUID: string, name: string, isDefault: boolean, imagePath: string | null): HTMLDivElement {
         const flag = document.createElement('div');
         flag.className = 'flag';
-        flag.setAttribute('data-uuid', collectionUUID);
-        flag.setAttribute('data-uuid', statusUUID);
         flag.setAttribute('data-uuid', flagUUID);
+        flag.setAttribute('data-collection-uuid', collectionUUID);
+        flag.setAttribute('data-status-uuid', statusUUID);
         flag.setAttribute('data-default-flag', isDefault ? 'true' : 'false');
         
         // Create flag name
@@ -829,6 +835,23 @@ export class CollectionEditorUI {
     // #endregion
 
     // #region Revert and Save Buttons
+    /**
+     * Initialize the Load Collection button.
+     */
+    private initializeLoadCollectionButton(): void {
+        const loadBtn = document.querySelector('#main-load-btn') as HTMLButtonElement;
+        loadBtn.addEventListener('click', () => {
+            new StatusCollectionFileListViewerPrompt(
+                (meta) => {
+                    CollectionEditor.INSTANCE.loadCollectionByUUID(meta.UUID).catch(err =>
+                        console.error('Failed to load collection:', err)
+                    );
+                },
+                () => {}
+            );
+        });
+    }
+
     /**
      * Initialize the Add Collection button.
      */
@@ -921,7 +944,7 @@ export class CollectionEditorUI {
 
         // Update name
         const nameElement = flagElement.querySelector('.flag-name') as HTMLElement;
-        nameElement.textContent = flagData.name;
+        nameElement.textContent = flagData.name + (flagElement.getAttribute('data-default-flag') === 'true' ? ' (Default)' : '');
 
         // Update flag image
         const flagImageEl = flagElement.querySelector('.flag-image') as HTMLDivElement;
@@ -1018,6 +1041,14 @@ export class CollectionEditorUI {
     // #endregion
 
     // #region Drag and Dropping
+    /**
+     * Ensures the add button (add-flag-btn or add-status-btn) is always the last child of its container.
+     */
+    private enforceAddButtonLast(container: HTMLElement, btnClass: string): void {
+        const btn = container.querySelector(`:scope > .${btnClass}`) as HTMLElement | null;
+        if (btn) container.appendChild(btn);
+    }
+
     /**
      * Initialize drag and drop functionality for flags and statuses.
      */
@@ -1132,6 +1163,8 @@ export class CollectionEditorUI {
             // Empty container or end of container
             flagsContainer.appendChild(this.draggedElement);
         }
+        // Always keep the add button at the end
+        this.enforceAddButtonLast(flagsContainer, 'add-flag-btn');
     }
 
     /**
@@ -1164,6 +1197,8 @@ export class CollectionEditorUI {
             // Empty container or hovering over empty space
             statusesContainer.appendChild(this.draggedElement);
         }
+        // Always keep the add button at the end
+        this.enforceAddButtonLast(statusesContainer, 'add-status-btn');
     }
 
     /**
@@ -1174,6 +1209,14 @@ export class CollectionEditorUI {
         
         // Remove dragging class with smooth transition
         this.draggedElement.classList.remove('dragging');
+
+        // Final enforcement: ensure add buttons are always last in their containers
+        this.collectionsContainer.querySelectorAll<HTMLElement>('.flags-container').forEach(
+            c => this.enforceAddButtonLast(c, 'add-flag-btn')
+        );
+        this.collectionsContainer.querySelectorAll<HTMLElement>('.statuses-container').forEach(
+            c => this.enforceAddButtonLast(c, 'add-status-btn')
+        );
 
         // Determine if the order has changed and handle accordingly
         if (

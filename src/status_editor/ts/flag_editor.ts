@@ -277,6 +277,8 @@ export class FlagEditorUI {
 
         // Make the border change with the color indicator
         const colorIndicator = conditionRow.querySelector('.color-indicator') as HTMLDivElement;
+        // Apply initial style
+        this.updateConditionalGroupStyle(conditionRow);
         // Cycle colors if left click
         colorIndicator.addEventListener('click', () => {
             // Cycle through colors (temp)
@@ -354,6 +356,8 @@ export class FlagEditorUI {
 
         // Make the border change with the color indicator
         const colorIndicator = conditionRow.querySelector('.color-indicator') as HTMLDivElement;
+        // Apply initial style
+        this.updateConditionalGroupStyle(conditionRow);
         // Cycle colors if left click
         colorIndicator.addEventListener('click', () => {
             // Cycle through colors (temp)
@@ -399,7 +403,7 @@ export class FlagEditorUI {
             <div class="condition-header">
                 ${isMainConditionalGroup ? '' : `<div class="drag-handle" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></div>`}
                 <button class="toggle-btn" data-toggle="not">Not</button>
-                <input type="text" class="condition-name-input" placeholder="Group Name..." value="Conditional Group" />
+                <input type="text" class="condition-name-input" ${isMainConditionalGroup ? 'disabled' : ''} placeholder="Group Name..." value="Conditional Group" />
                 <div class="color-indicator" style="background-color:${colors[0]};" title="Click to change color"></div>
                 <button class="toggle-btn active" data-toggle="and" id="and-or-btn">And</button>
                 ${isMainConditionalGroup ? '' : `<button class="delete-btn"><i class="fas fa-trash"></i></button>`}
@@ -427,6 +431,8 @@ export class FlagEditorUI {
 
         // Make the border change with the color indicator
         const colorIndicator = conditionGroup.querySelector('.color-indicator') as HTMLDivElement;
+        // Apply initial style
+        this.updateConditionalGroupStyle(conditionGroup);
         // Cycle colors if left click
         colorIndicator.addEventListener('click', () => {
             // Cycle through colors (temp)
@@ -470,6 +476,17 @@ export class FlagEditorUI {
         const currentColor = colorIndicator.style.backgroundColor;
         conditionalGroup.style.backgroundColor = GeneralUtilities.darkenRGBColor(currentColor, 0.45);
         conditionalGroup.style.borderColor = currentColor;
+    }
+
+    /**
+     * Convert an RGB/RGBA color string (e.g. "rgb(245, 166, 35)") to a hex string (e.g. "#f5a623").
+     * Returns '#ffffff' if parsing fails.
+     */
+    private rgbToHex(rgb: string): string {
+        const result = rgb.match(/\d+/g);
+        if (!result || result.length < 3) { return '#ffffff'; }
+        const [r, g, b] = result.map(Number);
+        return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
     }
 
     /**
@@ -530,7 +547,7 @@ export class FlagEditorUI {
         // Open color picker dialog
         const currentColor = colorIndicator.style.backgroundColor;
         this.currentColorSelectorPrompt = new ColorPickerPrompt(
-            "",
+            this.rgbToHex(currentColor),
             e,
             (selectedColor: string | null) => {
                 if (selectedColor) {
@@ -1212,6 +1229,16 @@ export class FlagEditorUI {
     }
 
     /**
+     * Ensures the button-row is always the last child of a condition body.
+     */
+    private enforceButtonRowLast(conditionBody: HTMLElement): void {
+        const buttonRow = Array.from(conditionBody.children).find(
+            child => child.classList.contains('button-row')
+        ) as HTMLElement | undefined;
+        if (buttonRow) conditionBody.appendChild(buttonRow);
+    }
+
+    /**
      * Handles dragging for both condition rows and groups.
      */
     private handleDragging(conditionBody: HTMLElement, target: HTMLElement, e: MouseEvent): void {
@@ -1242,6 +1269,8 @@ export class FlagEditorUI {
             } else {
                 conditionBody.insertBefore(this.draggedElement, hoveredElement.nextSibling);
             }
+            // Re-enforce button-row is last (nextSibling may have been null, causing an implicit append after it)
+            this.enforceButtonRowLast(conditionBody);
         } else {
             // If not hovering over any specific element, check if we should append to the body
             // This handles dragging into empty containers or to the end of a container
@@ -1262,6 +1291,8 @@ export class FlagEditorUI {
                 } else {
                     conditionBody.appendChild(this.draggedElement);
                 }
+                // Ensure button-row remains last after inserting into a new container
+                this.enforceButtonRowLast(conditionBody);
             }
         }
     }
@@ -1274,6 +1305,10 @@ export class FlagEditorUI {
         
         // Remove dragging class
         this.draggedElement.classList.remove('dragging');
+
+        // Final enforcement: ensure button-row is last in every condition body
+        const allConditionBodies = this.flagConditionsContainerElement.querySelectorAll('.condition-body') as NodeListOf<HTMLElement>;
+        allConditionBodies.forEach(body => this.enforceButtonRowLast(body));
 
         // Reset drag state
         this.draggedElement = null;
