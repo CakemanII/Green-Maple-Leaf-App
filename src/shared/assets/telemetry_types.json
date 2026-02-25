@@ -1,0 +1,61 @@
+{
+    "gps": {
+        "signal": "number", 
+        "position": { "latitude": "number", "longitude": "number", "altitude": "number" },
+        "satellites": "number", 
+        "geofence_intersections": "array<string>"
+    },
+
+    "linear_motion": {
+        "velocity": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
+        "acceleration": { "latitude": "number", "longitude": "number", "altitude": "number" },
+        "jerk": "number", 
+        "snap": "number", 
+        "displacement": "number", 
+        "mach": "number", 
+        "amplitude": "number"
+    },
+
+    "angular_motion": {
+        "angular_velocity": { "pitch": "number", "roll": "number", "yaw": "number" }, 
+        "angular_acceleration": { "pitch": "number", "roll": "number", "yaw": "number" },
+        "angular_jerk": "number", 
+        "angular_snap": "number", 
+        "angular_displacement": { "pitch": "number", "roll": "number", "yaw": "number" },
+        "absolute_orientation": { "pitch": "number", "roll": "number", "yaw": "number" }
+    },
+
+    "internal_state": {
+        "temperature": "number",
+        "pressure": "number",
+        "vibration": "number"
+    },
+
+    "rocket_computer": {
+        "latency": "number",
+        "ram_usage": "number",
+        "cpu_usage": "number",
+        "disk_usage": "number",
+        "voltage_input": "number",
+        "power_input": "number",
+        "computer_temperature": "number",
+        "uptime": "number"
+    },
+
+    "rocket_computer_states": {
+        "parachute_deployed_state": "boolean",
+        "rocket_motors_detached_state": "boolean"
+    },
+
+    "parachute_servo_1": {
+        "servo_position": "number"
+    },
+
+    "parachute_servo_2": {
+        "servo_position": "number"
+    },
+
+    "rocket_motor_servo": {
+        "servo_position": "number"
+    }
+}

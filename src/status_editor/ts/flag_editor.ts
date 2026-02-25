@@ -10,16 +10,6 @@ export class FlagEditorUI {
     private static instance: FlagEditorUI
     public static get INSTANCE(): FlagEditorUI { return FlagEditorUI.instance; }
 
-    // Conditional Row Telemetry Input Dictionary
-    private static readonly TELEMETRY_OPTIONS_DICTIONARY: { [key: string]: string } = {
-        'dps_alt': 'DPS Altitude',
-        'dps_vel': 'DPS Velocity',
-        'ang_vel': 'Angular Velocity',
-        "accel.y": "Linear Acceleration Y",
-        "vel.y": "Linear Velocity Y",
-    }
-    private conditionTelemetryOptionsHTML!: string;
-
     // UI Elements
     private flagCreationPromptElement!: HTMLDivElement;
 
@@ -67,6 +57,9 @@ export class FlagEditorUI {
     private mainConditionalGroup: HTMLElement | null = null;
 
     private currentColorSelectorPrompt: ColorPickerPrompt | null = null;
+
+    // Telemetry options dictionary
+    private telemetry_options_dictionary: { [category: string]: { [type: string]: any } };
 
     constructor() {
         // Ensure singleton
@@ -152,8 +145,8 @@ export class FlagEditorUI {
         // Initialize drag and drop for conditions
         this.initializeDragAndDrop();
 
-        // Generate telemetry options HTML for condition rows
-        this.conditionTelemetryOptionsHTML = this.generateTelemetryOptionsHTML();
+        // Set the telemetry options dictionary
+        this.telemetry_options_dictionary = CollectionEditor.INSTANCE.getTelemetryOptionsDictionary();
     }
 
     // #region Setup and Initialization
@@ -230,6 +223,7 @@ export class FlagEditorUI {
     // #endregion
     
     // #region DOM Manipulation
+    // #region Telemetry Condition Row
     /**
      * Add a telemetry condition row to the specified condition body
      */
@@ -244,9 +238,12 @@ export class FlagEditorUI {
         
         conditionRow.innerHTML = `
             <div class="drag-handle" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></div>
-            <select class="condition-select" style="flex:1;">
-                ${this.conditionTelemetryOptionsHTML}
-            </select>
+            <select id="telemetry-category" class="condition-select" style="flex:1;"></select>
+
+            <select id="telemetry-type" class="condition-select" style="flex:1;"></select>
+
+            <select id="telemetry-unit" class="condition-select"></select>
+
             <select class="condition-operator">
                 <option value="E">=</option>
                 <option value="NE">!=</option>
@@ -263,6 +260,8 @@ export class FlagEditorUI {
             <div class="color-indicator" style="background-color:${randomColor};" title="Click to change color"></div>
             <button class="delete-btn"><i class="fas fa-trash"></i></button>
         `;
+
+        // Populate telemetry category and type options
         
         // Insert before the button-row
         const buttonRow = Array.from(conditionBody.children).find(
@@ -312,6 +311,14 @@ export class FlagEditorUI {
     }
 
     /**
+     * Populate the telemetry category and type select elements in a telemetry condition row
+     */
+    private getTelemetryOptions(): string {
+
+    }
+
+    // #endregion
+    /**
      * Add a status condition row to the specified condition body
      */
     private addStatusCondition(conditionBody: HTMLDivElement): HTMLDivElement {
@@ -325,7 +332,10 @@ export class FlagEditorUI {
         
         conditionRow.innerHTML = `
             <div class="drag-handle" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></div>
-            <select class="condition-select">
+            <select class="condition-select" style="flex:1;">
+                <option value="">Collection...</option>
+            </select>
+            <select class="condition-select" style="flex:1;">
                 <option value="">Select Status...</option>
                 <option value="statustemptemp1">Testing!</option>
             </select>
@@ -1318,6 +1328,11 @@ export class FlagEditorUI {
         this.mainConditionalGroup = null;
     }
     // #endregion
+
+    private getTelemetryOptionsDictionary(): { [category: string]: { [type: string]: any } } {
+        // Fetch the telemetry options dictionary from the server.
+        
+    }
 }
 
 new FlagEditorUI();
