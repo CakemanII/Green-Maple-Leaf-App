@@ -453,6 +453,16 @@ def get_radio_rocket_comms_server_rocket_connectivity_status():
 
 #endregion
 
+#region Telemetry Data Routes
+@app.route('/telemetry/get_types', methods=['GET'])
+def get_telemetry_types():
+    path = os.path.join(ROOT_DIR, 'telemetry_types.json')
+    raw = FileHandler.load_file(path)
+    if raw is None:
+        return 'telemetry_types.json not found', 404
+    return jsonify(json.loads(raw)), 200
+#endregion
+
 #region Store the latest rocket data for web clients
 def send_rocket_data_to_webserver(label: str, data: TimeStamped[object]):
     """

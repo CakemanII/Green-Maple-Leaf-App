@@ -59,7 +59,7 @@ export class FlagEditorUI {
     private currentColorSelectorPrompt: ColorPickerPrompt | null = null;
 
     // Telemetry options dictionary
-    private telemetry_options_dictionary: { [category: string]: { [type: string]: any } };
+    private telemetry_options_dictionary!: { [category: string]: { [type: string]: any } };
 
     constructor() {
         // Ensure singleton
@@ -146,7 +146,12 @@ export class FlagEditorUI {
         this.initializeDragAndDrop();
 
         // Set the telemetry options dictionary
-        this.telemetry_options_dictionary = CollectionEditor.INSTANCE.getTelemetryOptionsDictionary();
+        this.getTelemetryOptionsDictionary().then(dictionary => {
+            this.telemetry_options_dictionary = dictionary;
+        }).catch(error => {
+            console.error("Failed to fetch telemetry options dictionary:", error);
+            this.telemetry_options_dictionary = {};
+        });
     }
 
     // #region Setup and Initialization
@@ -208,18 +213,6 @@ export class FlagEditorUI {
             }
         });
     }
-
-    /**
-     * Populate the flag creation prompt with data from the given Flag JSON
-     */
-    private generateTelemetryOptionsHTML(): string {
-        let optionsHTML = '<option value="" selected>Select Telemetry...</option>';
-        for (const key in FlagEditorUI.TELEMETRY_OPTIONS_DICTIONARY) {
-            const displayName = FlagEditorUI.TELEMETRY_OPTIONS_DICTIONARY[key];
-            optionsHTML += `<option value="${key}">${displayName}</option>`;
-        }
-        return optionsHTML;
-    }
     // #endregion
     
     // #region DOM Manipulation
@@ -261,8 +254,68 @@ export class FlagEditorUI {
             <button class="delete-btn"><i class="fas fa-trash"></i></button>
         `;
 
-        // Populate telemetry category and type options
-        
+        // Populate telemetry categories h
+        const categorySelect = conditionRow.querySelector('#telemetry-category') as HTMLSelectElement;
+        const typeSelect     = conditionRow.querySelector('#telemetry-type')     as HTMLSelectElement;
+        const unitSelect     = conditionRow.querySelector('#telemetry-unit')     as HTMLSelectElement;
+
+        categorySelect.innerHTML = '<option value="">Category...</option>';
+        typeSelect.innerHTML = '<option value="">Type...</option>';
+        unitSelect.innerHTML = '<option value="">Unit...</option>';
+        unitSelect.style.display = 'none'; // hidden until a type with sub-fields is selected
+        for (const category of Object.keys(this.telemetry_options_dictionary)) {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            categorySelect.appendChild(option);
+        }
+
+        // Helper: repopulate type select based on selected category
+        const repopulateTypes = (selectedCategory: string) => {
+            typeSelect.innerHTML = '<option value="">Type...</option>';
+            unitSelect.innerHTML = '<option value="">Unit...</option>';
+            unitSelect.style.display = 'none';
+            const types = this.telemetry_options_dictionary[selectedCategory];
+            if (!types) return;
+            for (const typeName of Object.keys(types)) {
+                const option = document.createElement('option');
+                option.value = typeName;
+                option.textContent = typeName;
+                typeSelect.appendChild(option);
+            }
+        };
+
+        // Helper: repopulate unit select based on selected category + type
+        const repopulateUnits = (selectedCategory: string, selectedType: string) => {
+            unitSelect.innerHTML = '<option value="">Unit...</option>';
+            const types = this.telemetry_options_dictionary[selectedCategory];
+            if (!types) { unitSelect.style.display = 'none'; return; }
+            const typeData = types[selectedType];
+            // If the type's value is an object, its keys are the selectable sub-fields (e.g. latitude/longitude/altitude)
+            if (typeData !== null && typeof typeData === 'object' && !Array.isArray(typeData)) {
+                for (const subKey of Object.keys(typeData)) {
+                    const option = document.createElement('option');
+                    option.value = subKey;
+                    option.textContent = subKey;
+                    unitSelect.appendChild(option);
+                }
+                unitSelect.style.display = '';
+            } else {
+                // Scalar (e.g. "number") — no sub-units, hide the select
+                unitSelect.style.display = 'none';
+            }
+        };
+
+        // Cascade: category → repopulate type (and clear unit)
+        categorySelect.addEventListener('change', () => {
+            repopulateTypes(categorySelect.value);
+        });
+
+        // Cascade: type → repopulate unit
+        typeSelect.addEventListener('change', () => {
+            repopulateUnits(categorySelect.value, typeSelect.value);
+        });
+
         // Insert before the button-row
         const buttonRow = Array.from(conditionBody.children).find(
             child => child.classList.contains('button-row')
@@ -308,13 +361,6 @@ export class FlagEditorUI {
         });
 
         return conditionRow;
-    }
-
-    /**
-     * Populate the telemetry category and type select elements in a telemetry condition row
-     */
-    private getTelemetryOptions(): string {
-
     }
 
     // #endregion
@@ -1329,9 +1375,15 @@ export class FlagEditorUI {
     }
     // #endregion
 
-    private getTelemetryOptionsDictionary(): { [category: string]: { [type: string]: any } } {
+    private async getTelemetryOptionsDictionary(): Promise<{ [category: string]: { [type: string]: any } }> {
         // Fetch the telemetry options dictionary from the server.
-        
+        const response = await fetch('/telemetry/get_types', { method: 'GET' });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch telemetry types: ${response.status} ${response.statusText}`);
+        }
+        const result = await response.json();
+        // Guard against the server double-encoding (returning a JSON string instead of an object)
+        return (typeof result === 'string' ? JSON.parse(result) : result) as { [category: string]: { [type: string]: any } };
     }
 }
 
