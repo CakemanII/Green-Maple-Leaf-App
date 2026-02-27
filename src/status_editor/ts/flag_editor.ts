@@ -42,6 +42,7 @@ export class FlagEditorUI {
     private currentFlagStatusUUID: string | null = null;
     private currentFlagCollectionUUID: string | null = null;
     private isNewFlag: boolean = false;
+    private originalFlagSnapshot: string | null = null;
     private isDefaultFlag: boolean = false;
 
     // Selected Media Paths
@@ -102,6 +103,10 @@ export class FlagEditorUI {
 
         // Setup save button event
         this.confirmFlagBtnElement.addEventListener('click', () => this.confirmChangesToFlag());
+
+        // Live validation: re-check confirm button on any input or select change inside the prompt
+        this.flagCreationPromptElement.addEventListener('input',  () => this.validateAndUpdateConfirmButton());
+        this.flagCreationPromptElement.addEventListener('change', () => this.validateAndUpdateConfirmButton());
 
         // Setup confirmation dialog button events
         this.confirmationYesBtnElement.addEventListener('click', () => this.handleConfirmationResponse(true));
@@ -193,6 +198,7 @@ export class FlagEditorUI {
                 const conditionBody = target.closest('.condition-body') as HTMLDivElement;
                 if (conditionBody) {
                     this.addTelemetryCondition(conditionBody);
+                    this.validateAndUpdateConfirmButton();
                 }
             }
             
@@ -201,6 +207,7 @@ export class FlagEditorUI {
                 const conditionBody = target.closest('.condition-body') as HTMLDivElement;
                 if (conditionBody) {
                     this.addStatusCondition(conditionBody);
+                    this.validateAndUpdateConfirmButton();
                 }
             }
             
@@ -290,9 +297,9 @@ export class FlagEditorUI {
             }
         };
 
-        categorySelect.innerHTML = '<option value="">Category...</option>';
-        typeSelect.innerHTML = '<option value="">Type...</option>';
-        unitSelect.innerHTML = '<option value="">Unit...</option>';
+        categorySelect.innerHTML = '<option value="" disabled selected>Category...</option>';
+        typeSelect.innerHTML = '<option value="" disabled selected>Type...</option>';
+        unitSelect.innerHTML = '<option value="" disabled selected>Unit...</option>';
         unitSelect.style.display = 'none'; // hidden until a type with sub-fields is selected
         for (const category of Object.keys(this.telemetry_options_dictionary)) {
             const option = document.createElement('option');
@@ -303,8 +310,8 @@ export class FlagEditorUI {
 
         // Helper: repopulate type select based on selected category
         const repopulateTypes = (selectedCategory: string) => {
-            typeSelect.innerHTML = '<option value="">Type...</option>';
-            unitSelect.innerHTML = '<option value="">Unit...</option>';
+            typeSelect.innerHTML = '<option value="" disabled selected>Type...</option>';
+            unitSelect.innerHTML = '<option value="" disabled selected>Unit...</option>';
             unitSelect.style.display = 'none';
             operatorSelect.innerHTML = NUMERIC_OPERATORS_HTML;
             restoreNumericValueInput();
@@ -320,7 +327,7 @@ export class FlagEditorUI {
 
         // Helper: repopulate unit select based on selected category + type
         const repopulateUnits = (selectedCategory: string, selectedType: string) => {
-            unitSelect.innerHTML = '<option value="">Unit...</option>';
+            unitSelect.innerHTML = '<option value="" disabled selected>Unit...</option>';
             const types = this.telemetry_options_dictionary[selectedCategory];
             if (!types) { unitSelect.style.display = 'none'; return; }
             const typeData = types[selectedType];
@@ -391,6 +398,7 @@ export class FlagEditorUI {
 
             // Set the colors
             this.updateConditionalGroupStyle(conditionRow);
+            this.validateAndUpdateConfirmButton();
         });
 
         // Pick color if right click
@@ -407,6 +415,7 @@ export class FlagEditorUI {
         const deleteBtn = conditionRow.querySelector('.delete-btn') as HTMLButtonElement;
         deleteBtn.addEventListener('dblclick', () => {
             conditionRow.remove();
+            this.validateAndUpdateConfirmButton();
         });
 
         return conditionRow;
@@ -430,17 +439,17 @@ export class FlagEditorUI {
         conditionRow.innerHTML = `
             <div class="drag-handle" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></div>
             <select class="condition-select" style="flex:1;">
-                <option value="">Collection...</option>
+                <option value="" disabled selected>Collection...</option>
             </select>
             <select class="condition-select" style="flex:1;">
-                <option value="">Status...</option>
+                <option value="" disabled selected>Status...</option>
             </select>
             <select class="condition-operator">
                 <option value="is">is</option>
                 <option value="isnot">is not</option>
             </select>
             <select class="condition-select">
-                <option value="">Flag...</option>
+                <option value="" disabled selected>Flag...</option>
             </select>
             <div class="color-indicator" style="background-color:${randomColor};" title="Click to change color"></div>
             <button class="delete-btn"><i class="fas fa-trash"></i></button>
@@ -466,8 +475,8 @@ export class FlagEditorUI {
         // --- Helper: populate status select from a collection UUID ---
         const repopulateStatusOptions = (collectionUUID: string) => {
             // Reset downstream selects
-            statusSelect.innerHTML = '<option value="">Status...</option>';
-            flagSelect.innerHTML   = '<option value="">Flag...</option>';
+            statusSelect.innerHTML = '<option value="" disabled selected>Status...</option>';
+            flagSelect.innerHTML   = '<option value="" disabled selected>Flag...</option>';
 
             if (!collectionUUID) return;
             const collection = CollectionEditor.INSTANCE.getStatusCollectionByUUID(collectionUUID);
@@ -485,7 +494,7 @@ export class FlagEditorUI {
 
         // --- Helper: populate flag select from a status UUID ---
         const repopulateFlagOptions = (statusUUID: string) => {
-            flagSelect.innerHTML = '<option value="">Flag...</option>';
+            flagSelect.innerHTML = '<option value="" disabled selected>Flag...</option>';
             if (!statusUUID) return;
             const status = CollectionEditor.INSTANCE.getStatusByUUID(statusUUID);
             if (!status) return;
@@ -538,6 +547,7 @@ export class FlagEditorUI {
             currentIndex = (currentIndex + 1) % colors.length;
             colorIndicator.style.backgroundColor = colors[currentIndex];
             this.updateConditionalGroupStyle(conditionRow);
+            this.validateAndUpdateConfirmButton();
         });
 
         // Pick color if right click
@@ -550,6 +560,7 @@ export class FlagEditorUI {
         const deleteBtn = conditionRow.querySelector('.delete-btn') as HTMLButtonElement;
         deleteBtn.addEventListener('dblclick', () => {
             conditionRow.remove();
+            this.validateAndUpdateConfirmButton();
         });
 
         return conditionRow;
@@ -610,6 +621,7 @@ export class FlagEditorUI {
 
             // Set the colors
             this.updateConditionalGroupStyle(conditionGroup);
+            this.validateAndUpdateConfirmButton();
         });
 
         // Pick color if right click
@@ -627,6 +639,7 @@ export class FlagEditorUI {
         if (deleteBtn) {
             deleteBtn.addEventListener('dblclick', () => {
                 conditionGroup.remove();
+                this.validateAndUpdateConfirmButton();
             });
         }
 
@@ -719,10 +732,13 @@ export class FlagEditorUI {
                 if (selectedColor) {
                     colorIndicator.style.backgroundColor = selectedColor;
                     this.updateConditionalGroupStyle(conditionGroupOrTelemetryOrStatus);
+                    this.validateAndUpdateConfirmButton();
                     this.currentColorSelectorPrompt = null;
                 }
             },
             (selectedColor: string | null) => {
+                // Live preview — disable confirm button while dragging
+                this.setConfirmButtonEnabled(false);
                 if (selectedColor) {
                     colorIndicator.style.backgroundColor = selectedColor;
                     this.updateConditionalGroupStyle(conditionGroupOrTelemetryOrStatus);
@@ -732,6 +748,7 @@ export class FlagEditorUI {
                 // Reset the color back to normal
                 colorIndicator.style.backgroundColor = currentColor;
                 this.updateConditionalGroupStyle(conditionGroupOrTelemetryOrStatus);
+                this.validateAndUpdateConfirmButton();
                 this.currentColorSelectorPrompt = null;
             },
             false
@@ -929,13 +946,21 @@ export class FlagEditorUI {
             const conditionType = row.getAttribute('condition-type');
             if (conditionType === 'telemetry') {
                 // Telemetry Condition
-                const selectElement = row.querySelector('.condition-select') as HTMLSelectElement;
-                const operatorElement = row.querySelector('.condition-operator') as HTMLSelectElement;
-                const valueElement = row.querySelector('.condition-value-input') as HTMLInputElement;
+                const categorySelect  = row.querySelector('#telemetry-category') as HTMLSelectElement;
+                const typeSelect      = row.querySelector('#telemetry-type')      as HTMLSelectElement;
+                const unitSelect      = row.querySelector('#telemetry-unit')      as HTMLSelectElement;
+                const operatorElement = row.querySelector('.condition-operator')  as HTMLSelectElement;
+                const valueElement    = row.querySelector('.condition-value-input') as HTMLInputElement;
+
+                // Build key: category.type.unit — use "single" when the unit select is hidden/empty
+                const unitPart = (unitSelect.style.display !== 'none' && unitSelect.value)
+                    ? unitSelect.value
+                    : 'single';
+                const telemetryKey = `${categorySelect.value}.${typeSelect.value}.${unitPart}`;
 
                 // Build TelemetryCondition
                 const telemetryCondition: TelemetryCondition = {
-                    telemetryKey: selectElement.value,
+                    telemetryKey,
                     operator: operatorElement.value as TelemetryCondition['operator'],
                     value: parseFloat(valueElement.value)
                 };
@@ -945,14 +970,18 @@ export class FlagEditorUI {
             }
             else if (conditionType === 'status') {
                 // Status Condition — [0]=collection, [1]=status, [2]=flag
-                const statusSelectElement = row.querySelectorAll('.condition-select')[1] as HTMLSelectElement;
-                const operatorElement = row.querySelector('.condition-operator') as HTMLSelectElement;
-                const flagSelectElement = row.querySelectorAll('.condition-select')[2] as HTMLSelectElement;
+                const collectionSelectElement = row.querySelectorAll('.condition-select')[0] as HTMLSelectElement;
+                const statusSelectElement     = row.querySelectorAll('.condition-select')[1] as HTMLSelectElement;
+                const operatorElement         = row.querySelector('.condition-operator')      as HTMLSelectElement;
+                const flagSelectElement        = row.querySelectorAll('.condition-select')[2] as HTMLSelectElement;
+
+                // Build key: collectionUUID.statusUUID
+                const statusKey = `${collectionSelectElement.value}.${statusSelectElement.value}`;
 
                 // Build StatusCondition
                 const statusCondition: StatusCondition = {
-                    statusUUID: statusSelectElement.value,
-                    shouldBeActive: operatorElement.value === 'is' ? true : false,
+                    statusKey,
+                    shouldBeActive: operatorElement.value === 'is',
                     flagUUID: flagSelectElement.value
                 };
 
@@ -1082,6 +1111,12 @@ export class FlagEditorUI {
 
         // Set current flag being edited
         this.currentFlag = flag;
+
+        // Snapshot the original flag for change detection
+        this.originalFlagSnapshot = JSON.stringify(flag);
+
+        // Set initial button state (disabled until something changes)
+        this.validateAndUpdateConfirmButton();
     }
 
     /**
@@ -1135,7 +1170,7 @@ export class FlagEditorUI {
                         conditionGroupElement,
                         embededGroupJSON
                     );
-                } else if (conditionType === 'statusUUID') {
+                } else if (conditionType === 'statusKey') {
                     // Status Condition
                     this.populateStatusConditionElement(
                         conditionGroupElement,
@@ -1162,16 +1197,36 @@ export class FlagEditorUI {
         );
 
         // Get Input Elements
-        const selectElement = conditionRowElement.querySelector('.condition-select') as HTMLSelectElement;
-        const operatorElement = conditionRowElement.querySelector('.condition-operator') as HTMLSelectElement;
-        const valueElement = conditionRowElement.querySelector('.condition-value-input') as HTMLInputElement;
-        const colorIndicator = conditionRowElement.querySelector('.color-indicator') as HTMLDivElement;
+        const categorySelect  = conditionRowElement.querySelector('#telemetry-category') as HTMLSelectElement;
+        const typeSelect      = conditionRowElement.querySelector('#telemetry-type')      as HTMLSelectElement;
+        const unitSelect      = conditionRowElement.querySelector('#telemetry-unit')      as HTMLSelectElement;
+        const operatorElement = conditionRowElement.querySelector('.condition-operator')  as HTMLSelectElement;
+        const colorIndicator  = conditionRowElement.querySelector('.color-indicator')     as HTMLDivElement;
 
-        // Populate values
+        // Parse saved key: "category.type.unit"
         const telemetryCondition = conditionGroupJSON.condition as TelemetryCondition;
-        selectElement.value = telemetryCondition.telemetryKey;
+        const [keyCategory, keyType, keyUnit] = telemetryCondition.telemetryKey.split('.');
+
+        // Cascade-populate: set category → dispatch change (fills type options)
+        categorySelect.value = keyCategory;
+        categorySelect.dispatchEvent(new Event('change'));
+
+        // Set type → dispatch change (fills unit options + handles boolean UI)
+        typeSelect.value = keyType;
+        typeSelect.dispatchEvent(new Event('change'));
+
+        // Set unit only if not a scalar
+        if (keyUnit && keyUnit !== 'single') {
+            unitSelect.value = keyUnit;
+        }
+
+        // Set operator
         operatorElement.value = telemetryCondition.operator;
+
+        // Set value (read after potential boolean select swap)
+        const valueElement = conditionRowElement.querySelector('.condition-value-input') as HTMLInputElement | HTMLSelectElement;
         valueElement.value = telemetryCondition.value.toString();
+
         // Set color indicator (if any)
         if (conditionGroupJSON.editorColor) {
             colorIndicator.style.backgroundColor = conditionGroupJSON.editorColor;
@@ -1198,23 +1253,19 @@ export class FlagEditorUI {
 
         const statusCondition = conditionGroupJSON.condition as StatusCondition;
 
-        // Find which collection owns this status so we can set the collection select
-        const owningCollection = CollectionEditor.INSTANCE.getAllCollections().find(
-            c => c.statusesUUIDs.includes(statusCondition.statusUUID)
-        );
+        // Parse saved key: "collectionUUID.statusUUID"
+        const [collectionUUID, statusUUID] = statusCondition.statusKey.split('.');
 
-        if (owningCollection) {
-            // Set collection and fire change to cascade-populate the status options
-            collectionSelectElement.value = owningCollection.UUID;
-            collectionSelectElement.dispatchEvent(new Event('change'));
+        // Set collection and fire change to cascade-populate the status options
+        collectionSelectElement.value = collectionUUID;
+        collectionSelectElement.dispatchEvent(new Event('change'));
 
-            // Set status and fire change to cascade-populate the flag options
-            statusSelectElement.value = statusCondition.statusUUID;
-            statusSelectElement.dispatchEvent(new Event('change'));
+        // Set status and fire change to cascade-populate the flag options
+        statusSelectElement.value = statusUUID;
+        statusSelectElement.dispatchEvent(new Event('change'));
 
-            // Set flag
-            flagSelectElement.value = statusCondition.flagUUID;
-        }
+        // Set flag
+        flagSelectElement.value = statusCondition.flagUUID;
 
         // Set operator
         operatorElement.value = statusCondition.shouldBeActive ? 'is' : 'isnot';
@@ -1228,6 +1279,46 @@ export class FlagEditorUI {
     // #endregion
 
     // #region Tracking Changes And Confirming Changes
+    /**
+     * Enables or disables the confirm button with a visual dull state.
+     */
+    private setConfirmButtonEnabled(enabled: boolean): void {
+        this.confirmFlagBtnElement.disabled = !enabled;
+        this.confirmFlagBtnElement.style.opacity = enabled ? '' : '0.4';
+        this.confirmFlagBtnElement.style.cursor  = enabled ? '' : 'not-allowed';
+    }
+
+    /**
+     * Checks whether the confirm button should be enabled and updates it.
+     * Disabled when: any condition row has unfilled selects, or nothing has changed.
+     */
+    private validateAndUpdateConfirmButton(): void {
+        // Check for incomplete condition rows
+        const conditionRows = Array.from(
+            this.flagConditionsContainerElement.querySelectorAll('.condition-row')
+        ) as HTMLDivElement[];
+
+        for (const row of conditionRows) {
+            const conditionType = row.getAttribute('condition-type');
+            if (conditionType === 'telemetry') {
+                const cat  = (row.querySelector('#telemetry-category') as HTMLSelectElement).value;
+                const type = (row.querySelector('#telemetry-type')     as HTMLSelectElement).value;
+                if (!cat || !type) { this.setConfirmButtonEnabled(false); return; }
+            } else if (conditionType === 'status') {
+                const selects = Array.from(row.querySelectorAll('.condition-select')) as HTMLSelectElement[];
+                if (selects.some(s => !s.value)) { this.setConfirmButtonEnabled(false); return; }
+            }
+        }
+
+        // Check if anything has actually changed
+        if (this.originalFlagSnapshot !== null) {
+            const current = JSON.stringify(this.translateHTMLInputToFlagJSON());
+            if (current === this.originalFlagSnapshot) { this.setConfirmButtonEnabled(false); return; }
+        }
+
+        this.setConfirmButtonEnabled(true);
+    }
+
     /**
      * Called when saving flag being created/edited
      */

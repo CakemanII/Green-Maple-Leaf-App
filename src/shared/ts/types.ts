@@ -39,7 +39,7 @@ export type TelemetryCondition = {
 }
 
 export type StatusCondition = {
-    statusUUID: string; // UUID of the status to check
+    statusKey: string;  // "collectionUUID.statusUUID"
     shouldBeActive: boolean; // Whether the flag should be active or not
     flagUUID: string;   // UUID of the flag to check
 }

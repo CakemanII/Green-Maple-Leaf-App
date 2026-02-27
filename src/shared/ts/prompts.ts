@@ -256,7 +256,7 @@ export abstract class PopoutMenuPrompt {
 
         this.clickOffListener = (e: MouseEvent) => {
             if (this.promptContentContainer && !this.promptContentContainer.contains(e.target as Node)) {
-                this.onConfirm();
+                this.onCancel();
                 this.closePrompt();
             }
         };
