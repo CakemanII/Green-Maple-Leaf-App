@@ -47,7 +47,9 @@ export class FlagEditorUI {
 
     // Selected Media Paths
     private currentImageFilepath: string | null = null;
+    private currentImageDisplayName: string | null = null;
     private currentAudioFilepath: string | null = null;
+    private currentAudioDisplayName: string | null = null;
     private currentAudioRepeat: boolean = false;
 
     // Drag and Drop State
@@ -116,25 +118,59 @@ export class FlagEditorUI {
         this.flagImageInputElement.addEventListener('click', () => {
             new MediaFileListViewerPrompt(
                 'images',
-                (metadata: MediaFileMetadata) => {
+                async (metadata: MediaFileMetadata) => {
                     this.currentImageFilepath = metadata.relative_filepath;
-                    this.flagImageInputElement.textContent = `🖼️ ${metadata.name}`;
-                    this.updateFlagImagePreview(metadata.relative_filepath);
+                    this.currentImageDisplayName = metadata.name;
+                    const exists = await this.checkFileExists(metadata.relative_filepath);
+                    if (exists) {
+                        this.flagImageInputElement.textContent = `🖼️ ${metadata.name}`;
+                        this.updateFlagImagePreview(metadata.relative_filepath);
+                    } else {
+                        this.currentImageFilepath = null;
+                        this.flagImageInputElement.textContent = `⚠️ Missing File: ${metadata.name}`;
+                        this.updateFlagImagePreview(null);
+                    }
+                    this.validateAndUpdateConfirmButton();
                 },
                 () => {}
             );
+        });
+        this.flagImageInputElement.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (this.currentImageFilepath) {
+                this.currentImageFilepath = null;
+                this.flagImageInputElement.textContent = `⚠️ Missing File: ${this.currentImageDisplayName ?? '?'}`;
+                this.updateFlagImagePreview(null);
+                this.validateAndUpdateConfirmButton();
+            }
         });
 
         // Setup audio picker button
         this.flagAudioInputElement.addEventListener('click', () => {
             new MediaFileListViewerPrompt(
                 'audio',
-                (metadata: MediaFileMetadata) => {
+                async (metadata: MediaFileMetadata) => {
                     this.currentAudioFilepath = metadata.relative_filepath;
-                    this.flagAudioInputElement.textContent = `🔊 ${metadata.name}`;
+                    this.currentAudioDisplayName = metadata.name;
+                    const exists = await this.checkFileExists(metadata.relative_filepath);
+                    if (exists) {
+                        this.flagAudioInputElement.textContent = `🔊 ${metadata.name}`;
+                    } else {
+                        this.currentAudioFilepath = null;
+                        this.flagAudioInputElement.textContent = `⚠️ Missing File: ${metadata.name}`;
+                    }
+                    this.validateAndUpdateConfirmButton();
                 },
                 () => {}
             );
+        });
+        this.flagAudioInputElement.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (this.currentAudioFilepath) {
+                this.currentAudioFilepath = null;
+                this.flagAudioInputElement.textContent = `⚠️ Missing File: ${this.currentAudioDisplayName ?? '?'}`;
+                this.validateAndUpdateConfirmButton();
+            }
         });
 
         // Setup audio repeat toggle button
@@ -142,6 +178,7 @@ export class FlagEditorUI {
             this.currentAudioRepeat = !this.currentAudioRepeat;
             this.audioRepeatToggleElement.classList.toggle('active', this.currentAudioRepeat);
             this.audioRepeatToggleElement.textContent = this.currentAudioRepeat ? '🔁 Repeat On' : '🔁 Repeat Off';
+            this.validateAndUpdateConfirmButton();
         });
 
         // Setup condition button events using event delegation
@@ -669,6 +706,43 @@ export class FlagEditorUI {
     }
 
     /**
+     * Returns true if the file at relativePath exists on the server.
+     */
+    private async checkFileExists(relativePath: string): Promise<boolean> {
+        try {
+            const res = await fetch(`/media/check_file?path=${encodeURIComponent(relativePath)}`);
+            const data = await res.json();
+            return data.exists === true;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Checks stored image/audio paths against the server and updates button labels
+     * to "Missing File" if the file no longer exists.
+     */
+    private async refreshFileDisplays(): Promise<void> {
+        if (this.currentImageFilepath) {
+            const exists = await this.checkFileExists(this.currentImageFilepath);
+            if (!exists) {
+                this.currentImageFilepath = null;
+                this.flagImageInputElement.textContent = `⚠️ Missing File: ${this.currentImageDisplayName ?? '?'}`;
+                this.updateFlagImagePreview(null);
+                this.validateAndUpdateConfirmButton();
+            }
+        }
+        if (this.currentAudioFilepath) {
+            const exists = await this.checkFileExists(this.currentAudioFilepath);
+            if (!exists) {
+                this.currentAudioFilepath = null;
+                this.flagAudioInputElement.textContent = `⚠️ Missing File: ${this.currentAudioDisplayName ?? '?'}`;
+                this.validateAndUpdateConfirmButton();
+            }
+        }
+    }
+
+    /**
      * Clear all input fields in the flag creation prompt.
      */
     private resetPrompt(): void {
@@ -847,7 +921,9 @@ export class FlagEditorUI {
             name: this.flagTitleElement.value,
             description: this.flagDescriptionElement.value,
             imagePath: this.currentImageFilepath,
+            imageDisplayName: this.currentImageDisplayName,
             audioPath: this.currentAudioFilepath,
+            audioDisplayName: this.currentAudioDisplayName,
             audioRepeat: this.currentAudioRepeat,
             primaryConditionalGroup: primaryConditionalGroupJSON
         };
@@ -1062,20 +1138,27 @@ export class FlagEditorUI {
 
         // Image
         this.currentImageFilepath = flag.imagePath ?? null;
+        this.currentImageDisplayName = flag.imageDisplayName ?? null;
         if (flag.imagePath) {
-            this.flagImageInputElement.textContent = `\ud83d\uddbc\ufe0f ${flag.imagePath.split('/').pop() ?? flag.imagePath}`;
+            this.flagImageInputElement.textContent = `🖼️ ${flag.imageDisplayName ?? flag.imagePath.split('/').pop() ?? flag.imagePath}`;
             this.updateFlagImagePreview(flag.imagePath);
+        } else if (flag.imageDisplayName) {
+            this.flagImageInputElement.textContent = `⚠️ Missing File: ${flag.imageDisplayName}`;
+            this.flagPreviewElement.innerHTML = '<span>Image preview will appear here</span>';
         } else {
-            this.flagImageInputElement.textContent = '\ud83d\udcc1 Choose File';
+            this.flagImageInputElement.textContent = '📁 Choose File';
             this.flagPreviewElement.innerHTML = '<span>Image preview will appear here</span>';
         }
 
         // Audio
         this.currentAudioFilepath = flag.audioPath ?? null;
+        this.currentAudioDisplayName = flag.audioDisplayName ?? null;
         if (flag.audioPath) {
-            this.flagAudioInputElement.textContent = `\ud83d\udd0a ${flag.audioPath.split('/').pop() ?? flag.audioPath}`;
+            this.flagAudioInputElement.textContent = `🔊 ${flag.audioDisplayName ?? flag.audioPath.split('/').pop() ?? flag.audioPath}`;
+        } else if (flag.audioDisplayName) {
+            this.flagAudioInputElement.textContent = `⚠️ Missing File: ${flag.audioDisplayName}`;
         } else {
-            this.flagAudioInputElement.textContent = '\ud83d\udcc1 Choose File';
+            this.flagAudioInputElement.textContent = '📁 Choose File';
         }
 
         // Audio repeat
@@ -1117,6 +1200,9 @@ export class FlagEditorUI {
 
         // Set initial button state (disabled until something changes)
         this.validateAndUpdateConfirmButton();
+
+        // Async: check if stored files still exist and update labels if missing
+        this.refreshFileDisplays();
     }
 
     /**

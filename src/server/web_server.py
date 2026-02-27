@@ -414,6 +414,16 @@ def serve_media_file():
         return 'File not found', 404
 
     return send_from_directory(os.path.dirname(abs_path), os.path.basename(abs_path))
+
+@app.route('/media/check_file', methods=['GET'])
+def check_media_file():
+    relative_path = request.args.get('path', '')
+    if not relative_path:
+        return jsonify({'exists': False}), 200
+    abs_path = os.path.normpath(os.path.join(ROOT_DIR, relative_path))
+    if not abs_path.startswith(ROOT_DIR):
+        return 'Forbidden', 403
+    return jsonify({'exists': os.path.isfile(abs_path)}), 200
 #endregion
 
 #region Active / Disable Rocket Communication Server Routes
