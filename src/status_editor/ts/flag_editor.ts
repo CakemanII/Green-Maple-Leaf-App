@@ -414,50 +414,118 @@ export class FlagEditorUI {
 
     // #endregion
     /**
-     * Add a status condition row to the specified condition body
+     * Add a status condition row to the specified condition body.
+     * Selects cascade: collection → statuses → flags.
+     * condition-select[0] = collection, [1] = status, [2] = flag
      */
     private addStatusCondition(conditionBody: HTMLDivElement): HTMLDivElement {
         const conditionRow = document.createElement('div');
         conditionRow.className = 'condition-row';
         conditionRow.setAttribute('condition-type', 'status');
-        
+
         // Generate random color for the condition
         const colors = ['rgb(245, 166, 35)', 'rgb(107, 163, 255)', 'rgb(231, 76, 60)', 'rgb(46, 204, 113)', 'rgb(155, 89, 182)'];
         const randomColor = colors[Math.floor(Math.random() * colors.length)];
-        
+
         conditionRow.innerHTML = `
             <div class="drag-handle" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></div>
             <select class="condition-select" style="flex:1;">
                 <option value="">Collection...</option>
             </select>
             <select class="condition-select" style="flex:1;">
-                <option value="">Select Status...</option>
-                <option value="statustemptemp1">Testing!</option>
+                <option value="">Status...</option>
             </select>
             <select class="condition-operator">
                 <option value="is">is</option>
                 <option value="isnot">is not</option>
             </select>
             <select class="condition-select">
-                <option value="">Flag</option>
-                <option value="flagtemp123">Nominal</option>
-                <option value="flag2">Warning</option>
-                <option value="flag3">Critical</option>
+                <option value="">Flag...</option>
             </select>
             <div class="color-indicator" style="background-color:${randomColor};" title="Click to change color"></div>
             <button class="delete-btn"><i class="fas fa-trash"></i></button>
         `;
-        
+
         // Insert before the button-row
         const buttonRow = Array.from(conditionBody.children).find(
             child => child.classList.contains('button-row')
         ) as HTMLElement | undefined;
-        
+
         if (buttonRow) {
             conditionBody.insertBefore(conditionRow, buttonRow);
         } else {
             conditionBody.appendChild(conditionRow);
         }
+
+        // --- Get the three cascade selects ---
+        const allConditionSelects = conditionRow.querySelectorAll('.condition-select');
+        const collectionSelect = allConditionSelects[0] as HTMLSelectElement;
+        const statusSelect     = allConditionSelects[1] as HTMLSelectElement;
+        const flagSelect       = allConditionSelects[2] as HTMLSelectElement;
+
+        // --- Helper: populate status select from a collection UUID ---
+        const repopulateStatusOptions = (collectionUUID: string) => {
+            // Reset downstream selects
+            statusSelect.innerHTML = '<option value="">Status...</option>';
+            flagSelect.innerHTML   = '<option value="">Flag...</option>';
+
+            if (!collectionUUID) return;
+            const collection = CollectionEditor.INSTANCE.getStatusCollectionByUUID(collectionUUID);
+            if (!collection) return;
+
+            collection.statusesUUIDs.forEach(statusUUID => {
+                const status = CollectionEditor.INSTANCE.getStatusByUUID(statusUUID);
+                if (!status) return;
+                const opt = document.createElement('option');
+                opt.value       = status.UUID;
+                opt.textContent = status.name;
+                statusSelect.appendChild(opt);
+            });
+        };
+
+        // --- Helper: populate flag select from a status UUID ---
+        const repopulateFlagOptions = (statusUUID: string) => {
+            flagSelect.innerHTML = '<option value="">Flag...</option>';
+            if (!statusUUID) return;
+            const status = CollectionEditor.INSTANCE.getStatusByUUID(statusUUID);
+            if (!status) return;
+
+            // Include the default flag first
+            const defaultFlag = CollectionEditor.INSTANCE.getFlagByUUID(status.defaultFlagUUID);
+            if (defaultFlag) {
+                const opt = document.createElement('option');
+                opt.value       = defaultFlag.UUID;
+                opt.textContent = `${defaultFlag.name} (Default)`;
+                flagSelect.appendChild(opt);
+            }
+
+            // Then all other flags
+            status.flagUUIDs.forEach(flagUUID => {
+                const flag = CollectionEditor.INSTANCE.getFlagByUUID(flagUUID);
+                if (!flag) return;
+                const opt = document.createElement('option');
+                opt.value       = flag.UUID;
+                opt.textContent = flag.name;
+                flagSelect.appendChild(opt);
+            });
+        };
+
+        // --- Populate collection select from all loaded collections ---
+        CollectionEditor.INSTANCE.getAllCollections().forEach(collection => {
+            const opt = document.createElement('option');
+            opt.value       = collection.UUID;
+            opt.textContent = collection.name;
+            collectionSelect.appendChild(opt);
+        });
+
+        // --- Cascade event listeners ---
+        collectionSelect.addEventListener('change', () => {
+            repopulateStatusOptions(collectionSelect.value);
+        });
+
+        statusSelect.addEventListener('change', () => {
+            repopulateFlagOptions(statusSelect.value);
+        });
 
         // Make the border change with the color indicator
         const colorIndicator = conditionRow.querySelector('.color-indicator') as HTMLDivElement;
@@ -465,27 +533,20 @@ export class FlagEditorUI {
         this.updateConditionalGroupStyle(conditionRow);
         // Cycle colors if left click
         colorIndicator.addEventListener('click', () => {
-            // Cycle through colors (temp)
             const currentColor = colorIndicator.style.backgroundColor;
             let currentIndex = colors.indexOf(currentColor);
             currentIndex = (currentIndex + 1) % colors.length;
-            const newColor = colors[currentIndex];
-            colorIndicator.style.backgroundColor = newColor;
-
-            // Set the colors
+            colorIndicator.style.backgroundColor = colors[currentIndex];
             this.updateConditionalGroupStyle(conditionRow);
         });
 
         // Pick color if right click
         colorIndicator.addEventListener('contextmenu', (e) => {
-            // Prevent default context menu
             e.preventDefault();
-            console.log("Right click on color indicator - open color picker");
-
-            // Open color picker dialog
             this.openNewColorSelector(e, colorIndicator, conditionRow);
         });
-        // Make the delete button remove the entire group
+
+        // Make the delete button remove the entire row
         const deleteBtn = conditionRow.querySelector('.delete-btn') as HTMLButtonElement;
         deleteBtn.addEventListener('dblclick', () => {
             conditionRow.remove();
@@ -883,10 +944,10 @@ export class FlagEditorUI {
                 embededGroup.condition = telemetryCondition;
             }
             else if (conditionType === 'status') {
-                // Status Condition
-                const statusSelectElement = row.querySelectorAll('.condition-select')[0] as HTMLSelectElement;
+                // Status Condition — [0]=collection, [1]=status, [2]=flag
+                const statusSelectElement = row.querySelectorAll('.condition-select')[1] as HTMLSelectElement;
                 const operatorElement = row.querySelector('.condition-operator') as HTMLSelectElement;
-                const flagSelectElement = row.querySelectorAll('.condition-select')[1] as HTMLSelectElement;
+                const flagSelectElement = row.querySelectorAll('.condition-select')[2] as HTMLSelectElement;
 
                 // Build StatusCondition
                 const statusCondition: StatusCondition = {
@@ -1122,22 +1183,42 @@ export class FlagEditorUI {
      * Populates a status condition row element based on the provided JSON representation.
      */
     private populateStatusConditionElement(conditionGroupElement: HTMLDivElement, conditionGroupJSON: ConditionalGroup): void {
-        // Create the condition row element
+        // Create the condition row element (already has cascade listeners attached)
         const conditionRowElement = this.addStatusCondition(
             conditionGroupElement.querySelector('.condition-body') as HTMLDivElement
         );
 
-        // Get Input Elements
-        const statusSelectElement = conditionRowElement.querySelectorAll('.condition-select')[0] as HTMLSelectElement;
-        const operatorElement = conditionRowElement.querySelector('.condition-operator') as HTMLSelectElement;
-        const flagSelectElement = conditionRowElement.querySelectorAll('.condition-select')[1] as HTMLSelectElement;
-        const colorIndicator = conditionRowElement.querySelector('.color-indicator') as HTMLDivElement;
+        // Get Input Elements — [0]=collection, [1]=status, [2]=flag
+        const allConditionSelects = conditionRowElement.querySelectorAll('.condition-select');
+        const collectionSelectElement = allConditionSelects[0] as HTMLSelectElement;
+        const statusSelectElement     = allConditionSelects[1] as HTMLSelectElement;
+        const operatorElement         = conditionRowElement.querySelector('.condition-operator') as HTMLSelectElement;
+        const flagSelectElement       = allConditionSelects[2] as HTMLSelectElement;
+        const colorIndicator          = conditionRowElement.querySelector('.color-indicator') as HTMLDivElement;
 
-        // Populate values
         const statusCondition = conditionGroupJSON.condition as StatusCondition;
-        statusSelectElement.value = statusCondition.statusUUID;
+
+        // Find which collection owns this status so we can set the collection select
+        const owningCollection = CollectionEditor.INSTANCE.getAllCollections().find(
+            c => c.statusesUUIDs.includes(statusCondition.statusUUID)
+        );
+
+        if (owningCollection) {
+            // Set collection and fire change to cascade-populate the status options
+            collectionSelectElement.value = owningCollection.UUID;
+            collectionSelectElement.dispatchEvent(new Event('change'));
+
+            // Set status and fire change to cascade-populate the flag options
+            statusSelectElement.value = statusCondition.statusUUID;
+            statusSelectElement.dispatchEvent(new Event('change'));
+
+            // Set flag
+            flagSelectElement.value = statusCondition.flagUUID;
+        }
+
+        // Set operator
         operatorElement.value = statusCondition.shouldBeActive ? 'is' : 'isnot';
-        flagSelectElement.value = statusCondition.flagUUID;
+
         // Set color indicator (if any)
         if (conditionGroupJSON.editorColor) {
             colorIndicator.style.backgroundColor = conditionGroupJSON.editorColor;

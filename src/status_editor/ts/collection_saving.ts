@@ -406,6 +406,20 @@ export class CollectionEditor
         const flag = this.flags.find(f => f.UUID === flagUUID);
         return flag || null;
     }
+
+    /**
+     * Get all loaded status collections.
+     */
+    public getAllCollections(): SimpleStatusCollection[] {
+        return this.visualStatusCollections;
+    }
+
+    /**
+     * Get all loaded statuses.
+     */
+    public getAllStatuses(): SimpleStatus[] {
+        return this.visualStatuses;
+    }
     // #endregion
 
     // #region New Collection / Status Creation
