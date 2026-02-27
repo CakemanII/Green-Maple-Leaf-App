@@ -9,9 +9,9 @@
     "linear_motion": {
         "velocity": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
         "acceleration": { "latitude": "number", "longitude": "number", "altitude": "number" },
-        "jerk": "number", 
-        "snap": "number", 
-        "displacement": "number", 
+        "jerk": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
+        "snap": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
+        "displacement": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
         "mach": "number", 
         "amplitude": "number"
     },
@@ -19,8 +19,8 @@
     "angular_motion": {
         "angular_velocity": { "pitch": "number", "roll": "number", "yaw": "number" }, 
         "angular_acceleration": { "pitch": "number", "roll": "number", "yaw": "number" },
-        "angular_jerk": "number", 
-        "angular_snap": "number", 
+        "angular_jerk": { "pitch": "number", "roll": "number", "yaw": "number" }, 
+        "angular_snap": { "pitch": "number", "roll": "number", "yaw": "number" }, 
         "angular_displacement": { "pitch": "number", "roll": "number", "yaw": "number" },
         "absolute_orientation": { "pitch": "number", "roll": "number", "yaw": "number" }
     },

@@ -258,6 +258,37 @@ export class FlagEditorUI {
         const categorySelect = conditionRow.querySelector('#telemetry-category') as HTMLSelectElement;
         const typeSelect     = conditionRow.querySelector('#telemetry-type')     as HTMLSelectElement;
         const unitSelect     = conditionRow.querySelector('#telemetry-unit')     as HTMLSelectElement;
+        const operatorSelect = conditionRow.querySelector('.condition-operator')  as HTMLSelectElement;
+
+        const NUMERIC_OPERATORS_HTML = `
+            <option value="E">=</option>
+            <option value="NE">!=</option>
+            <option value="GT">></option>
+            <option value="NGT">!></option>
+            <option value="LT"><</option>
+            <option value="NLT">!<</option>
+            <option value="GTOE">≥</option>
+            <option value="NGTOE">!≥</option>
+            <option value="LTOE">≤</option>
+            <option value="NLTOE">!≤</option>
+        `;
+        const BOOLEAN_OPERATORS_HTML = `
+            <option value="IS">is</option>
+            <option value="ISNOT">is not</option>
+        `;
+
+        const restoreNumericValueInput = () => {
+            const cur = conditionRow.querySelector('.condition-value-input') as HTMLElement;
+            if (cur && cur.tagName !== 'INPUT') {
+                const numInput = document.createElement('input');
+                numInput.type = 'number';
+                numInput.step = '1';
+                numInput.className = 'condition-value-input';
+                numInput.placeholder = 'Value...';
+                numInput.value = '0';
+                cur.replaceWith(numInput);
+            }
+        };
 
         categorySelect.innerHTML = '<option value="">Category...</option>';
         typeSelect.innerHTML = '<option value="">Type...</option>';
@@ -275,6 +306,8 @@ export class FlagEditorUI {
             typeSelect.innerHTML = '<option value="">Type...</option>';
             unitSelect.innerHTML = '<option value="">Unit...</option>';
             unitSelect.style.display = 'none';
+            operatorSelect.innerHTML = NUMERIC_OPERATORS_HTML;
+            restoreNumericValueInput();
             const types = this.telemetry_options_dictionary[selectedCategory];
             if (!types) return;
             for (const typeName of Object.keys(types)) {
@@ -291,8 +324,20 @@ export class FlagEditorUI {
             const types = this.telemetry_options_dictionary[selectedCategory];
             if (!types) { unitSelect.style.display = 'none'; return; }
             const typeData = types[selectedType];
-            // If the type's value is an object, its keys are the selectable sub-fields (e.g. latitude/longitude/altitude)
-            if (typeData !== null && typeof typeData === 'object' && !Array.isArray(typeData)) {
+
+            if (typeData === 'boolean') {
+                // Boolean type: hide unit, swap operators, swap value input to true/false select
+                unitSelect.style.display = 'none';
+                operatorSelect.innerHTML = BOOLEAN_OPERATORS_HTML;
+                const cur = conditionRow.querySelector('.condition-value-input') as HTMLElement;
+                if (cur && cur.tagName !== 'SELECT') {
+                    const boolSelect = document.createElement('select');
+                    boolSelect.className = 'condition-value-input condition-select';
+                    boolSelect.innerHTML = '<option value="true">true</option><option value="false">false</option>';
+                    cur.replaceWith(boolSelect);
+                }
+            } else if (typeData !== null && typeof typeData === 'object' && !Array.isArray(typeData)) {
+                // Object with sub-fields — show unit select
                 for (const subKey of Object.keys(typeData)) {
                     const option = document.createElement('option');
                     option.value = subKey;
@@ -300,9 +345,13 @@ export class FlagEditorUI {
                     unitSelect.appendChild(option);
                 }
                 unitSelect.style.display = '';
+                operatorSelect.innerHTML = NUMERIC_OPERATORS_HTML;
+                restoreNumericValueInput();
             } else {
-                // Scalar (e.g. "number") — no sub-units, hide the select
+                // Scalar (e.g. "number") — hide unit, restore numeric operators + input
                 unitSelect.style.display = 'none';
+                operatorSelect.innerHTML = NUMERIC_OPERATORS_HTML;
+                restoreNumericValueInput();
             }
         };
 
