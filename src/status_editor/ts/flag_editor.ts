@@ -132,7 +132,10 @@ export class FlagEditorUI {
                     }
                     this.validateAndUpdateConfirmButton();
                 },
-                () => {}
+                () => {
+                    // Verify that the file does exist and if it doesn't, do not show it and show missing instead.
+                    this.refreshFileDisplays();
+                }
             );
         });
         this.flagImageInputElement.addEventListener('contextmenu', (e) => {

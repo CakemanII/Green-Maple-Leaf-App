@@ -14,6 +14,7 @@ export class CollectionEditor
     private visualStatusCollections: SimpleStatusCollection[] = [];
     private visualStatuses: SimpleStatus[] = [];
     private flags: Flag[] = [];
+    private newlyLoadedCollectionUUIDs: string[] = [];
 
     constructor()
     {
@@ -147,6 +148,7 @@ export class CollectionEditor
         this.visualStatusCollections = [];
         this.flags = [];
         this.visualStatuses = [];
+        this.newlyLoadedCollectionUUIDs = [];
 
         // Clear all collections from DOM
         CollectionEditorUI.INSTANCE.removeAllCollectionsFromDOM();
@@ -348,7 +350,7 @@ export class CollectionEditor
 
         for (const uuid of uuidsToOpen) {
             try {
-                await this.loadCollectionByUUID(uuid);
+                await this.loadCollectionByUUID(uuid, false, true);
             } catch {
                 console.warn(`Failed to load collection ${uuid} from session — skipping.`);
             }
@@ -361,15 +363,15 @@ export class CollectionEditor
      * Load a collection from the server by UUID and add it to the editor.
      * Returns false if it is already loaded.
      */
-    public async loadCollectionByUUID(collectionUUID: string, setChangesFlag: boolean = false): Promise<boolean> {
+    public async loadCollectionByUUID(collectionUUID: string, setChangesFlag: boolean = false, initialRestore: boolean = false): Promise<boolean> {
         // Don't load if already visible in the editor
         if (this.visualStatusCollections.some(c => c.UUID === collectionUUID)) return false;
 
         const collection = await this.fetchStatusCollectionFromServer(collectionUUID);
         this.loadCollectionFromJSON(collection);
 
-        // Track in previousStatusCollections (avoid duplicates — collection may have been unloaded and re-loaded)
-        if (!this.previousStatusCollections.some(c => c.UUID === collectionUUID))
+        // Add to the previous collections if restoring.
+        if (initialRestore)
             this.previousStatusCollections.push(collection);
 
         // Set the changes flag if this load should be considered a change (default false since loading from session on page load shouldn't be a "change")
@@ -481,7 +483,9 @@ export class CollectionEditor
             name: "New Flag",
             description: "",
             imagePath: null,
+            imageDisplayName: null,
             audioPath: null,
+            audioDisplayName: null,
             audioRepeat: false,
             primaryConditionalGroup: isDefaultFlag ? null : {
                 name: "Main Conditional Group",

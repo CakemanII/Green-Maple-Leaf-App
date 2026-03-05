@@ -33,7 +33,9 @@ const ExampleStatus1: Status = {
         UUID: "defaultflagtemp",
         description: "",
         imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp\\do_not_deploy_parachute.png",
+        imageDisplayName: null,
         audioPath: null,
+        audioDisplayName: null,
         audioRepeat: false,
         primaryConditionalGroup: null,
     },
@@ -43,7 +45,9 @@ const ExampleStatus1: Status = {
             name: "Yes, Deploy Parachute",
             description: "Parachute Deployment Conditions Met",
             imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp\\parachute_deploy.png",
+            imageDisplayName: null,
             audioPath: null,
+            audioDisplayName: null,
             audioRepeat: false,
             primaryConditionalGroup: {
                 type: 'AND',
@@ -100,7 +104,9 @@ const ExampleStatus2: Status = {
         UUID: "defaultflagtemp2",
         description: "",
         imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\all-good.png",
+        imageDisplayName: null,
         audioPath: null,
+        audioDisplayName: null,
         audioRepeat: false,
         primaryConditionalGroup: null,
     },
@@ -110,7 +116,9 @@ const ExampleStatus2: Status = {
             name: "Terminal Velocity Reached, It's Over Twin",
             description: "Rocket has reached terminal velocity indicating free-fall impact.",
             imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\its_over.jpg",
+            imageDisplayName: null,
             audioPath: null,
+            audioDisplayName: null,
             audioRepeat: false,
             primaryConditionalGroup: {
                 type: 'AND',
@@ -151,7 +159,9 @@ const ExampleStatus2: Status = {
             name: "Yes, Critical Impact Detected",
             description: "Rocket impact conditions met indicating critical impact.",
             imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\critical.png",
+            imageDisplayName: null,
             audioPath: null,
+            audioDisplayName: null,
             audioRepeat: false,
             primaryConditionalGroup: {
                 type: 'AND',
@@ -382,7 +392,7 @@ class LiveStatus {
             }
 
             // Determine if it's a status condition
-            else if ('statusUUID' in group.condition) { key = 'status'; value = group.condition.statusUUID; }
+            else if ('statusKey' in group.condition) { key = 'status'; value = group.condition.statusKey; }
 
             // Ensure the key and value are valid
             if (!key || !value) { console.warn(`Invalid key or value in condition: key=${key}, value=${value}`); return; }
@@ -518,8 +528,8 @@ class LiveStatus {
         }
 
         // Status condition
-        else if ('statusUUID' in condition) {
-            const statusActiveFlagUUID = GlobalStatusesManager.INSTANCE.getStatusActiveFlag(condition.statusUUID);
+        else if ('statusKey' in condition) {
+            const statusActiveFlagUUID = GlobalStatusesManager.INSTANCE.getStatusActiveFlag(condition.statusKey);
             if (!statusActiveFlagUUID) { return false; } // Status not found means condition fails
 
             const isActive = (statusActiveFlagUUID === condition.flagUUID);

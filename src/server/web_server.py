@@ -402,7 +402,7 @@ def list_media_metadatas():
 
 @app.route('/media/serve_file', methods=['GET'])
 def serve_media_file():
-    relative_path = request.args.get('path', '')
+    relative_path = request.args.get('path', '').lstrip('/\\')
     if not relative_path:
         return 'No path provided', 400
 
@@ -417,7 +417,7 @@ def serve_media_file():
 
 @app.route('/media/check_file', methods=['GET'])
 def check_media_file():
-    relative_path = request.args.get('path', '')
+    relative_path = request.args.get('path', '').lstrip('/\\')
     if not relative_path:
         return jsonify({'exists': False}), 200
     abs_path = os.path.normpath(os.path.join(ROOT_DIR, relative_path))

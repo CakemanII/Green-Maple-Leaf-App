@@ -112,52 +112,6 @@ class EditCollectionInfoPrompt extends InputPrompt {
             font-family: inherit;
         `;
 
-        // Size field (derived, read-only)
-        const sizeLabel = document.createElement('label');
-        sizeLabel.textContent = 'Size: (Derived)';
-        sizeLabel.style.cssText = `
-            color: #cccccc;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 4px;
-        `;
-
-        const sizeDisplay = document.createElement('div');
-        sizeDisplay.textContent = this.initialSize;
-        sizeDisplay.style.cssText = `
-            padding: 10px 12px;
-            border: 1px solid #555555;
-            border-radius: 4px;
-            background-color: #1a1a1a;
-            color: #888888;
-            font-size: 14px;
-            width: 100%;
-            box-sizing: border-box;
-        `;
-
-        // Status count field (derived, read-only)
-        const statusCountLabel = document.createElement('label');
-        statusCountLabel.textContent = 'Status count: (Derived)';
-        statusCountLabel.style.cssText = `
-            color: #cccccc;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 4px;
-        `;
-
-        const statusCountDisplay = document.createElement('div');
-        statusCountDisplay.textContent = this.initialStatusCount.toString();
-        statusCountDisplay.style.cssText = `
-            padding: 10px 12px;
-            border: 1px solid #555555;
-            border-radius: 4px;
-            background-color: #1a1a1a;
-            color: #888888;
-            font-size: 14px;
-            width: 100%;
-            box-sizing: border-box;
-        `;
-
         // Add fields to form container
         const nameFieldContainer = document.createElement('div');
         nameFieldContainer.appendChild(nameLabel);
@@ -167,18 +121,8 @@ class EditCollectionInfoPrompt extends InputPrompt {
         descriptionFieldContainer.appendChild(descriptionLabel);
         descriptionFieldContainer.appendChild(descriptionInput);
 
-        const sizeFieldContainer = document.createElement('div');
-        sizeFieldContainer.appendChild(sizeLabel);
-        sizeFieldContainer.appendChild(sizeDisplay);
-
-        const statusCountFieldContainer = document.createElement('div');
-        statusCountFieldContainer.appendChild(statusCountLabel);
-        statusCountFieldContainer.appendChild(statusCountDisplay);
-
         formContainer.appendChild(nameFieldContainer);
         formContainer.appendChild(descriptionFieldContainer);
-        formContainer.appendChild(sizeFieldContainer);
-        formContainer.appendChild(statusCountFieldContainer);
 
         // Add form container to dialog (before buttons)
         this.insertElementIntoDialog(formContainer);
@@ -186,8 +130,6 @@ class EditCollectionInfoPrompt extends InputPrompt {
         // Set variables for later use
         this.nameInputElement = nameInput;
         this.descriptionInputElement = descriptionInput;
-        this.sizeDisplayElement = sizeDisplay;
-        this.statusCountDisplayElement = statusCountDisplay;
 
         // Add delete button
         const removeButton = document.createElement('button');
