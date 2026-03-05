@@ -1,6 +1,7 @@
 export class TabHandler {
     private static readonly TAB_IDS: Record<string, { tabId: string; buttonId: string }> = {
         liveInterface:   { tabId: 'live_interface_tab',   buttonId: 'live_interface_tab_button' },
+        interfaceEditor: { tabId: 'interface_editor_tab', buttonId: 'interface_editor_tab_button' },
         liveData:        { tabId: 'live_data_tab',        buttonId: 'live_data_tab_button' },
         statusEditor:    { tabId: 'status_editor_tab',     buttonId: 'status_editor_tab_button' },
         geofenceEditor:  { tabId: 'geofence_editor_tab',  buttonId: 'geofence_editor_tab_button' },
@@ -30,6 +31,11 @@ export class TabHandler {
             liveInterface: { 
                 content: document.getElementById(TabHandler.TAB_IDS.liveInterface.tabId) as HTMLIFrameElement, 
                 button: document.getElementById(TabHandler.TAB_IDS.liveInterface.buttonId) as HTMLButtonElement 
+            },
+
+            interfaceEditor: { 
+                content: document.getElementById(TabHandler.TAB_IDS.interfaceEditor.tabId) as HTMLIFrameElement, 
+                button: document.getElementById(TabHandler.TAB_IDS.interfaceEditor.buttonId) as HTMLButtonElement 
             },
 
             liveData: { 
@@ -62,7 +68,7 @@ export class TabHandler {
         this.initializeTabButtonEvents();
 
         // Activate the first available tab by default
-        this.activateTab(Object.keys(this.tabs)[2]);
+        this.activateTab(Object.keys(this.tabs)[1]);
     }
 
     /**

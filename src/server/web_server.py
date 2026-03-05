@@ -32,6 +32,8 @@ SRC_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 ROOT_DIR: str = os.path.abspath(os.path.join(SRC_DIR, '..'))
 SAVES_DIR: str = os.path.join(ROOT_DIR, 'saves')
 MAIN_DIR: str = os.path.join(SRC_DIR, 'main')
+LIVE_INTERFACE_DIR: str = os.path.join(SRC_DIR, 'live_interface')
+INTERFACE_EDITOR_DIR: str = os.path.join(SRC_DIR, 'interface_editor')
 GEOFENCE_EDITOR_DIR: str = os.path.join(SRC_DIR, 'geofence_editor')
 LIVE_DATA_DIR: str = os.path.join(SRC_DIR, 'live_data')
 STATUS_EDITOR_DIR: str = os.path.join(SRC_DIR, 'status_editor')
@@ -47,6 +49,14 @@ radio_buffer: RadioCommunicationBuffer
 @app.route('/')
 def serve_index():
     return send_from_directory(MAIN_DIR, 'index.html')
+
+@app.route('/interface_editor.html')
+def serve_interface_editor():
+    return send_from_directory(INTERFACE_EDITOR_DIR, 'interface_editor.html')
+
+@app.route('/live_interface.html')
+def serve_live_interface():
+    return send_from_directory(LIVE_INTERFACE_DIR, 'live_interface.html')
 
 @app.route('/geofence_editor.html')
 def serve_geofence():

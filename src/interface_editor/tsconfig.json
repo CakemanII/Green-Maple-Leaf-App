@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./compiled_js",
+    "rootDir": "./ts",
+    "composite": true
+  },
+  "include": ["ts/**/*"],
+  "references": [
+    { "path": "../shared" }
+  ]
+}

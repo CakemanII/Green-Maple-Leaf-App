@@ -127,7 +127,8 @@ class OperationalStateHandler {
      * Update the active / inactive tabs.
      */
     private updateActiveInactiveTabs(): void {
-        TabHandler.INSTANCE?.setTabEnabled("liveInterface", true);
+        TabHandler.INSTANCE?.setTabEnabled("liveInterface", this.operationalState === "active" || this.DEBUGGING_MODE);
+        TabHandler.INSTANCE?.setTabEnabled("interfaceEditor", this.operationalState !== "active" || this.DEBUGGING_MODE);
         TabHandler.INSTANCE?.setTabEnabled("liveData", this.operationalState === "active" || this.DEBUGGING_MODE);
         TabHandler.INSTANCE?.setTabEnabled("statusEditor", this.operationalState !== "active" || this.DEBUGGING_MODE);
         TabHandler.INSTANCE?.setTabEnabled("geofenceEditor", this.operationalState !== "active" || this.DEBUGGING_MODE);
