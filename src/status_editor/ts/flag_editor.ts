@@ -21,6 +21,7 @@ export class FlagEditorUI {
     private flagDescriptionElement!: HTMLTextAreaElement;
     private flagImageInputElement!: HTMLButtonElement;
     private flagAudioInputElement!: HTMLButtonElement;
+    private flagAudioPreviewBtnElement!: HTMLButtonElement;
     private audioRepeatToggleElement!: HTMLButtonElement;
 
     private confirmFlagBtnElement!: HTMLButtonElement;
@@ -51,6 +52,7 @@ export class FlagEditorUI {
     private currentAudioUUID: string | null = null;
     private currentAudioDisplayName: string | null = null;
     private currentAudioRepeat: boolean = false;
+    private activeAudioPreviewElement: HTMLAudioElement | null = null;
 
     // Drag and Drop State
     private draggedElement: HTMLElement | null = null;
@@ -81,6 +83,7 @@ export class FlagEditorUI {
         this.flagDescriptionElement = this.flagCreationPromptElement.querySelector('#flag-description-input') as HTMLTextAreaElement;
         this.flagImageInputElement = this.flagCreationPromptElement.querySelector('#flag-image-input') as HTMLButtonElement;
         this.flagAudioInputElement = this.flagCreationPromptElement.querySelector('#flag-audio-input') as HTMLButtonElement;
+        this.flagAudioPreviewBtnElement = this.flagCreationPromptElement.querySelector('#flag-audio-preview-btn') as HTMLButtonElement;
         this.audioRepeatToggleElement = this.flagCreationPromptElement.querySelector('#flag-audio-repeat-toggle') as HTMLButtonElement;
 
         this.confirmFlagBtnElement = this.flagCreationPromptElement.querySelector('#save-flag-btn') as HTMLButtonElement;
@@ -116,6 +119,7 @@ export class FlagEditorUI {
 
         // Setup image picker button
         this.flagImageInputElement.addEventListener('click', () => {
+            this.stopAudioPreview();
             new MediaFileListViewerPrompt(
                 'image',
                 async (metadata: MediaFileMetadata) => {
@@ -151,30 +155,65 @@ export class FlagEditorUI {
 
         // Setup audio picker button
         this.flagAudioInputElement.addEventListener('click', () => {
+            this.stopAudioPreview();
             new MediaFileListViewerPrompt(
                 'audio',
                 async (metadata: MediaFileMetadata) => {
+                    this.stopAudioPreview();
                     this.currentAudioUUID = metadata.UUID;
                     this.currentAudioDisplayName = metadata.name;
                     const exists = await this.checkFileExists(metadata.UUID, "audio");
                     if (exists) {
                         this.flagAudioInputElement.textContent = `🔊 ${metadata.name}`;
+                        this.updateAudioPreviewButtonState(false);
                     } else {
                         this.currentAudioUUID = null;
                         this.flagAudioInputElement.textContent = `⚠️ Missing File: ${metadata.name}`;
+                        this.updateAudioPreviewButtonState(false);
                     }
                     this.validateAndUpdateConfirmButton();
                 },
-                () => {}
+                () => {
+                    this.refreshFileDisplays();
+                }
             );
         });
         this.flagAudioInputElement.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             if (this.currentAudioUUID) {
+                this.stopAudioPreview();
                 this.currentAudioUUID = null;
                 this.flagAudioInputElement.textContent = `⚠️ Missing File: ${this.currentAudioDisplayName ?? '?'}`;
+                this.updateAudioPreviewButtonState(false);
                 this.validateAndUpdateConfirmButton();
             }
+        });
+
+        this.flagAudioPreviewBtnElement.addEventListener('click', () => {
+            if (!this.currentAudioUUID) {
+                return;
+            }
+
+            if (this.activeAudioPreviewElement) {
+                this.stopAudioPreview();
+                return;
+            }
+
+            const audioUrl = `/media/audio/fetch?uuid=${encodeURIComponent(this.currentAudioUUID)}`;
+            const audio = new Audio(audioUrl);
+            audio.loop = this.currentAudioRepeat;
+            this.activeAudioPreviewElement = audio;
+            this.updateAudioPreviewButtonState(true);
+
+            audio.play().catch(() => {
+                this.stopAudioPreview();
+            });
+
+            audio.addEventListener('ended', () => {
+                if (!audio.loop) {
+                    this.stopAudioPreview();
+                }
+            });
         });
 
         // Setup audio repeat toggle button
@@ -182,6 +221,9 @@ export class FlagEditorUI {
             this.currentAudioRepeat = !this.currentAudioRepeat;
             this.audioRepeatToggleElement.classList.toggle('active', this.currentAudioRepeat);
             this.audioRepeatToggleElement.textContent = this.currentAudioRepeat ? '🔁 Repeat On' : '🔁 Repeat Off';
+            if (this.activeAudioPreviewElement) {
+                this.activeAudioPreviewElement.loop = this.currentAudioRepeat;
+            }
             this.validateAndUpdateConfirmButton();
         });
 
@@ -739,11 +781,44 @@ export class FlagEditorUI {
         if (this.currentAudioUUID) {
             const exists = await this.checkFileExists(this.currentAudioUUID, 'audio');
             if (!exists) {
+                this.stopAudioPreview();
                 this.currentAudioUUID = null;
                 this.flagAudioInputElement.textContent = `⚠️ Missing File: ${this.currentAudioDisplayName ?? '?'}`;
+                this.updateAudioPreviewButtonState(false);
                 this.validateAndUpdateConfirmButton();
+            } else {
+                this.updateAudioPreviewButtonState(false);
             }
+        } else {
+            this.updateAudioPreviewButtonState(false);
         }
+    }
+
+    private stopAudioPreview(): void {
+        if (this.activeAudioPreviewElement) {
+            this.activeAudioPreviewElement.pause();
+            this.activeAudioPreviewElement.currentTime = 0;
+            this.activeAudioPreviewElement = null;
+        }
+        this.updateAudioPreviewButtonState(false);
+    }
+
+    private updateAudioPreviewButtonState(isPlaying: boolean): void {
+        const hasAudio = this.currentAudioUUID !== null;
+        this.flagAudioPreviewBtnElement.disabled = !hasAudio;
+
+        if (isPlaying && hasAudio) {
+            this.flagAudioPreviewBtnElement.textContent = '⏹';
+            this.flagAudioPreviewBtnElement.title = 'Stop preview';
+            this.flagAudioPreviewBtnElement.style.borderColor = '#6ba3ff';
+            this.flagAudioPreviewBtnElement.style.color = '#6ba3ff';
+            return;
+        }
+
+        this.flagAudioPreviewBtnElement.textContent = '▶';
+        this.flagAudioPreviewBtnElement.title = 'Preview audio';
+        this.flagAudioPreviewBtnElement.style.borderColor = '#444';
+        this.flagAudioPreviewBtnElement.style.color = '#aaa';
     }
 
     /**
@@ -767,6 +842,7 @@ export class FlagEditorUI {
         this.flagImageInputElement.textContent = '\ud83d\udcc1 Choose File';
         this.flagPreviewElement.innerHTML = '<span>Image preview will appear here</span>';
         // Audio
+        this.stopAudioPreview();
         this.currentAudioUUID = null;
         this.flagAudioInputElement.textContent = '\ud83d\udcc1 Choose File';
         this.currentAudioRepeat = false;
@@ -838,6 +914,7 @@ export class FlagEditorUI {
      * Closes the flag creation prompt.
      */
     public closeFlagCreationPrompt(): void {
+        this.stopAudioPreview();
         this.flagCreationPromptElement.classList.remove('active');
     }
 
@@ -1159,10 +1236,13 @@ export class FlagEditorUI {
         this.currentAudioDisplayName = flag.audioDisplayName ?? null;
         if (flag.audioUUID && await this.checkFileExists(flag.audioUUID, 'audio')) {
             this.flagAudioInputElement.textContent = `🔊 ${flag.audioDisplayName ?? flag.audioUUID}`;
+            this.updateAudioPreviewButtonState(false);
         } else if (flag.audioDisplayName) {
             this.flagAudioInputElement.textContent = `⚠️ Missing File: ${flag.audioDisplayName}`;
+            this.updateAudioPreviewButtonState(false);
         } else {
             this.flagAudioInputElement.textContent = '📁 Choose File';
+            this.updateAudioPreviewButtonState(false);
         }
 
         // Audio repeat
