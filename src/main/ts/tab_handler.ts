@@ -33,14 +33,14 @@ export class TabHandler {
                 button: document.getElementById(TabHandler.TAB_IDS.liveInterface.buttonId) as HTMLButtonElement 
             },
 
-            interfaceEditor: { 
-                content: document.getElementById(TabHandler.TAB_IDS.interfaceEditor.tabId) as HTMLIFrameElement, 
-                button: document.getElementById(TabHandler.TAB_IDS.interfaceEditor.buttonId) as HTMLButtonElement 
-            },
-
             liveData: { 
                 content: document.getElementById(TabHandler.TAB_IDS.liveData.tabId) as HTMLIFrameElement, 
                 button: document.getElementById(TabHandler.TAB_IDS.liveData.buttonId) as HTMLButtonElement 
+            },
+
+            interfaceEditor: { 
+                content: document.getElementById(TabHandler.TAB_IDS.interfaceEditor.tabId) as HTMLIFrameElement, 
+                button: document.getElementById(TabHandler.TAB_IDS.interfaceEditor.buttonId) as HTMLButtonElement 
             },
 
             statusEditor: {
@@ -68,7 +68,7 @@ export class TabHandler {
         this.initializeTabButtonEvents();
 
         // Activate the first available tab by default
-        this.activateTab(Object.keys(this.tabs)[1]);
+        this.activateTab(Object.keys(this.tabs)[0]);
     }
 
     /**
