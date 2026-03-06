@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Interface — Green Maple Leaf</title>
+    <link rel="stylesheet" href="css/live_interface.css">
+</head>
+<body>
+    <!-- Main interface container -->
+    <div class="interface-container" id="interface-container">
+        <!-- Interface objects will be dynamically generated here -->
+    </div>
+
+    <!-- Screen selector tabs at the bottom -->
+    <div class="screen-selector" id="screen-selector">
+        <!-- Screen tabs will be dynamically generated here -->
+    </div>
+
+    <!-- Socket.IO Client Library -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+    <!-- Shared utilities -->
+    <script type="module" src="../shared/compiled_js/utilities.js"></script>
+
+    <!-- Telemetry Data Receiving -->
+    <script type="module" src="../shared/compiled_js/global_rocket_communication_reference.js"></script>
+
+    <!-- Interface Objects -->
+    <script type="module" src="./compiled_js/interface_objects.js"></script>
+
+    <!-- Interface Screen -->
+    <script type="module" src="./compiled_js/interface_screen.js"></script>
+
+    <!-- Interface Manager -->
+    <script type="module" src="./compiled_js/interface_manager.js"></script>
+</body>
+</html>

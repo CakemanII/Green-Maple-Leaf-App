@@ -17,7 +17,7 @@ class OperationalStateHandler {
 
     private previousRocketConnectionStatus: 'connected' | 'disconnected' | 'attempting' | 'offline' | null = null;
 
-    private readonly DEBUGGING_MODE: boolean = false;
+    private readonly DEBUGGING_MODE: boolean = true;
 
     constructor() {
         // Singleton pattern

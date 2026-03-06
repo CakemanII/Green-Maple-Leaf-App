@@ -1,0 +1,214 @@
+:root {
+    --bg: #0d0d0d;
+    --panel: #1a1a1a;
+    --card: #242424;
+    --muted: #9ca3af;
+    --accent: #6ba3ff;
+    --graph-line: #f5a623;
+    --border: #333333;
+    --axis: #555555;
+}
+
+html {
+    font-size: 16px;
+}
+
+@media screen and (max-width: 1600px) {
+    html {
+        font-size: 14px;
+    }
+}
+
+@media screen and (max-width: 1366px) {
+    html {
+        font-size: 12px;
+    }
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    background-color: var(--bg);
+    color: #ffffff;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* Main interface container */
+.interface-container {
+    width: 100%;
+    height: calc(100vh - 50px);
+    position: relative;
+    overflow: hidden;
+    background-color: var(--bg);
+}
+
+/* Screen selector at the bottom */
+.screen-selector {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 50px;
+    background-color: var(--panel);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.screen-tab {
+    padding: 8px 20px;
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    min-width: 100px;
+    text-align: center;
+}
+
+.screen-tab:hover {
+    background-color: #2a2a2a;
+    color: #ffffff;
+    border-color: #444444;
+}
+
+.screen-tab.active {
+    background-color: var(--bg);
+    color: var(--accent);
+    border-color: var(--accent);
+    font-weight: 600;
+}
+
+/* Interface Object Styles */
+.interface-object {
+    position: absolute;
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Line Graph specific styles */
+.line-graph-object {
+    display: flex;
+    flex-direction: column;
+}
+
+.line-graph-header {
+    margin-bottom: 12px;
+}
+
+.line-graph-title {
+    font-size: 0.875rem;
+    color: var(--accent);
+    font-weight: 600;
+    margin: 0;
+}
+
+.line-graph-content {
+    display: flex;
+    gap: 8px;
+}
+
+.y-axis-section {
+    display: flex;
+    gap: 4px;
+    height: 100%;
+}
+
+.y-axis-title {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 0.7rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+}
+
+.y-axis-labels {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--accent);
+    min-width: 30px;
+    position: relative;
+}
+
+.y-label {
+    text-align: right;
+    line-height: 1;
+}
+
+.graph-canvas-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.graph-canvas {
+    position: relative;
+    background-color: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    flex: 1;
+}
+
+.graph-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.x-axis-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 0;
+    position: relative;
+    margin-top: 4px;
+}
+
+.x-axis-label {
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-weight: 500;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.x-axis-label-min {
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-weight: 500;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.x-axis-title {
+    font-size: 0.7rem;
+    color: var(--muted);
+}
