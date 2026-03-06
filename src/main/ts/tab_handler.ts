@@ -68,7 +68,7 @@ export class TabHandler {
         this.initializeTabButtonEvents();
 
         // Activate the first available tab by default
-        this.activateTab(Object.keys(this.tabs)[0]);
+        this.activateTab(Object.keys(this.tabs)[1]);
     }
 
     /**
