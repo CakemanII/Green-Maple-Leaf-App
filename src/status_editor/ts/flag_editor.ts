@@ -122,9 +122,10 @@ export class FlagEditorUI {
                     this.currentImageUUID = metadata.UUID;
                     this.currentImageDisplayName = metadata.name;
                     const exists = await this.checkFileExists(metadata.UUID, "image");
+                    console.log(`Selected image file: ${metadata.name} (UUID: ${metadata.UUID}), exists: ${exists}`);
                     if (exists) {
                         this.flagImageInputElement.textContent = `🖼️ ${metadata.name}`;
-                        this.updateFlagImagePreview(metadata.relative_filepath);
+                        this.updateFlagImagePreview(metadata.UUID);
                     } else {
                         this.currentImageUUID = null;
                         this.flagImageInputElement.textContent = `⚠️ Missing File: ${metadata.name}`;

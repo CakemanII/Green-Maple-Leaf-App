@@ -286,7 +286,7 @@ class ClientServerDirectoryHandler():
         if not relative_filename:
             return jsonify({'exists': False}), 200
         
-        abs_path = os.path.normpath(os.path.join(self._directory, relative_filename))
+        abs_path = os.path.normpath(os.path.join(self._directory, "files", relative_filename))
         if not abs_path.startswith(self._directory):
             return 'Forbidden', 403
         return jsonify({'exists': os.path.isfile(abs_path)}), 200
