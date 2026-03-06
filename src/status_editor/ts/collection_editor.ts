@@ -602,11 +602,13 @@ export class CollectionEditorUI {
         `;
         addFlagButton.addEventListener('click', () => {
             // TODO: Implement flag creation logic
-            FlagEditorUI.INSTANCE.createNewFlag(
-                status.parentElement?.parentElement?.getAttribute('data-uuid') as string,
-                statusUUID,
-                false
-            );
+            new Promise<void>((resolve) => {
+                FlagEditorUI.INSTANCE.createNewFlag(
+                    status.parentElement?.parentElement?.getAttribute('data-uuid') as string,
+                    statusUUID,
+                    false
+                );
+            });
         });
         
         status.appendChild(statusName);
@@ -671,17 +673,32 @@ export class CollectionEditorUI {
      */
     private setFlagImage(container: HTMLDivElement, imageUUID: string | null): void {
         container.innerHTML = '';
-        if (imageUUID) {
-            const img = document.createElement('img');
-            img.src = `/media/image/fetch?uuid=${encodeURIComponent(imageUUID)}`;
-            img.alt = 'Flag Image';
-            img.onerror = () => {
-                container.innerHTML = '';
+        new Promise<void>(async (resolve) => {
+            if (imageUUID && await this.checkFileExists(imageUUID, 'image')) {
+                const img = document.createElement('img');
+                img.src = `/media/image/fetch?uuid=${encodeURIComponent(imageUUID)}`;
+                img.alt = 'Flag Image';
+                img.onerror = () => {
+                    container.innerHTML = '';
+                    container.appendChild(this.createFlagImagePlaceholder());
+                };
+                container.appendChild(img);
+            } else {
                 container.appendChild(this.createFlagImagePlaceholder());
-            };
-            container.appendChild(img);
-        } else {
-            container.appendChild(this.createFlagImagePlaceholder());
+            }
+        });
+    }
+
+    /**
+     * Returns true if the file at relativePath exists on the server.
+     */
+    private async checkFileExists(uuid: string, fileType: string): Promise<boolean> {
+        try {
+            const res = await fetch(`/media/${fileType}/check_file?uuid=${encodeURIComponent(uuid)}`);
+            const data = await res.json();
+            return data.exists === true;
+        } catch {
+            return false;
         }
     }
 

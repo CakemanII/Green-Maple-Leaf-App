@@ -104,7 +104,7 @@ export class FlagEditorUI {
         this.flagDeleteBtnElement.addEventListener('click', () => this.deleteFlag());
 
         // Setup save button event
-        this.confirmFlagBtnElement.addEventListener('click', () => this.confirmChangesToFlag());
+        this.confirmFlagBtnElement.addEventListener('click', async () => await this.confirmChangesToFlag());
 
         // Live validation: re-check confirm button on any input or select change inside the prompt
         this.flagCreationPromptElement.addEventListener('input',  () => this.validateAndUpdateConfirmButton());
@@ -851,7 +851,7 @@ export class FlagEditorUI {
     /**
      * Create new flag
      */
-    public createNewFlag(collectionUUID: string, statusUUID: string, isDefaultFlag: boolean): void {
+    public async createNewFlag(collectionUUID: string, statusUUID: string, isDefaultFlag: boolean): Promise<void> {
         // Reset and open prompt
         this.resetPrompt();
 
@@ -859,7 +859,7 @@ export class FlagEditorUI {
         const newFlag = CollectionEditor.INSTANCE.generateNewFlag(false);
 
         // Populate the prompt with the flag data
-        this.populateHTMLWithFlagJSON(newFlag, isDefaultFlag);
+        await this.populateHTMLWithFlagJSON(newFlag, isDefaultFlag);
 
         // Set variables
         this.currentFlagCollectionUUID = collectionUUID;
@@ -884,7 +884,7 @@ export class FlagEditorUI {
         }
 
         // Populate the prompt with the flag data
-        this.populateHTMLWithFlagJSON(flagToEdit!, isDefaultFlag);
+        await this.populateHTMLWithFlagJSON(flagToEdit!, isDefaultFlag);
 
         // Set current flag being edited
         this.isNewFlag = false;
@@ -1131,7 +1131,7 @@ export class FlagEditorUI {
     // #endregion
 
     // #region Translate JSON to HTML
-    private populateHTMLWithFlagJSON(flag: Flag, isDefaultFlag: boolean): void {
+    private async populateHTMLWithFlagJSON(flag: Flag, isDefaultFlag: boolean): Promise<void> {
         // Clear existing contents
         this.resetPrompt();
         this.isDefaultFlag = isDefaultFlag; // set it back to after being reset.
@@ -1143,7 +1143,7 @@ export class FlagEditorUI {
         // Image
         this.currentImageUUID = flag.imageUUID ?? null;
         this.currentImageDisplayName = flag.imageDisplayName ?? null;
-        if (flag.imageUUID) {
+        if (flag.imageUUID && await this.checkFileExists(flag.imageUUID, 'image')) {
             this.flagImageInputElement.textContent = `🖼️ ${flag.imageDisplayName ?? flag.imageUUID}`;
             this.updateFlagImagePreview(flag.imageUUID);
         } else if (flag.imageDisplayName) {
@@ -1157,8 +1157,8 @@ export class FlagEditorUI {
         // Audio
         this.currentAudioUUID = flag.audioUUID ?? null;
         this.currentAudioDisplayName = flag.audioDisplayName ?? null;
-        if (flag.audioUUID) {
-            this.flagAudioInputElement.textContent = `🔊 ${flag.audioDisplayName ?? flag.audioUUID.split('/').pop() ?? flag.audioUUID}`;
+        if (flag.audioUUID && await this.checkFileExists(flag.audioUUID, 'audio')) {
+            this.flagAudioInputElement.textContent = `🔊 ${flag.audioDisplayName ?? flag.audioUUID}`;
         } else if (flag.audioDisplayName) {
             this.flagAudioInputElement.textContent = `⚠️ Missing File: ${flag.audioDisplayName}`;
         } else {
@@ -1412,7 +1412,7 @@ export class FlagEditorUI {
     /**
      * Called when saving flag being created/edited
      */
-    private confirmChangesToFlag(): void {
+    private async confirmChangesToFlag(): Promise<void> {
         // Translate HTML inputs to Flag JSON
         const flagJSON = this.translateHTMLInputToFlagJSON();
         
@@ -1421,7 +1421,7 @@ export class FlagEditorUI {
 
         // Update the flag display in the editor
         if (this.isNewFlag === false)
-            CollectionEditorUI.INSTANCE.updateFlagDisplay(flagJSON.UUID);
+            await CollectionEditorUI.INSTANCE.updateFlagDisplay(flagJSON.UUID);
         else
         {
             // New Flag created, so create its display
