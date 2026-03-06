@@ -90,3 +90,19 @@ export type StatusCollectionFileMetadata = FileMetadata & {
     description: string;
 }
 // #endregion
+export enum InterfaceObjectType {
+    PANEL,
+    LINE_GRAPH,
+}
+
+export type InterfaceObjectData = {
+    type: InterfaceObjectType;
+
+    posX: number;
+    posY: number;
+    width: number;
+    height: number;
+
+    childrenInterfaceObjects?: InterfaceObjectData[]; // Only for panels
+    monitorDataKey?: string; // Only for data display objects
+}
