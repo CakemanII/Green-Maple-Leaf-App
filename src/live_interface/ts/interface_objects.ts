@@ -13,9 +13,9 @@ export abstract class InterfaceObject {
     protected width: number;
     protected height: number;
 
-    private monitorDataKey: string | string[];
+    private monitorDataKey: string | null;
 
-    constructor(UUID: string, monitorDataKey: string | string[], posX: number, posY: number, width: number, height: number, childrenInterfaceObjects?: InterfaceObject[]) {
+    constructor(UUID: string, monitorDataKey: string | null, posX: number, posY: number, width: number, height: number, childrenInterfaceObjects?: InterfaceObject[]) {
         // Set properties
         this.UUID = UUID;
         this.monitorDataKey = monitorDataKey;
@@ -47,8 +47,8 @@ export abstract class InterfaceObject {
 export class PanelIObject extends InterfaceObject {
     protected override isPanel: boolean = true;
 
-    constructor(UUID: string, monitorDataKey: string[], posX: number, posY: number, width: number, height: number, childrenInterfaceObjects: InterfaceObject[]) {
-        super(UUID, monitorDataKey, posX, posY, width, height, childrenInterfaceObjects);
+    constructor(UUID: string, posX: number, posY: number, width: number, height: number, childrenInterfaceObjects: InterfaceObject[]) {
+        super(UUID, null, posX, posY, width, height, childrenInterfaceObjects);
         
     }
 

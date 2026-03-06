@@ -1,0 +1,271 @@
+Live Interface Tab Outline / Structure
+Date: 2026-03-06
+Scope: End-product behavior only (no editor behavior), based on current skeleton in live_interface and patterns in live_data.
+
+=====================================
+1) Goal and Guiding Principles
+=====================================
+- The live interface is composed of multiple screens.
+- Users switch screens through bottom tabs, like spreadsheet tabs.
+- Only one screen is visible at a time.
+- Hidden screens still receive telemetry updates and update internal state.
+- Hidden screens perform low-rate rendering (1-2 FPS), while data pipelines continue at full update rate.
+- Interface objects are positioned and sized, and may monitor telemetry data.
+- Only panel objects can contain children.
+- Panel objects do not have monitorDataKeys because panels do not directly consume telemetry values.
+- The screen background is treated as a root immutable panel (non-editable), so all object seating is panel-local.
+
+
+=====================================
+2) Core Runtime Ownership
+=====================================
+InterfaceManager (single source of runtime truth):
+- Owns TelemetryReceiver lifecycle.
+- Owns screen registry and active screen selection.
+- Owns screen tab UI state.
+- Owns top-level telemetry routing to screens.
+- Maintains subscription index by telemetry label:
+  screenTelemetrySubscriptions[label] -> callbacks[]
+- Controls interface active/inactive lifecycle.
+- Creates screens when app enters operational mode (or loads already in operational mode).
+- Removes all screens when leaving operational mode and wipes manager subscriptions.
+
+InterfaceScreen:
+- Owns one screen DOM root + one tab entry reference.
+- Owns object tree root(s) and update/render orchestration for that screen.
+- Owns fast data distribution map:
+  interfaceDisplayObjectsByMonitorKey: { [monitorDataKey: string]: InterfaceObject[] }
+- Registers required keys with manager during screen creation.
+- Unregisters all screen keys during screen destroy/removal.
+- Receives telemetry packets from manager and dispatches directly to interested display objects.
+- Tracks render eligibility (visible or hidden).
+
+InterfaceObject:
+- Base object with UUID, position, size, monitorDataKeys (if non-panel), and children (if panel).
+- updateData(...) always allowed when subscribed and active.
+- renderFrame() called at full rate when visible and low-rate when hidden.
+
+PanelIObject:
+- monitorDataKey = null
+- Holds child object list
+- Responsible for layout/containment render boundaries
+
+LineGraphIObject:
+- monitorDataKeys can include one or more keys.
+- Vector payload mapping uses one key (example: vel), because vector data is transmitted together.
+- Graph can show one key or multiple keys, and for vector keys can show x/y/z/all/custom component combinations.
+- Maintains local graph data buffer/state
+- updateData appends/normalizes points
+- renderFrame reads latest buffered state and paints based on screen render policy
+
+
+=====================================
+3) Tabs and Screen Visibility Model
+=====================================
+Screen tabs behavior:
+- Tabs appear in #screen-tabs-container (bottom bar).
+- Active tab has selected style.
+- Clicking a tab:
+  1) Manager deactivates previous visible screen (setVisible false).
+  2) Manager activates new screen (setVisible true).
+  3) Previous screen remains subscribed for data updates, but render loop is suppressed.
+
+Visibility contract:
+- Visible screen:
+  - updateData() YES
+  - renderFrame() YES (full rate)
+- Hidden screen:
+  - updateData() YES
+  - renderFrame() YES (throttled to 1-2 FPS)
+
+Rationale:
+- Hidden screens are hot and ready when selected.
+- No stale data when user switches tabs.
+- Rendering cost stays controlled while avoiding large catch-up spikes after tab switches.
+
+Tab persistence contract:
+- Persist currently selected tab/screen through accidental reload.
+- Use the existing session save/load system.
+- On load:
+  - if saved selected screen exists, activate it.
+  - otherwise fall back to first available screen.
+
+
+=====================================
+4) Telemetry Distribution Pipeline
+=====================================
+Recommended data flow:
+1) TelemetryReceiver emits packet: (label, timestamp, value)
+2) InterfaceManager receives packet.
+3) Manager routes by label to subscribed screen callbacks.
+4) Each screen receives packet and uses:
+   interfaceDisplayObjectsByMonitorKey[label]
+   to get relevant objects quickly.
+5) Screen calls object.updateData(packet) for each matched object.
+6) Screen render policy:
+   - if screen visible: schedule renderFrame pass for dirty objects.
+  - if hidden: throttle rendering and cap total background object renders per second (X).
+
+Suggested packet normalization at manager level:
+- Create one normalized packet shape before fanout:
+  {
+    label: string,
+    timestampRaw: number,
+    // base relative time from manager session (optional common field)
+    timestampRelative: number,
+    value: any,
+    valueType: "number" | "vector3d" | "boolean" | "string" | "unknown"
+  }
+- This avoids each object duplicating type detection logic.
+- Each object can derive and store its own relative timeline as needed.
+- Final decision: relative timestamp behavior is per object.
+
+Vector key mapping decision:
+- Manager routes vector payload by one label (example: vel).
+- Objects decide which vector components to visualize (x/y/z/all/custom) from that single payload.
+
+
+=====================================
+5) Screen Internal Structure
+=====================================
+InterfaceScreen should maintain:
+- screenUUID: string
+- screenName: string
+- rootElement: HTMLElement
+- tabElement: HTMLElement
+- visible: boolean
+- allInterfaceObjects: InterfaceObject[] (flat list for lifecycle ops)
+- rootInterfaceObjects: InterfaceObject[] (top-level tree roots)
+- interfaceDisplayObjectsByMonitorKey: { [monitorDataKey: string]: InterfaceObject[] }
+- dirtyObjects: Set<string> (UUID set) for render scheduling
+- hiddenRenderIntervalMs: number (500 to 1000ms for 1-2 FPS)
+
+Construction flow per screen:
+1) Build object tree from screen JSON.
+2) Validate object rules:
+  - panel: monitorDataKeys must be null/empty
+  - non-panel: monitorDataKeys required (one or more)
+   - children allowed only for panels
+  - invalid object config: warn and skip only that object
+3) Build monitor index map by traversing tree once.
+4) Mount screen root in #screens-container.
+5) Bind tab in #screen-tabs-container.
+6) Start in hidden or visible state depending on manager active tab.
+
+
+=====================================
+6) Interface Object Seating (Layout)
+=====================================
+Recommended seating model:
+- Every object owns a primary positioned DOM wrapper.
+- wrapper style derived from posX, posY, width, height.
+- Panels place their child wrappers inside panel secondary container.
+- Non-panel display objects render into their secondary container.
+
+Practical notes:
+- Use absolute positioning within each screen root for deterministic placement.
+- Panel children positions are local to panel content area (not global screen coordinates).
+- Treat each screen root as an immutable background panel for layout consistency.
+- Keep render and data concerns split:
+  - updateData mutates internal state/buffers
+  - renderFrame paints that state to DOM/canvas/svg
+
+
+=====================================
+7) Suggested Lifecycle Methods (No Code, Interface Plan)
+=====================================
+InterfaceManager:
+- setInterfaceActive(active)
+- setScreenUUIDS(screenUUIDs)
+- createAllScreens()
+- clearAllScreens()
+- instantiateScreenIntoDOM(screenData)
+- removeScreenFromDOM(screenUUID)
+- selectScreen(screenUUID)
+- onTelemetryPacket(label, timestamp, value)
+- addScreenTelemetrySubscription(label, callback)
+- removeScreenTelemetrySubscription(label, callback)
+
+InterfaceScreen:
+- showScreen()
+- hideScreen()
+- ingestTelemetry(packet)
+- updateDataForLabel(label, packet)
+- requestRender()
+- renderIfVisible()
+- renderIfHiddenThrottled()
+- buildMonitorIndexFromObjectTree()
+- registerScreenSubscriptions()
+- unregisterScreenSubscriptions()
+- destroy()
+
+InterfaceObject:
+- updateData(packet)
+- renderFrame()
+- optional setVisible(isVisible) for object-level optimizations
+- optional setRenderRate(mode: "foreground" | "background") for throttling hints
+
+
+=====================================
+8) How This Reuses live_data Ideas
+=====================================
+From live_data/graph_representations:
+- Keep line graph object maintaining independent data collections.
+- Keep update behavior data-first, render-second.
+- Keep graph styling/settings as object-owned config.
+
+Difference for live_interface:
+- Graph object is seated in a generic layout system (screen + panel tree), not global #graphs-container list.
+- Rendering is visibility-aware with two modes: full (active) and low-rate (hidden).
+- Data updates continue even when not visible.
+- Relative timeline alignment is object-owned rather than globally enforced.
+
+
+=====================================
+9) Minimal Example Scenario (Simple First Screen Set)
+=====================================
+Screen A: "Flight Dynamics"
+- Panel root (full screen)
+  - LineGraphIObject (monitorDataKeys: [vel], displayed components: [x, y, z])
+
+Screen B: "Navigation"
+- Panel root
+  - LineGraphIObject (monitorDataKeys: [dps_alt])
+
+Runtime outcome:
+- User on Screen A sees vel graph rendering live.
+- dps_alt object on Screen B still updates data buffers while hidden.
+- Screen B performs low-rate visual refresh in background (1-2 FPS).
+- Switching to Screen B instantly shows current graph history/state.
+
+
+=====================================
+10) Remaining Design Questions
+=====================================
+Confirmed decisions already captured:
+- Relative timestamp behavior: per object.
+- Hidden rendering: low-rate background (1-2 FPS).
+- Buffer strategy: support both fixed-size and time-window, example uses fixed-size.
+- Panel coordinate model: panel-local.
+- Invalid config handling: warn and skip object, continue screen load.
+- Tab persistence: persist selected tab via session save/load.
+- Multi-key graph support: required.
+- Vector mapping: one monitor key per vector payload, component selection handled by object.
+- Subscription lifecycle: each screen registers keys on create and unregisters on destroy; manager routes globally.
+- Audio while hidden: continue as-is.
+- Update ordering: non-deterministic order is acceptable.
+- Hidden-screen render budget: 30 object renders per second per hidden screen.
+
+Questions still open:
+- None currently.
+
+
+=====================================
+11) Recommended Next Step (Planning Only)
+=====================================
+- Then lock a small v1 contract doc for:
+  1) packet shape,
+  2) screen visibility/render policy,
+  3) object tree JSON schema,
+  4) monitorDataKeys index behavior.
+- After that, implementation can be done with minimal rewrites.
