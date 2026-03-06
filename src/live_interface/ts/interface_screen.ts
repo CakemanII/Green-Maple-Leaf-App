@@ -16,14 +16,7 @@ export class InterfaceScreen {
     }
 
     private initializeTelemetryReceiving(): void {
-        // Listen for telemetry updates and route them to the appropriate interface objects
-        new TelemetryReceiver(
-            (label: string, timestamp: number, value: any) => {
-                this.interfaceObjects.forEach(obj => {
-                    obj.updateData({ timestamp, value });
-                });
-            }
-        );
+        
     }
 
     public showScreen(): void {

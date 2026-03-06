@@ -264,7 +264,7 @@ export class CollectionEditor
      */
     public async fetchStatusCollectionFromServer(collectionUUID: string): Promise<StatusCollection> {
         // Get the file contents from the server.
-        const response = await fetch(`/status_collection/get?uuid=${encodeURIComponent(collectionUUID)}`, {
+        const response = await fetch(`/status_collection/fetch?uuid=${encodeURIComponent(collectionUUID)}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -482,9 +482,9 @@ export class CollectionEditor
             UUID: newUUID,
             name: "New Flag",
             description: "",
-            imagePath: null,
+            imageUUID: null,
             imageDisplayName: null,
-            audioPath: null,
+            audioUUID: null,
             audioDisplayName: null,
             audioRepeat: false,
             primaryConditionalGroup: isDefaultFlag ? null : {

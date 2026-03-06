@@ -53,7 +53,7 @@ export class GeoeditFileManager {
      */
     private async getActiveGeoeditFileUUID(UUID: string): Promise<GeoeditFileData> {
         // Get the file contents from the server.
-        const response = await fetch(`/geofence/get?uuid=${encodeURIComponent(UUID)}`,
+        const response = await fetch(`/geofence/fetch?uuid=${encodeURIComponent(UUID)}`,
             { method: 'GET' });
 
         if (!response.ok) {

@@ -17,9 +17,9 @@ export type Flag = {
     UUID: string;
     name: string;
     description: string;
-    imagePath: string | null;
+    imageUUID: string | null;
     imageDisplayName: string | null;
-    audioPath: string | null;
+    audioUUID: string | null;
     audioDisplayName: string | null;
     audioRepeat: boolean;
     primaryConditionalGroup: ConditionalGroup | null;

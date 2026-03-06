@@ -25,182 +25,6 @@ import { GlobalTelemetryManager } from './global_rocket_communication.js';
                 // Not: True
                 // Condition: Parachute is already Deployed
 
-const ExampleStatus1: Status = {
-    UUID: "statustemptemp",
-    name: "Should Parachute be Deployed?",
-    defaultFlag: {
-        name: "No, Do Not Deploy Parachute",
-        UUID: "defaultflagtemp",
-        description: "",
-        imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp\\do_not_deploy_parachute.png",
-        imageDisplayName: null,
-        audioPath: null,
-        audioDisplayName: null,
-        audioRepeat: false,
-        primaryConditionalGroup: null,
-    },
-    flags: [
-        {
-            UUID: "flagtemp123",
-            name: "Yes, Deploy Parachute",
-            description: "Parachute Deployment Conditions Met",
-            imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp\\parachute_deploy.png",
-            imageDisplayName: null,
-            audioPath: null,
-            audioDisplayName: null,
-            audioRepeat: false,
-            primaryConditionalGroup: {
-                type: 'AND',
-                not: false,
-                embededConditionalGroups: [
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'vel.y',
-                            operator: 'LTOE',
-                            value: 1
-                        }
-                    },
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'accel.y',
-                            operator: 'LTOE',
-                            value: 0
-                        }
-                    },
-                    /*{
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'time_since_launch',
-                            operator: 'GTOE',
-                            value: 3
-                        }
-                    },
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            statusUUID: 'temptemptemp',
-                            flagUUID: 'Deployed',
-                            shouldBeActive: false
-                        }
-                    }*/
-                ]
-            }
-        }
-    ]
-};
-
-
-const ExampleStatus2: Status = {
-    UUID: "statustemptemp2",
-    name: "Impact Detection",
-    defaultFlag: {
-        name: "No Critical Impact Detected",
-        UUID: "defaultflagtemp2",
-        description: "",
-        imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\all-good.png",
-        imageDisplayName: null,
-        audioPath: null,
-        audioDisplayName: null,
-        audioRepeat: false,
-        primaryConditionalGroup: null,
-    },
-    flags: [
-        {
-            UUID: "flagtemp1234",
-            name: "Terminal Velocity Reached, It's Over Twin",
-            description: "Rocket has reached terminal velocity indicating free-fall impact.",
-            imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\its_over.jpg",
-            imageDisplayName: null,
-            audioPath: null,
-            audioDisplayName: null,
-            audioRepeat: false,
-            primaryConditionalGroup: {
-                type: 'AND',
-                not: false,
-                embededConditionalGroups: [
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'vel.y',
-                            operator: 'LTOE',
-                            value: -50
-                        }
-                    },
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'accel.y',
-                            operator: 'GTOE',
-                            value: -0.1
-                        }
-                    },
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'accel.y',
-                            operator: 'LTOE',
-                            value: 0
-                        }
-                    }
-                ]
-            }
-        },
-        {
-            UUID: "flagtemp123",
-            name: "Yes, Critical Impact Detected",
-            description: "Rocket impact conditions met indicating critical impact.",
-            imagePath: "C:\\Users\\tyler\\OneDrive\\Desktop\\Green Maple Leaf App\\saves\\statuses\\statustemptemp2\\critical.png",
-            imageDisplayName: null,
-            audioPath: null,
-            audioDisplayName: null,
-            audioRepeat: false,
-            primaryConditionalGroup: {
-                type: 'AND',
-                not: false,
-                embededConditionalGroups: [
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'vel.y',
-                            operator: 'LTOE',
-                            value: -50
-                        }
-                    },
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'accel.y',
-                            operator: 'LTOE',
-                            value: 0
-                        }
-                    },
-                    {
-                        type: 'CONDITION',
-                        not: false,
-                        condition: {
-                            telemetryKey: 'dps_alt',
-                            operator: 'LT',
-                            value: 200
-                        }
-                    }
-                ]
-            }
-        }
-    ]
-};
-
-
 export class GlobalStatusesManager {
     private static instance: GlobalStatusesManager;
     public static get INSTANCE(): GlobalStatusesManager { return GlobalStatusesManager.instance; }
@@ -245,7 +69,7 @@ export class GlobalStatusesManager {
                     this.sendStatusUpdateToIframes(
                         status.UUID, 
                         activeFlag.name, 
-                        activeFlag.imagePath ?? null
+                        activeFlag.imageUUID ?? null
                     );
                 }
             );
@@ -262,8 +86,7 @@ export class GlobalStatusesManager {
     private loadStatuses(): Status[] {
         // Implementation to retrieve all statuses
         return [
-            ExampleStatus1, // temporary example
-            ExampleStatus2
+
         ];
     }
 
@@ -326,7 +149,7 @@ export class GlobalStatusesManager {
                         statusUUID: status.UUID,
                         statusName: status.name,
                         currentActiveFlagName: activeFlag.name,
-                        currentActiveFlagImage: activeFlag.imagePath ?? null
+                        currentActiveFlagImage: activeFlag.imageUUID ?? null
                     };
                 });
                 return statusesData;

@@ -669,11 +669,11 @@ export class CollectionEditorUI {
     /**
      * Sets the image inside a .flag-image container, showing a placeholder when no path is available.
      */
-    private setFlagImage(container: HTMLDivElement, imagePath: string | null): void {
+    private setFlagImage(container: HTMLDivElement, imageUUID: string | null): void {
         container.innerHTML = '';
-        if (imagePath) {
+        if (imageUUID) {
             const img = document.createElement('img');
-            img.src = `/media/serve_file?path=${encodeURIComponent(imagePath)}`;
+            img.src = `/media/image/fetch?uuid=${encodeURIComponent(imageUUID)}`;
             img.alt = 'Flag Image';
             img.onerror = () => {
                 container.innerHTML = '';
@@ -865,7 +865,7 @@ export class CollectionEditorUI {
         if (!flagData) throw new Error(`Flag data not found for UUID: ${flagUUID}`);
         
         // Initialize flag element
-        this.initializeFlagElement(flagsContainer, collectionUUID, statusUUID, flagUUID, flagData.name, isDefault, flagData.imagePath ?? null);
+        this.initializeFlagElement(flagsContainer, collectionUUID, statusUUID, flagUUID, flagData.name, isDefault, flagData.imageUUID ?? null);
     }
 
     /**
@@ -886,7 +886,7 @@ export class CollectionEditorUI {
 
         // Update flag image
         const flagImageEl = flagElement.querySelector('.flag-image') as HTMLDivElement;
-        if (flagImageEl) this.setFlagImage(flagImageEl, flagData.imagePath ?? null);
+        if (flagImageEl) this.setFlagImage(flagImageEl, flagData.imageUUID ?? null);
     }
 
     /**
@@ -939,7 +939,7 @@ export class CollectionEditorUI {
         const flagData: Flag | null = CollectionEditor.INSTANCE.getFlagByUUID(defaultFlagUUID);
         if (flagData) {
             const flagsContainer = statusElement.querySelector('.flags-container') as HTMLDivElement;
-            this.initializeFlagElement(flagsContainer, collectionUUID, statusUUID, defaultFlagUUID, flagData.name, true, flagData.imagePath ?? null);
+            this.initializeFlagElement(flagsContainer, collectionUUID, statusUUID, defaultFlagUUID, flagData.name, true, flagData.imageUUID ?? null);
         }
     }
 
@@ -1196,13 +1196,13 @@ export class CollectionEditorUI {
             // Create default flag
             const defaultFlagJSON: Flag = CollectionEditor.INSTANCE.getFlagByUUID(statusJSON.defaultFlagUUID)!;
             const flagsContainer = statusElement.querySelector('.flags-container') as HTMLDivElement;
-            this.initializeFlagElement(flagsContainer, visualStatusCollection.UUID, statusUUID, statusJSON.defaultFlagUUID, defaultFlagJSON.name, true, defaultFlagJSON.imagePath ?? null);
+            this.initializeFlagElement(flagsContainer, visualStatusCollection.UUID, statusUUID, statusJSON.defaultFlagUUID, defaultFlagJSON.name, true, defaultFlagJSON.imageUUID ?? null);
             
             // Create flags
             statusJSON.flagUUIDs.forEach((flagUUID: string) => {
                 // Create flag
                 const flagJSON: Flag = CollectionEditor.INSTANCE.getFlagByUUID(flagUUID)!;
-                this.initializeFlagElement(flagsContainer, visualStatusCollection.UUID, statusUUID, flagUUID, flagJSON.name, false, flagJSON.imagePath ?? null);
+                this.initializeFlagElement(flagsContainer, visualStatusCollection.UUID, statusUUID, flagUUID, flagJSON.name, false, flagJSON.imageUUID ?? null);
             });
         });
     }

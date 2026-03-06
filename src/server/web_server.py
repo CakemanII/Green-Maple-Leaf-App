@@ -11,6 +11,7 @@ mimetypes.add_type('application/javascript', '.js')
 mimetypes.add_type('text/javascript', '.mjs')
 
 from file_handler import FileHandler
+from file_handler import ClientServerDirectoryHandler
 from radio_communication_manager import RadioCommunicationBuffer, TimeStamped
 from radio_communication_simulation_server import RadioComsSimulationServer
 
@@ -141,300 +142,116 @@ def load_session():
     return app.response_class(response=session_data, status=200, mimetype='application/json')
 #endregion
 
-#region Status Collection Data Routes
-@app.route('/status_collection/save', methods=['POST'])
-def save_status_collection_file():
-    data = request.get_json(silent=True)
-    file_uuid = data['UUID']
-    sc_files_dir = os.path.join(SAVES_DIR, 'status_collections', 'files')
-    sc_meta_dir  = os.path.join(SAVES_DIR, 'status_collections', 'metadata')
-    os.makedirs(sc_files_dir, exist_ok=True)
-    os.makedirs(sc_meta_dir,  exist_ok=True)
-    save_path = os.path.join(sc_files_dir, f'{file_uuid}.scollection')
-    success = FileHandler.save_file(data, save_path)
-    if not success:
-        return 'Error saving status collection file', 500
-    file_size = os.path.getsize(save_path)
-    metadata = {
-        'UUID': file_uuid,
-        'name': data.get('name', ''),
-        'description': data.get('description', ''),
-        'lastModified': datetime.datetime.now().isoformat(),
-        'fileSize': file_size,
+file_saving_dictionary = {
+    "status_collection": {
+        "directory": os.path.join(SAVES_DIR, 'status_collections'),
+        "validation_function": lambda data: isinstance(data, dict) and isinstance(data.get('statuses'), list),
+        "required_extension": '.scollection',
+        "is_media": False
+    },
+    "geofence": {
+        "directory": os.path.join(SAVES_DIR, 'geofence'),
+        "validation_function": lambda data: isinstance(data, dict) and isinstance(data.get('regions'), list),
+        "required_extension": '.geoedit',
+        "is_media": False
+    },
+    "interface_screen": {
+        "directory": os.path.join(SAVES_DIR, 'interface_screens'),
+        "validation_function": lambda data: True,
+        "required_extension": '.iscreen',
+        "is_media": False
+    },
+    "media/audio": {
+        "directory": os.path.join(SAVES_DIR, 'media', 'audio'),
+        "validation_function": lambda data: True,
+        "required_extension": None,
+        "is_media": True
+    },
+    "media/image": {
+        "directory": os.path.join(SAVES_DIR, 'media', 'images'),
+        "validation_function": lambda data: True,
+        "required_extension": None,
+        "is_media": True
     }
-    FileHandler.save_file(metadata, os.path.join(sc_meta_dir, f'{file_uuid}.json'))
-    return '', 200
-
-@app.route('/status_collection/get', methods=['GET'])
-def get_status_collection_file():
-    file_uuid = request.args.get('uuid', '')
-    path = os.path.join(SAVES_DIR, 'status_collections', 'files', f'{file_uuid}.scollection')
-    data = FileHandler.load_file(path)
-    return (data, 200) if data is not None else (None, 404)
-
-@app.route('/status_collection/list', methods=['GET'])
-def list_status_collection_files():
-    sc_files_dir = os.path.join(SAVES_DIR, 'status_collections', 'files')
-    os.makedirs(sc_files_dir, exist_ok=True)
-    files = FileHandler.list_files_in_directory(sc_files_dir, '.scollection')
-    return {'files': files}, 200
-
-@app.route('/status_collection/list_metadatas', methods=['GET'])
-def list_status_collection_metadatas():
-    sc_meta_dir = os.path.join(SAVES_DIR, 'status_collections', 'metadata')
-    if not os.path.isdir(sc_meta_dir):
-        return jsonify({'metadatas': []}), 200
-    metadatas = FileHandler.list_files_in_directory(sc_meta_dir, '.json')
-    return jsonify({'metadatas': metadatas}), 200
-
-@app.route('/status_collection/delete', methods=['POST'])
-def delete_status_collection_file():
-    data = request.get_json(silent=True)
-    if not data:
-        return 'No JSON data provided', 400
-    file_uuid = data.get('UUID', '')
-    if not file_uuid:
-        return 'UUID required', 400
-    safe_uuid = ''.join(c for c in file_uuid if c.isalnum() or c in '-_')
-    FileHandler.delete_file(os.path.join(SAVES_DIR, 'status_collections', 'metadata', f'{safe_uuid}.json'))
-    success = FileHandler.delete_file(os.path.join(SAVES_DIR, 'status_collections', 'files', f'{safe_uuid}.scollection'))
-    return ('', 200) if success else ('File not found or could not be deleted', 404)
-
-@app.route('/status_collection/upload', methods=['POST'])
-def upload_status_collection_file():
-    if 'file' not in request.files:
-        return 'No file part', 400
-    file = request.files['file']
-    if file.filename == '':
-        return 'No selected file', 400
-    try:
-        file_content = file.read().decode('utf-8-sig')
-        data = json.loads(file_content)
-    except Exception:
-        return 'Invalid file format', 400
-    if not (isinstance(data, dict) and isinstance(data.get('statuses'), list)):
-        return 'Invalid status collection file structure', 400
-    file_uuid = str(uuid.uuid4())
-    name = request.form.get('name', '').strip() or data.get('name', file_uuid)
-    data['UUID'] = file_uuid
-    data['name'] = name
-    sc_files_dir = os.path.join(SAVES_DIR, 'status_collections', 'files')
-    sc_meta_dir  = os.path.join(SAVES_DIR, 'status_collections', 'metadata')
-    os.makedirs(sc_files_dir, exist_ok=True)
-    os.makedirs(sc_meta_dir,  exist_ok=True)
-    save_path = os.path.join(sc_files_dir, f'{file_uuid}.scollection')
-    FileHandler.save_file(data, save_path)
-    file_size = os.path.getsize(save_path)
-    metadata = {
-        'UUID': file_uuid,
-        'name': name,
-        'description': data.get('description', ''),
-        'lastModified': datetime.datetime.now().isoformat(),
-        'fileSize': file_size,
-    }
-    FileHandler.save_file(metadata, os.path.join(sc_meta_dir, f'{file_uuid}.json'))
-    return jsonify(metadata), 200
-#endregion
-
-#region Geofence Data Routes
-@app.route('/geofence/save', methods=['POST'])
-def save_geoedit_file():
-    data = request.get_json(silent=True)
-    file_uuid = data['metadata']['UUID']
-    geo_files_dir = os.path.join(SAVES_DIR, 'geofence', 'files')
-    geo_meta_dir  = os.path.join(SAVES_DIR, 'geofence', 'metadata')
-    os.makedirs(geo_files_dir, exist_ok=True)
-    os.makedirs(geo_meta_dir,  exist_ok=True)
-    save_path = os.path.join(geo_files_dir, f'{file_uuid}.geoedit')
-    success = FileHandler.save_file({'regions': data['regions']}, save_path)
-    if not success:
-        return 'Error saving geofence file', 500
-    # Save standalone metadata file
-    file_size = os.path.getsize(save_path)
-    data['metadata']['fileSize'] = file_size
-    FileHandler.save_file(data['metadata'], os.path.join(geo_meta_dir, f'{file_uuid}.json'))
-    return '', 200
-
-@app.route('/geofence/get', methods=['GET'])
-def get_geoedit_file():
-    file_uuid = request.args.get('uuid', '')
-    path = os.path.join(SAVES_DIR, 'geofence', 'files', f'{file_uuid}.geoedit')
-    data = FileHandler.load_file(path)
-    return (data, 200) if data is not None else (None, 404)
-
-@app.route('/geofence/list_metadatas', methods=['GET'])
-def list_geoedit_files():
-    geo_meta_dir = os.path.join(SAVES_DIR, 'geofence', 'metadata')
-    if not os.path.isdir(geo_meta_dir):
-        return jsonify({'metadatas': []}), 200
-    metadatas = FileHandler.list_files_in_directory(geo_meta_dir, '.json')
-    return jsonify({'metadatas': metadatas}), 200
-
-@app.route('/geofence/delete', methods=['POST'])
-def delete_geoedit_file():
-    data = request.get_json(silent=True)
-    if not data:
-        return 'No JSON data provided', 400
-    file_uuid = data.get('UUID', '')
-    if not file_uuid:
-        return 'UUID required', 400
-    safe_uuid = ''.join(c for c in file_uuid if c.isalnum() or c in '-_')
-    FileHandler.delete_file(os.path.join(SAVES_DIR, 'geofence', 'metadata', f'{safe_uuid}.json'))
-    success = FileHandler.delete_file(os.path.join(SAVES_DIR, 'geofence', 'files', f'{safe_uuid}.geoedit'))
-    return ('', 200) if success else ('File not found or could not be deleted', 404)
-
-@app.route('/geofence/upload', methods=['POST'])
-def upload_geoedit_file():
-    if 'file' not in request.files:
-        return 'No file part', 400
-    file = request.files['file']
-    if file.filename == '':
-        return 'No selected file', 400
-    try:
-        file_content = file.read().decode('utf-8-sig')
-        data = json.loads(file_content)
-    except Exception:
-        return 'Invalid file format', 400
-    if not (isinstance(data, dict) and isinstance(data.get('regions'), list)):
-        return 'Invalid geoedit file structure', 400
-    file_uuid = str(uuid.uuid4())
-    name = request.form.get('name', '').strip() or data.get('metadata', {}).get('name', file_uuid)
-    data['metadata'] = {
-        'UUID': file_uuid,
-        'name': name,
-        'lastModified': datetime.datetime.now().isoformat(),
-        'fileSize': 0,
-    }
-    geo_files_dir = os.path.join(SAVES_DIR, 'geofence', 'files')
-    geo_meta_dir  = os.path.join(SAVES_DIR, 'geofence', 'metadata')
-    os.makedirs(geo_files_dir, exist_ok=True)
-    os.makedirs(geo_meta_dir,  exist_ok=True)
-    save_path = os.path.join(geo_files_dir, f'{file_uuid}.geoedit')
-    FileHandler.save_file({'regions': data['regions']}, save_path)
-    file_size = os.path.getsize(save_path)
-    data['metadata']['fileSize'] = file_size
-    FileHandler.save_file(data['metadata'], os.path.join(geo_meta_dir, f'{file_uuid}.json'))
-    return jsonify(data['metadata']), 200
-#endregion
-
-#region Image/Audio File Upload, Delete, List, Serve Routes
-@app.route('/media/upload', methods=['POST'])
-def upload_media():
-    if 'file' not in request.files:
-        return 'No file part', 400
-
-    file = request.files['file']
-    if file.filename == '':
-        return 'No selected file', 400
-
-    # Determine media type from MIME type
-    mime_type = file.content_type or ''
-    if mime_type.startswith('image/'):
-        media_folder = 'images'
-        file_type_key = 'img'
-    elif mime_type.startswith('audio/'):
-        media_folder = 'audio'
-        file_type_key = 'aud'
-    else:
-        return 'Unsupported file type', 400
-
-    # Generate UUID and keep original extension
-    file_uuid = str(uuid.uuid4())
-    _, file_ext = os.path.splitext(file.filename)
-    filename = f'{file_uuid}{file_ext}'
-
-    # Ensure directory exists and save file
-    files_dir = os.path.join(SAVES_DIR, 'media', media_folder, 'files')
-    os.makedirs(files_dir, exist_ok=True)
-    save_path = os.path.join(files_dir, filename)
-    file.save(save_path)
-
-    # Build metadata
-    name = request.form.get('name', os.path.splitext(file.filename)[0])
-    file_size = os.path.getsize(save_path)
-    relative_filepath = f'saves/media/{media_folder}/files/{filename}'
-    metadata = {
-        'UUID': file_uuid,
-        'name': name,
-        'file_type': file_type_key,
-        'relative_filepath': relative_filepath,
-        'lastModified': datetime.datetime.now().isoformat(),
-        'fileSize': file_size,
-    }
-
-    # Save metadata JSON
-    metadata_dir = os.path.join(SAVES_DIR, 'media', media_folder, 'metadata')
-    os.makedirs(metadata_dir, exist_ok=True)
-    FileHandler.save_file(metadata, os.path.join(metadata_dir, f'{file_uuid}.json'))
-
-    return jsonify(metadata), 200
+}
 
 
-@app.route('/media/delete', methods=['POST'])
-def delete_media():
-    data = request.get_json(silent=True)
-    if not data:
-        return 'No JSON data provided', 400
+# Helper functions to create event methods
+def make_save(handler: ClientServerDirectoryHandler):
+    def save_file():
+        return handler.save_file(request)
+    return save_file
+def make_fetch(handler: ClientServerDirectoryHandler):
+    def fetch_file():
+        return handler.fetch_file(request)
+    return fetch_file
+def make_list_metadatas(handler: ClientServerDirectoryHandler):
+    def list_metadatas():
+        return handler.list_metadatas()
+    return list_metadatas
+def make_delete(handler: ClientServerDirectoryHandler):
+    def delete_file():
+        return handler.delete_file(request)
+    return delete_file
+def make_upload(handler: ClientServerDirectoryHandler):
+    def upload_file():
+        return handler.upload_file(request)
+    return upload_file
+def make_check_file(handler: ClientServerDirectoryHandler):
+    def check_file():
+        return handler.check_file(request)
+    return check_file
 
-    file_uuid = data.get('UUID', '')
-    media_type = data.get('media_type', '')  # 'images' or 'audio'
-    if not file_uuid or media_type not in ('images', 'audio'):
-        return 'Invalid parameters', 400
+# Iterate through the file_saving_dictionary to create routes for each file type (status collections, geofences, interface screens)
+for key, config in file_saving_dictionary.items():
+    handler = ClientServerDirectoryHandler(
+        directory=config['directory'],
+        upload_validation_function=config['validation_function'],
+        required_file_extension=config['required_extension'],
+        is_media=config['is_media']
+    )
 
-    metadata_path = os.path.join(SAVES_DIR, 'media', media_type, 'metadata', f'{file_uuid}.json')
-    raw = FileHandler.load_file(metadata_path)
-    if raw is None:
-        return 'Metadata not found', 404
+    app.add_url_rule(
+        f'/{key}/save',
+        endpoint=f'{key}_save',
+        view_func=make_save(handler),
+        methods=['POST']
+    )
 
-    metadata_obj = json.loads(raw)
-    relative = metadata_obj.get('relative_filepath', '')
-    if relative:
-        abs_file = os.path.normpath(os.path.join(ROOT_DIR, relative.replace('/', os.sep)))
-        FileHandler.delete_file(abs_file)  # non-fatal if file already missing
+    app.add_url_rule(
+        f'/{key}/fetch',
+        endpoint=f'{key}_fetch',
+        view_func=make_fetch(handler),
+        methods=['GET']
+    )
 
-    FileHandler.delete_file(metadata_path)
-    return '', 200
+    app.add_url_rule(
+        f'/{key}/list_metadatas',
+        endpoint=f'{key}_list_metadatas',
+        view_func=make_list_metadatas(handler),
+        methods=['GET']
+    )
 
+    app.add_url_rule(
+        f'/{key}/delete',
+        endpoint=f'{key}_delete',
+        view_func=make_delete(handler),
+        methods=['POST']
+    )
 
-@app.route('/media/list_metadatas', methods=['GET'])
-def list_media_metadatas():
-    media_type = request.args.get('type', '')  # 'images' or 'audio'
-    if media_type not in ('images', 'audio'):
-        return 'Invalid or missing type parameter', 400
+    app.add_url_rule(
+        f'/{key}/upload',
+        endpoint=f'{key}_upload',
+        view_func=make_upload(handler),
+        methods=['POST']
+    )
 
-    metadata_dir = os.path.join(SAVES_DIR, 'media', media_type, 'metadata')
-    if not os.path.isdir(metadata_dir):
-        return jsonify({'metadatas': []}), 200
-
-    metadatas = FileHandler.list_files_in_directory(metadata_dir, '.json')
-    return jsonify({'metadatas': metadatas}), 200
-
-
-@app.route('/media/serve_file', methods=['GET'])
-def serve_media_file():
-    relative_path = request.args.get('path', '').lstrip('/\\')
-    if not relative_path:
-        return 'No path provided', 400
-
-    abs_path = os.path.normpath(os.path.join(ROOT_DIR, relative_path))
-    # Prevent path traversal outside ROOT_DIR
-    if not abs_path.startswith(ROOT_DIR):
-        return 'Forbidden', 403
-    if not os.path.isfile(abs_path):
-        return 'File not found', 404
-
-    return send_from_directory(os.path.dirname(abs_path), os.path.basename(abs_path))
-
-@app.route('/media/check_file', methods=['GET'])
-def check_media_file():
-    relative_path = request.args.get('path', '').lstrip('/\\')
-    if not relative_path:
-        return jsonify({'exists': False}), 200
-    abs_path = os.path.normpath(os.path.join(ROOT_DIR, relative_path))
-    if not abs_path.startswith(ROOT_DIR):
-        return 'Forbidden', 403
-    return jsonify({'exists': os.path.isfile(abs_path)}), 200
-#endregion
+    app.add_url_rule(
+        f'/{key}/check_file',
+        endpoint=f'{key}_check_file',
+        view_func=make_check_file(handler),
+        methods=['GET']
+    )
 
 #region Active / Disable Rocket Communication Server Routes
 @app.route('/radio_rocket_comms_server/set_active', methods=['POST'])

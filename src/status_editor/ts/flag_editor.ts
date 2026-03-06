@@ -46,9 +46,9 @@ export class FlagEditorUI {
     private isDefaultFlag: boolean = false;
 
     // Selected Media Paths
-    private currentImageFilepath: string | null = null;
+    private currentImageUUID: string | null = null;
     private currentImageDisplayName: string | null = null;
-    private currentAudioFilepath: string | null = null;
+    private currentAudioUUID: string | null = null;
     private currentAudioDisplayName: string | null = null;
     private currentAudioRepeat: boolean = false;
 
@@ -117,16 +117,16 @@ export class FlagEditorUI {
         // Setup image picker button
         this.flagImageInputElement.addEventListener('click', () => {
             new MediaFileListViewerPrompt(
-                'images',
+                'image',
                 async (metadata: MediaFileMetadata) => {
-                    this.currentImageFilepath = metadata.relative_filepath;
+                    this.currentImageUUID = metadata.UUID;
                     this.currentImageDisplayName = metadata.name;
-                    const exists = await this.checkFileExists(metadata.relative_filepath);
+                    const exists = await this.checkFileExists(metadata.UUID, "image");
                     if (exists) {
                         this.flagImageInputElement.textContent = `🖼️ ${metadata.name}`;
                         this.updateFlagImagePreview(metadata.relative_filepath);
                     } else {
-                        this.currentImageFilepath = null;
+                        this.currentImageUUID = null;
                         this.flagImageInputElement.textContent = `⚠️ Missing File: ${metadata.name}`;
                         this.updateFlagImagePreview(null);
                     }
@@ -140,8 +140,8 @@ export class FlagEditorUI {
         });
         this.flagImageInputElement.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-            if (this.currentImageFilepath) {
-                this.currentImageFilepath = null;
+            if (this.currentImageUUID) {
+                this.currentImageUUID = null;
                 this.flagImageInputElement.textContent = `⚠️ Missing File: ${this.currentImageDisplayName ?? '?'}`;
                 this.updateFlagImagePreview(null);
                 this.validateAndUpdateConfirmButton();
@@ -153,13 +153,13 @@ export class FlagEditorUI {
             new MediaFileListViewerPrompt(
                 'audio',
                 async (metadata: MediaFileMetadata) => {
-                    this.currentAudioFilepath = metadata.relative_filepath;
+                    this.currentAudioUUID = metadata.UUID;
                     this.currentAudioDisplayName = metadata.name;
-                    const exists = await this.checkFileExists(metadata.relative_filepath);
+                    const exists = await this.checkFileExists(metadata.UUID, "audio");
                     if (exists) {
                         this.flagAudioInputElement.textContent = `🔊 ${metadata.name}`;
                     } else {
-                        this.currentAudioFilepath = null;
+                        this.currentAudioUUID = null;
                         this.flagAudioInputElement.textContent = `⚠️ Missing File: ${metadata.name}`;
                     }
                     this.validateAndUpdateConfirmButton();
@@ -169,8 +169,8 @@ export class FlagEditorUI {
         });
         this.flagAudioInputElement.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-            if (this.currentAudioFilepath) {
-                this.currentAudioFilepath = null;
+            if (this.currentAudioUUID) {
+                this.currentAudioUUID = null;
                 this.flagAudioInputElement.textContent = `⚠️ Missing File: ${this.currentAudioDisplayName ?? '?'}`;
                 this.validateAndUpdateConfirmButton();
             }
@@ -711,9 +711,9 @@ export class FlagEditorUI {
     /**
      * Returns true if the file at relativePath exists on the server.
      */
-    private async checkFileExists(relativePath: string): Promise<boolean> {
+    private async checkFileExists(uuid: string, fileType: string): Promise<boolean> {
         try {
-            const res = await fetch(`/media/check_file?path=${encodeURIComponent(relativePath)}`);
+            const res = await fetch(`/media/${fileType}/check_file?uuid=${encodeURIComponent(uuid)}`);
             const data = await res.json();
             return data.exists === true;
         } catch {
@@ -726,19 +726,19 @@ export class FlagEditorUI {
      * to "Missing File" if the file no longer exists.
      */
     private async refreshFileDisplays(): Promise<void> {
-        if (this.currentImageFilepath) {
-            const exists = await this.checkFileExists(this.currentImageFilepath);
+        if (this.currentImageUUID) {
+            const exists = await this.checkFileExists(this.currentImageUUID, 'image');
             if (!exists) {
-                this.currentImageFilepath = null;
+                this.currentImageUUID = null;
                 this.flagImageInputElement.textContent = `⚠️ Missing File: ${this.currentImageDisplayName ?? '?'}`;
                 this.updateFlagImagePreview(null);
                 this.validateAndUpdateConfirmButton();
             }
         }
-        if (this.currentAudioFilepath) {
-            const exists = await this.checkFileExists(this.currentAudioFilepath);
+        if (this.currentAudioUUID) {
+            const exists = await this.checkFileExists(this.currentAudioUUID, 'audio');
             if (!exists) {
-                this.currentAudioFilepath = null;
+                this.currentAudioUUID = null;
                 this.flagAudioInputElement.textContent = `⚠️ Missing File: ${this.currentAudioDisplayName ?? '?'}`;
                 this.validateAndUpdateConfirmButton();
             }
@@ -762,11 +762,11 @@ export class FlagEditorUI {
         this.flagDescriptionElement.value = '';
         
         // Image
-        this.currentImageFilepath = null;
+        this.currentImageUUID = null;
         this.flagImageInputElement.textContent = '\ud83d\udcc1 Choose File';
         this.flagPreviewElement.innerHTML = '<span>Image preview will appear here</span>';
         // Audio
-        this.currentAudioFilepath = null;
+        this.currentAudioUUID = null;
         this.flagAudioInputElement.textContent = '\ud83d\udcc1 Choose File';
         this.currentAudioRepeat = false;
         this.audioRepeatToggleElement.classList.remove('active');
@@ -776,13 +776,13 @@ export class FlagEditorUI {
         this.flagConditionsContainerElement.innerHTML = '<div class="condition-body"></div>';
     }
 
-    private updateFlagImagePreview(relativePath: string | null): void {
+    private updateFlagImagePreview(uuid: string | null): void {
         this.flagPreviewElement.innerHTML = '';
-        if (!relativePath) {
+        if (!uuid) {
             this.flagPreviewElement.innerHTML = '<span>Image preview will appear here</span>';
             return;
         }
-        const url = `/media/serve_file?path=${encodeURIComponent(relativePath)}`;
+        const url = `/media/image/fetch?uuid=${encodeURIComponent(uuid)}`;
         const img = document.createElement('img');
         img.src = url;
         img.alt = 'Flag Image';
@@ -923,9 +923,9 @@ export class FlagEditorUI {
             UUID: uuid,
             name: this.flagTitleElement.value,
             description: this.flagDescriptionElement.value,
-            imagePath: this.currentImageFilepath,
+            imageUUID: this.currentImageUUID,
             imageDisplayName: this.currentImageDisplayName,
-            audioPath: this.currentAudioFilepath,
+            audioUUID: this.currentAudioUUID,
             audioDisplayName: this.currentAudioDisplayName,
             audioRepeat: this.currentAudioRepeat,
             primaryConditionalGroup: primaryConditionalGroupJSON
@@ -1140,11 +1140,11 @@ export class FlagEditorUI {
         this.flagDescriptionElement.value = flag.description;
 
         // Image
-        this.currentImageFilepath = flag.imagePath ?? null;
+        this.currentImageUUID = flag.imageUUID ?? null;
         this.currentImageDisplayName = flag.imageDisplayName ?? null;
-        if (flag.imagePath) {
-            this.flagImageInputElement.textContent = `🖼️ ${flag.imageDisplayName ?? flag.imagePath.split('/').pop() ?? flag.imagePath}`;
-            this.updateFlagImagePreview(flag.imagePath);
+        if (flag.imageUUID) {
+            this.flagImageInputElement.textContent = `🖼️ ${flag.imageDisplayName ?? flag.imageUUID}`;
+            this.updateFlagImagePreview(flag.imageUUID);
         } else if (flag.imageDisplayName) {
             this.flagImageInputElement.textContent = `⚠️ Missing File: ${flag.imageDisplayName}`;
             this.flagPreviewElement.innerHTML = '<span>Image preview will appear here</span>';
@@ -1154,10 +1154,10 @@ export class FlagEditorUI {
         }
 
         // Audio
-        this.currentAudioFilepath = flag.audioPath ?? null;
+        this.currentAudioUUID = flag.audioUUID ?? null;
         this.currentAudioDisplayName = flag.audioDisplayName ?? null;
-        if (flag.audioPath) {
-            this.flagAudioInputElement.textContent = `🔊 ${flag.audioDisplayName ?? flag.audioPath.split('/').pop() ?? flag.audioPath}`;
+        if (flag.audioUUID) {
+            this.flagAudioInputElement.textContent = `🔊 ${flag.audioDisplayName ?? flag.audioUUID.split('/').pop() ?? flag.audioUUID}`;
         } else if (flag.audioDisplayName) {
             this.flagAudioInputElement.textContent = `⚠️ Missing File: ${flag.audioDisplayName}`;
         } else {
