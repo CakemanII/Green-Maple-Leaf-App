@@ -1,5 +1,6 @@
 import {
     createInterfaceObjectFromData,
+    InterfaceLayoutRect,
     InterfaceObject,
     InterfaceObjectRuntimeData,
     TelemetryPacket,
@@ -67,9 +68,7 @@ export class InterfaceScreen {
         const backgroundPanel = document.createElement("div");
         backgroundPanel.className = "screen-root-panel";
         this.screenElement.appendChild(backgroundPanel);
-        this.rootInterfaceObjects.forEach((object) => {
-            backgroundPanel.appendChild(object.getPrimaryDOMElement());
-        });
+        this.mountObjectTreeAsSiblings(backgroundPanel);
 
         this.tabElement = document.createElement("button");
         this.tabElement.className = "screen-tab";
@@ -140,6 +139,26 @@ export class InterfaceScreen {
     private buildMonitorIndex(): void {
         this.rootInterfaceObjects.forEach((object) => {
             object.collectDataDisplayObjectsByKey(this.interfaceDisplayObjectsByMonitorKey);
+        });
+    }
+
+    private mountObjectTreeAsSiblings(container: HTMLElement): void {
+        const rootLayout: InterfaceLayoutRect = { left: 0, top: 0, width: 100, height: 100 };
+        let zIndexCounter = 1;
+
+        const traverse = (object: InterfaceObject, parentLayout: InterfaceLayoutRect): void => {
+            const computedLayout = object.applyLayoutWithinParent(parentLayout);
+            const objectElement = object.getPrimaryDOMElement();
+            objectElement.style.zIndex = `${zIndexCounter++}`;
+            container.appendChild(objectElement);
+
+            object.getChildren().forEach((child) => {
+                traverse(child, computedLayout);
+            });
+        };
+
+        this.rootInterfaceObjects.forEach((rootObject) => {
+            traverse(rootObject, rootLayout);
         });
     }
 

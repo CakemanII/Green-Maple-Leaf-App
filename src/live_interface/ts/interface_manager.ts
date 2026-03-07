@@ -151,15 +151,32 @@ class InterfaceManager {
                     {
                         UUID: "accel-root-panel",
                         type: InterfaceObjectType.PANEL,
-                        posX: 0,
+                        posX: 10,
                         posY: 0,
-                        width: 100,
-                        height: 100,
+                        width: 80,
+                        height: 90,
                         childrenInterfaceObjects: [
                             {
                                 UUID: "accel-graph",
                                 type: InterfaceObjectType.LINE_GRAPH,
                                 posX: 0,
+                                posY: 0,
+                                width: 50,
+                                height: 50,
+                                monitorDataKeys: ["accel"],
+                                lineGraphSettings: {
+                                    title: "Linear Acceleration (x, y, z)",
+                                    unit: "m/s²",
+                                    yMin: -5,
+                                    yMax: 5,
+                                    maxPoints: 180,
+                                    vectorComponents: ["x", "y", "z"]
+                                }
+                            } as InterfaceObjectRuntimeData,
+                            {
+                                UUID: "VEL-graph",
+                                type: InterfaceObjectType.LINE_GRAPH,
+                                posX: 20,
                                 posY: 0,
                                 width: 50,
                                 height: 50,

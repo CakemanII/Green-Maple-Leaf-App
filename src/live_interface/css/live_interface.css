@@ -24,7 +24,7 @@ body {
 
 #screens-container {
     position: absolute;
-    inset: 0 0 40px 0;
+    inset: 0 0 28px 0;
     overflow: hidden;
 }
 
@@ -57,21 +57,21 @@ body {
 
 .iobject-wrapper {
     position: absolute;
-    border-radius: 0;
+    border-radius: 8px;
     overflow: hidden;
 }
 
 .iobject-panel {
-    border: 1px solid transparent;
+    border: 1px solid var(--panel-border);
+    background: var(--panel);
     overflow: hidden;
     contain: layout paint;
     isolation: isolate;
 }
 
 .iobject-display {
-    border: 1px solid var(--panel-border);
-    background: rgba(20, 20, 20, 0.82);
-    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+    border: none;
+    background: transparent;
     contain: layout paint;
     isolation: isolate;
 }
@@ -188,7 +188,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    height: 40px;
+    height: 28px;
     background: #111111;
     border-top: 1px solid #2f2f2f;
     display: flex;

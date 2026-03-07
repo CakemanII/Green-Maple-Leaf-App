@@ -12,6 +12,8 @@ Scope: End-product behavior only (no editor behavior), based on current skeleton
 - Hidden screens perform low-rate rendering (1-2 FPS), while data pipelines continue at full update rate.
 - Interface objects are positioned and sized, and may monitor telemetry data.
 - All interface object positions and sizes are percentages relative to their immediate parent container.
+- DOM representation is flattened: all interface object wrappers are mounted as siblings under the screen root.
+- Logical parent-child relationships are preserved for behavior/layout math, but not represented as nested DOM nodes.
 - Only panel objects can contain children.
 - Panel objects do not have monitorDataKeys because panels do not directly consume telemetry values.
 - The screen background is treated as a root immutable panel (non-editable), so all object seating is panel-local.
@@ -149,9 +151,10 @@ Construction flow per screen:
    - children allowed only for panels
   - invalid object config: warn and skip only that object
 3) Build monitor index map by traversing tree once.
-4) Mount screen root in #screens-container.
-5) Bind tab in #screen-tabs-container.
-6) Start in hidden or visible state depending on manager active tab.
+4) Compute each object's absolute screen-relative rectangle from logical parent-child percentages.
+5) Mount all object wrappers as siblings under the screen root panel.
+6) Bind tab in #screen-tabs-container.
+7) Start in hidden or visible state depending on manager active tab.
 
 
 =====================================
@@ -159,8 +162,9 @@ Construction flow per screen:
 =====================================
 Recommended seating model:
 - Every object owns a primary positioned DOM wrapper.
-- wrapper style derived from posX, posY, width, height.
-- Panels place their child wrappers inside panel secondary container.
+- Wrapper style is computed from logical parent-relative percentages into absolute screen-relative percentages.
+- All wrappers are siblings in the DOM under the screen root panel.
+- Visual parent-child appearance is achieved via z-order and computed placement, not DOM nesting.
 - Non-panel display objects render into their secondary container.
 
 Practical notes:

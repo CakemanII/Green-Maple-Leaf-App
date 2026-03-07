@@ -17,6 +17,13 @@ export type TelemetryPacket = {
     valueType: TelemetryValueType;
 };
 
+export type InterfaceLayoutRect = {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+};
+
 export type LineGraphIObjectSettings = {
     title: string;
     unit: string;
@@ -73,10 +80,6 @@ export abstract class InterfaceObject {
         this.primaryDOMElement = document.createElement("div");
         this.primaryDOMElement.className = `iobject-wrapper ${this.isPanel ? "iobject-panel" : "iobject-display"}`;
         this.primaryDOMElement.setAttribute("data-iobject-uuid", this.uuid);
-        this.primaryDOMElement.style.left = `${this.posX}%`;
-        this.primaryDOMElement.style.top = `${this.posY}%`;
-        this.primaryDOMElement.style.width = `${this.width}%`;
-        this.primaryDOMElement.style.height = `${this.height}%`;
 
         this.secondaryDOMElement = document.createElement("div");
         this.secondaryDOMElement.className = "iobject-content";
@@ -95,6 +98,23 @@ export abstract class InterfaceObject {
 
     public getChildren(): InterfaceObject[] {
         return this.childrenInterfaceObjects.slice();
+    }
+
+    // Computes absolute percentages from logical parent space and applies DOM wrapper geometry.
+    public applyLayoutWithinParent(parentRect: InterfaceLayoutRect): InterfaceLayoutRect {
+        const absoluteRect: InterfaceLayoutRect = {
+            left: parentRect.left + (this.posX / 100) * parentRect.width,
+            top: parentRect.top + (this.posY / 100) * parentRect.height,
+            width: (this.width / 100) * parentRect.width,
+            height: (this.height / 100) * parentRect.height
+        };
+
+        this.primaryDOMElement.style.left = `${absoluteRect.left}%`;
+        this.primaryDOMElement.style.top = `${absoluteRect.top}%`;
+        this.primaryDOMElement.style.width = `${absoluteRect.width}%`;
+        this.primaryDOMElement.style.height = `${absoluteRect.height}%`;
+
+        return absoluteRect;
     }
 
     public collectDataDisplayObjectsByKey(output: { [monitorDataKey: string]: InterfaceObject[] }): void {
@@ -130,9 +150,6 @@ export class PanelIObject extends InterfaceObject {
 
     protected override initializeSecondaryDOM(): void {
         this.secondaryDOMElement.classList.add("panel-content");
-        this.childrenInterfaceObjects.forEach((child) => {
-            this.secondaryDOMElement.appendChild(child.getPrimaryDOMElement());
-        });
     }
 
     public override updateData(_packet: TelemetryPacket): void {
