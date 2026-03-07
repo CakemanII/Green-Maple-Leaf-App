@@ -1,6 +1,9 @@
 
 import { InterfaceObjectData, InterfaceObjectType, Vector3D } from "../../shared/compiled_js/types.js";
 import {
+    BarGraphGroupDefinition,
+    BarGraphRepresentation,
+    BarStyle,
     GraphicalRepresentation,
     LineGraphRepresentation,
     LineGraphYOverflowMode,
@@ -34,11 +37,35 @@ export type LineGraphIObjectSettings = {
     lineColors: { [seriesName: string]: string };
 };
 
+export type BarGraphSeriesSetting = {
+    id: string;
+    label: string;
+    key: string;
+    component?: "x" | "y" | "z";
+};
+
+export type BarGraphGroupSetting = {
+    id: string;
+    label: string;
+    series: BarGraphSeriesSetting[];
+};
+
+export type BarGraphIObjectSettings = {
+    title: string;
+    unit: string;
+    yMin: number;
+    yMax: number;
+    groups?: BarGraphGroupSetting[];
+    barColors: { [seriesId: string]: string };
+    decimals: number;
+};
+
 export type InterfaceObjectRuntimeData = InterfaceObjectData & {
     UUID?: string;
     name?: string;
     monitorDataKeys?: string[];
     lineGraphSettings?: Partial<LineGraphIObjectSettings>;
+    barGraphSettings?: Partial<BarGraphIObjectSettings>;
 };
 
 export abstract class InterfaceObject {
@@ -348,6 +375,212 @@ export class LineGraphIObject extends InterfaceObject {
     }
 }
 
+export class BarGraphIObject extends InterfaceObject {
+    private readonly settings: BarGraphIObjectSettings;
+    private readonly seriesSettings: BarGraphSeriesSetting[];
+
+    private graphContainerElement!: HTMLDivElement;
+    private graphRepresentation: BarGraphRepresentation | null = null;
+    private firstTimestamp: number | null = null;
+
+    private readonly latestValueBySeriesId: { [seriesId: string]: number } = {};
+    private readonly latestTimeBySeriesId: { [seriesId: string]: number } = {};
+
+    private isGraphInitializationScheduled: boolean = false;
+
+    constructor(
+        uuid: string,
+        monitorDataKeys: string[],
+        posX: number,
+        posY: number,
+        width: number,
+        height: number,
+        settings?: Partial<BarGraphIObjectSettings>
+    ) {
+        const resolvedSettings: BarGraphIObjectSettings = {
+            title: settings?.title ?? "Bar Graph",
+            unit: settings?.unit ?? "units",
+            yMin: settings?.yMin ?? -1,
+            yMax: settings?.yMax ?? 1,
+            groups: settings?.groups,
+            barColors: settings?.barColors ?? {},
+            decimals: settings?.decimals ?? 2
+        };
+
+        super(uuid, false, monitorDataKeys, posX, posY, width, height);
+        this.settings = resolvedSettings;
+        this.seriesSettings = this.resolveSeriesSettings();
+
+        this.scheduleGraphInitialization();
+    }
+
+    protected override initializeSecondaryDOM(): void {
+        this.secondaryDOMElement.classList.add("line-graph-content");
+
+        this.graphContainerElement = document.createElement("div");
+        this.graphContainerElement.className = "line-graph-host";
+        this.graphContainerElement.id = `graphs-container-${this.uuid}`;
+        this.secondaryDOMElement.appendChild(this.graphContainerElement);
+    }
+
+    public override updateData(packet: TelemetryPacket): void {
+        if (!this.monitorDataKeys.includes(packet.label)) {
+            return;
+        }
+
+        if (this.firstTimestamp === null) {
+            this.firstTimestamp = packet.timestampRaw;
+        }
+
+        const objectRelativeTime = packet.timestampRaw - this.firstTimestamp;
+
+        if (packet.valueType === "number" && typeof packet.value === "number") {
+            this.seriesSettings
+                .filter((series) => series.key === packet.label && !series.component)
+                .forEach((series) => {
+                    this.latestValueBySeriesId[series.id] = packet.value;
+                    this.latestTimeBySeriesId[series.id] = objectRelativeTime;
+                });
+            this.flushLatestValuesToGraph();
+            return;
+        }
+
+        if (packet.valueType === "vector3d" && this.isVector3D(packet.value)) {
+            this.seriesSettings
+                .filter((series) => series.key === packet.label)
+                .forEach((series) => {
+                    const value = series.component ? packet.value[series.component] : packet.value.x;
+                    this.latestValueBySeriesId[series.id] = value;
+                    this.latestTimeBySeriesId[series.id] = objectRelativeTime;
+                });
+            this.flushLatestValuesToGraph();
+        }
+    }
+
+    public override renderFrame(): void {
+        this.tryInitializeGraphRepresentation();
+    }
+
+    private resolveSeriesSettings(): BarGraphSeriesSetting[] {
+        if (this.settings.groups && this.settings.groups.length > 0) {
+            const series: BarGraphSeriesSetting[] = [];
+            this.settings.groups.forEach((group) => {
+                group.series.forEach((entry) => {
+                    series.push(entry);
+                });
+            });
+            return series;
+        }
+
+        return this.monitorDataKeys.map((key) => ({
+            id: key,
+            label: key,
+            key
+        }));
+    }
+
+    private resolveGroups(): BarGraphGroupSetting[] {
+        if (this.settings.groups && this.settings.groups.length > 0) {
+            return this.settings.groups;
+        }
+
+        return this.monitorDataKeys.map((key, index) => ({
+            id: `g${index + 1}`,
+            label: key,
+            series: [{ id: key, label: key, key }]
+        }));
+    }
+
+    private scheduleGraphInitialization(): void {
+        if (this.isGraphInitializationScheduled) {
+            return;
+        }
+        this.isGraphInitializationScheduled = true;
+
+        window.setTimeout(() => {
+            this.isGraphInitializationScheduled = false;
+            this.tryInitializeGraphRepresentation();
+        }, 0);
+    }
+
+    private tryInitializeGraphRepresentation(): void {
+        if (this.graphRepresentation) {
+            return;
+        }
+
+        if (!document.getElementById(this.graphContainerElement.id)) {
+            this.scheduleGraphInitialization();
+            return;
+        }
+
+        try {
+            const groups = this.resolveGroups();
+            const barGroups: BarGraphGroupDefinition[] = groups.map((group) => ({
+                id: group.id,
+                label: group.label,
+                series: group.series.map((series) => ({ id: series.id, label: series.label }))
+            }));
+
+            const barStyles: { [seriesId: string]: BarStyle } = {};
+            this.seriesSettings.forEach((series) => {
+                barStyles[series.id] = {
+                    color: this.settings.barColors[series.id] ?? this.resolveSeriesColor(series.id),
+                    opacity: 1
+                };
+            });
+
+            this.graphRepresentation = new BarGraphRepresentation(
+                this.settings.title,
+                this.settings.unit,
+                this.settings.yMin,
+                this.settings.yMax,
+                barGroups,
+                barStyles,
+                this.graphContainerElement.id,
+                this.settings.decimals
+            );
+
+            this.flushLatestValuesToGraph();
+        } catch (error) {
+            console.error(`[BarGraphIObject:${this.uuid}] Failed to initialize graph representation.`, error);
+            this.scheduleGraphInitialization();
+        }
+    }
+
+    private flushLatestValuesToGraph(): void {
+        if (!this.graphRepresentation) {
+            return;
+        }
+
+        this.seriesSettings.forEach((series) => {
+            const latestValue = this.latestValueBySeriesId[series.id];
+            const latestTime = this.latestTimeBySeriesId[series.id];
+            if (latestValue === undefined || latestTime === undefined) {
+                return;
+            }
+            this.graphRepresentation!.addDataPoint(latestTime, latestValue, series.id);
+        });
+    }
+
+    private resolveSeriesColor(seriesId: string): string {
+        const defaults = ["#ff4f4f", "#64ff64", "#65a7ff", "#f5a623", "#ce7dff", "#45d3b3"];
+        let hash = 0;
+        for (let i = 0; i < seriesId.length; i++) {
+            hash = (hash << 5) - hash + seriesId.charCodeAt(i);
+            hash |= 0;
+        }
+        return defaults[Math.abs(hash) % defaults.length];
+    }
+
+    private isVector3D(value: any): value is Vector3D {
+        return value !== null
+            && typeof value === "object"
+            && typeof value.x === "number"
+            && typeof value.y === "number"
+            && typeof value.z === "number";
+    }
+}
+
 export function createInterfaceObjectFromData(
     data: InterfaceObjectRuntimeData,
     warnings: string[]
@@ -389,6 +622,25 @@ export function createInterfaceObjectFromData(
         return new LineGraphIObject(uuid, resolvedKeys, posX, posY, width, height, data.lineGraphSettings);
     }
 
+    if (data.type === InterfaceObjectType.BAR_GRAPH) {
+        if (data.childrenInterfaceObjects && data.childrenInterfaceObjects.length > 0) {
+            warnings.push(`[${uuid}] Non-panel objects cannot have children. Children were ignored.`);
+        }
+
+        const resolvedKeys = normalizeBarGraphMonitorDataKeys(
+            data.monitorDataKeys,
+            data.monitorDataKey,
+            data.barGraphSettings
+        );
+
+        if (resolvedKeys.length === 0) {
+            warnings.push(`[${uuid}] Bar graph object missing monitorDataKeys. Object was skipped.`);
+            return null;
+        }
+
+        return new BarGraphIObject(uuid, resolvedKeys, posX, posY, width, height, data.barGraphSettings);
+    }
+
     warnings.push(`[${uuid}] Unsupported interface object type '${String(data.type)}'. Object was skipped.`);
     return null;
 }
@@ -404,6 +656,24 @@ function normalizeMonitorDataKeys(monitorDataKeys?: string[], legacyMonitorDataK
     if (typeof legacyMonitorDataKey === "string" && legacyMonitorDataKey.trim().length > 0) {
         keys.add(legacyMonitorDataKey.trim());
     }
+
+    return Array.from(keys);
+}
+
+function normalizeBarGraphMonitorDataKeys(
+    monitorDataKeys?: string[],
+    legacyMonitorDataKey?: string,
+    settings?: Partial<BarGraphIObjectSettings>
+): string[] {
+    const keys = new Set(normalizeMonitorDataKeys(monitorDataKeys, legacyMonitorDataKey));
+
+    (settings?.groups ?? []).forEach((group) => {
+        (group.series ?? []).forEach((series) => {
+            if (typeof series.key === "string" && series.key.trim().length > 0) {
+                keys.add(series.key.trim());
+            }
+        });
+    });
 
     return Array.from(keys);
 }

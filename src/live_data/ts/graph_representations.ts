@@ -535,6 +535,13 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
         }
         const dataSpan = lastTime - firstTime;
 
+        // Keep labels stable when there is no data yet.
+        if (lastTime === -Infinity || firstTime === Infinity) {
+            this.xAxisMinLabel.textContent = this.dataPointsDisplayMinTime.toFixed(1);
+            this.xAxisLabel.textContent = this.dataPointsDisplayMaxTime.toFixed(1);
+            return;
+        }
+
         // Determine which mode to apply
         if (dataSpan >= this.timeWindow) {
             if (this.styleSettings.xOverflowMode === LineGraphXOverflowMode.ShiftGraph) {
@@ -550,11 +557,15 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
                 // No overflow handling, keep original time window
                 console.log(`[LineGraphRepresentation] No x-axis overflow handling applied.`);
             }
-            
-            // Update both min and max time labels to show the current time range
-            this.xAxisMinLabel.textContent = this.dataPointsDisplayMinTime.toFixed(1);
-            this.xAxisLabel.textContent = this.dataPointsDisplayMaxTime.toFixed(1);
+        } else {
+            // Before overflow, show true first/last x values.
+            this.dataPointsDisplayMinTime = firstTime;
+            this.dataPointsDisplayMaxTime = lastTime;
         }
+
+        // Always show first/last visible x-axis values.
+        this.xAxisMinLabel.textContent = this.dataPointsDisplayMinTime.toFixed(1);
+        this.xAxisLabel.textContent = this.dataPointsDisplayMaxTime.toFixed(1);
 
         // Set graph inspection to default if only one collection exists and none is selected
         if (this.collectionBeingInspected === null) {
@@ -848,4 +859,350 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
     }
 }
 
+// #endregion
+
+// #region BarGraph Representation
+export type BarStyle = {
+    color: string;
+    opacity: number;
+};
+
+export type BarGraphSeriesDefinition = {
+    id: string;
+    label: string;
+};
+
+export type BarGraphGroupDefinition = {
+    id: string;
+    label: string;
+    series: BarGraphSeriesDefinition[];
+};
+
+export class BarGraphRepresentation extends GraphicalRepresentation {
+    private readonly title: string;
+    private readonly unit: string;
+    private yMin: number;
+    private yMax: number;
+    private readonly groups: BarGraphGroupDefinition[];
+    private readonly barStyles: { [seriesId: string]: BarStyle };
+    private readonly decimals: number;
+
+    private graphRow!: HTMLDivElement;
+    private graphTitle!: HTMLHeadingElement;
+    private yAxisLabels!: HTMLDivElement;
+    private barsCanvas!: HTMLDivElement;
+    private infoStats!: HTMLDivElement;
+
+    private readonly barFillBySeriesId: { [seriesId: string]: HTMLDivElement } = {};
+    private readonly barValueBySeriesId: { [seriesId: string]: HTMLDivElement } = {};
+    private readonly infoValueBySeriesId: { [seriesId: string]: HTMLSpanElement } = {};
+    private readonly zeroLineByGroupId: { [groupId: string]: HTMLDivElement } = {};
+
+    constructor(
+        title: string,
+        unit: string,
+        yMin: number,
+        yMax: number,
+        groups: BarGraphGroupDefinition[],
+        barStyles: { [seriesId: string]: BarStyle } = {},
+        graphsContainerId: string = GraphicalRepresentation.GRAPHS_CONTAINER_ID,
+        decimals: number = 2
+    ) {
+        super(graphsContainerId);
+        this.title = title;
+        this.unit = unit;
+        this.yMin = yMin;
+        this.yMax = yMax;
+        this.groups = groups;
+        this.barStyles = barStyles;
+        this.decimals = decimals;
+
+        this.initializeCollections();
+        this.initializeBarGraph();
+        this.update();
+    }
+
+    private initializeCollections(): void {
+        this.groups.forEach((group) => {
+            group.series.forEach((series) => {
+                if (!this.dataPointsCollection[series.id]) {
+                    this.dataPointsCollection[series.id] = [];
+                }
+            });
+        });
+    }
+
+    private initializeBarGraph(): void {
+        const container = document.getElementById(this.graphsContainerId);
+        if (!container) {
+            console.error(`$${this.graphsContainerId} not found`);
+            return;
+        }
+
+        this.graphRow = document.createElement("div");
+        this.graphRow.className = "graph-row bar-graph-row";
+
+        const graphMain = document.createElement("div");
+        graphMain.className = "graph-main";
+
+        const graphHeader = document.createElement("div");
+        graphHeader.className = "graph-header";
+
+        this.graphTitle = document.createElement("h2");
+        this.graphTitle.className = "graph-title";
+        this.graphTitle.textContent = this.title;
+        graphHeader.appendChild(this.graphTitle);
+
+        const graphContent = document.createElement("div");
+        graphContent.className = "graph-content";
+
+        const yAxisSection = document.createElement("div");
+        yAxisSection.className = "y-axis-section";
+
+        const yAxisTitle = document.createElement("div");
+        yAxisTitle.className = "y-axis-title";
+        yAxisTitle.textContent = this.unit;
+
+        this.yAxisLabels = document.createElement("div");
+        this.yAxisLabels.className = "y-axis-labels";
+
+        yAxisSection.appendChild(yAxisTitle);
+        yAxisSection.appendChild(this.yAxisLabels);
+
+        this.barsCanvas = document.createElement("div");
+        this.barsCanvas.className = "bar-graph-canvas";
+
+        const groupsContainer = document.createElement("div");
+        groupsContainer.className = "bar-groups-container";
+
+        this.groups.forEach((group) => {
+            const groupElement = document.createElement("div");
+            groupElement.className = "bar-group";
+
+            const groupBars = document.createElement("div");
+            groupBars.className = "bar-group-bars";
+
+            const zeroLine = document.createElement("div");
+            zeroLine.className = "bar-zero-line";
+            groupBars.appendChild(zeroLine);
+            this.zeroLineByGroupId[group.id] = zeroLine;
+
+            group.series.forEach((series) => {
+                const barSlot = document.createElement("div");
+                barSlot.className = "bar-slot";
+
+                const barValue = document.createElement("div");
+                barValue.className = "bar-value";
+                barValue.textContent = "-";
+
+                const barFill = document.createElement("div");
+                barFill.className = "bar-fill";
+                const style = this.barStyles[series.id];
+                if (style) {
+                    barFill.style.background = style.color;
+                    barFill.style.opacity = `${style.opacity}`;
+                }
+
+                const barSeriesLabel = document.createElement("div");
+                barSeriesLabel.className = "bar-series-label";
+                barSeriesLabel.textContent = series.label;
+
+                barSlot.appendChild(barValue);
+                barSlot.appendChild(barFill);
+                barSlot.appendChild(barSeriesLabel);
+
+                groupBars.appendChild(barSlot);
+
+                this.barFillBySeriesId[series.id] = barFill;
+                this.barValueBySeriesId[series.id] = barValue;
+            });
+
+            const groupLabel = document.createElement("div");
+            groupLabel.className = "bar-group-label";
+            groupLabel.textContent = group.label;
+
+            groupElement.appendChild(groupBars);
+            groupElement.appendChild(groupLabel);
+            groupsContainer.appendChild(groupElement);
+        });
+
+        this.barsCanvas.appendChild(groupsContainer);
+
+        graphContent.appendChild(yAxisSection);
+        graphContent.appendChild(this.barsCanvas);
+
+        graphMain.appendChild(graphHeader);
+        graphMain.appendChild(graphContent);
+
+        const graphInfo = document.createElement("div");
+        graphInfo.className = "graph-info bar-graph-info";
+
+        const infoTitle = document.createElement("h3");
+        infoTitle.textContent = "Current Values";
+
+        this.infoStats = document.createElement("div");
+        this.infoStats.className = "bar-info-stats";
+
+        this.groups.forEach((group) => {
+            group.series.forEach((series) => {
+                const infoItem = document.createElement("div");
+                infoItem.className = "bar-info-item";
+
+                const label = document.createElement("span");
+                label.className = "info-label";
+                label.textContent = `${group.label} • ${series.label}`;
+
+                const value = document.createElement("span");
+                value.className = "info-value";
+                value.textContent = "-";
+
+                infoItem.appendChild(label);
+                infoItem.appendChild(value);
+                this.infoStats.appendChild(infoItem);
+
+                this.infoValueBySeriesId[series.id] = value;
+            });
+        });
+
+        graphInfo.appendChild(infoTitle);
+        graphInfo.appendChild(this.infoStats);
+
+        this.graphRow.appendChild(graphMain);
+        this.graphRow.appendChild(graphInfo);
+
+        container.appendChild(this.graphRow);
+    }
+
+    protected update(): void {
+        if (!this.graphRow) {
+            return;
+        }
+
+        const latestBySeries: { [seriesId: string]: number } = {};
+        let maxObserved = -Infinity;
+        let minObserved = Infinity;
+
+        Object.keys(this.dataPointsCollection).forEach((seriesId) => {
+            const collection = this.dataPointsCollection[seriesId];
+            if (!collection || collection.length === 0) {
+                return;
+            }
+
+            collection.forEach((point) => {
+                if (point.y > maxObserved) {
+                    maxObserved = point.y;
+                }
+                if (point.y < minObserved) {
+                    minObserved = point.y;
+                }
+            });
+
+            const latest = collection[collection.length - 1].y;
+            latestBySeries[seriesId] = latest;
+        });
+
+        if (maxObserved !== -Infinity && maxObserved > this.yMax) {
+            this.yMax = Math.ceil(maxObserved * 1.1);
+        }
+        if (minObserved !== Infinity && minObserved < this.yMin) {
+            this.yMin = Math.floor(minObserved * 1.1);
+        }
+        if (this.yMax === this.yMin) {
+            this.yMax = this.yMin + 1;
+        }
+
+        const zeroPercentFromTop = this.getZeroPercentFromTop();
+        this.updateYAxisLabels(zeroPercentFromTop);
+
+        Object.values(this.zeroLineByGroupId).forEach((zeroLine) => {
+            zeroLine.style.top = `${zeroPercentFromTop}%`;
+        });
+
+        this.groups.forEach((group) => {
+            group.series.forEach((series) => {
+                const value = latestBySeries[series.id];
+                const fill = this.barFillBySeriesId[series.id];
+                const valueLabel = this.barValueBySeriesId[series.id];
+                const infoValue = this.infoValueBySeriesId[series.id];
+
+                if (!fill || !valueLabel || !infoValue) {
+                    return;
+                }
+
+                if (value === undefined) {
+                    fill.style.height = "0%";
+                    valueLabel.textContent = "-";
+                    infoValue.textContent = "-";
+                    return;
+                }
+
+                const pointPercentFromTop = this.valueToPercentFromTop(value);
+                const isPositive = value >= 0;
+                const topPercent = isPositive ? pointPercentFromTop : zeroPercentFromTop;
+                const heightPercent = Math.abs(zeroPercentFromTop - pointPercentFromTop);
+
+                fill.style.top = `${topPercent}%`;
+                fill.style.height = `${Math.max(heightPercent, 1)}%`;
+
+                valueLabel.style.top = `calc(${topPercent}% - 18px)`;
+                valueLabel.textContent = `${value.toFixed(this.decimals)}`;
+                infoValue.textContent = `${value.toFixed(this.decimals)} ${this.unit}`;
+            });
+        });
+    }
+
+    private valueToPercentFromTop(value: number): number {
+        const range = this.yMax - this.yMin;
+        if (range <= 0) {
+            return 100;
+        }
+        const clamped = Math.max(this.yMin, Math.min(this.yMax, value));
+        return 100 - ((clamped - this.yMin) / range) * 100;
+    }
+
+    private getZeroPercentFromTop(): number {
+        if (this.yMin <= 0 && this.yMax >= 0) {
+            return this.valueToPercentFromTop(0);
+        }
+        if (this.yMin > 0) {
+            return 100;
+        }
+        return 0;
+    }
+
+    private updateYAxisLabels(zeroPercentFromTop: number): void {
+        this.yAxisLabels.innerHTML = "";
+        this.yAxisLabels.style.position = "relative";
+
+        const topLabel = document.createElement("span");
+        topLabel.className = "y-label";
+        topLabel.textContent = this.yMax.toString();
+        topLabel.style.position = "absolute";
+        topLabel.style.top = "0%";
+        topLabel.style.right = "0";
+        topLabel.style.transform = "translateY(-50%)";
+
+        const bottomLabel = document.createElement("span");
+        bottomLabel.className = "y-label";
+        bottomLabel.textContent = this.yMin.toString();
+        bottomLabel.style.position = "absolute";
+        bottomLabel.style.bottom = "0%";
+        bottomLabel.style.right = "0";
+        bottomLabel.style.transform = "translateY(50%)";
+
+        this.yAxisLabels.appendChild(topLabel);
+        this.yAxisLabels.appendChild(bottomLabel);
+
+        if (this.yMin <= 0 && this.yMax >= 0) {
+            const zeroLabel = document.createElement("span");
+            zeroLabel.className = "y-label";
+            zeroLabel.textContent = "0";
+            zeroLabel.style.position = "absolute";
+            zeroLabel.style.top = `${zeroPercentFromTop}%`;
+            zeroLabel.style.right = "0";
+            zeroLabel.style.transform = "translateY(-50%)";
+            this.yAxisLabels.appendChild(zeroLabel);
+        }
+    }
+}
 // #endregion

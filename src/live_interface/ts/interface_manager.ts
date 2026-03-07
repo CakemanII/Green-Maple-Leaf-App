@@ -175,19 +175,46 @@ class InterfaceManager {
                             } as InterfaceObjectRuntimeData,
                             {
                                 UUID: "VEL-graph",
-                                type: InterfaceObjectType.LINE_GRAPH,
-                                posX: 20,
+                                type: InterfaceObjectType.BAR_GRAPH,
+                                posX: 52,
                                 posY: 0,
-                                width: 50,
+                                width: 48,
                                 height: 50,
-                                monitorDataKeys: ["accel"],
-                                lineGraphSettings: {
-                                    title: "Linear Acceleration (x, y, z)",
+                                monitorDataKeys: ["accel", "runtime"],
+                                barGraphSettings: {
+                                    title: "Acceleration Groups",
                                     unit: "m/s²",
                                     yMin: -5,
                                     yMax: 5,
-                                    maxPoints: 180,
-                                    vectorComponents: ["x", "y", "z"]
+                                    decimals: 2,
+                                    groups: [
+                                        {
+                                            id: "g1",
+                                            label: "G1",
+                                            series: [
+                                                { id: "accel-x", label: "Accel X", key: "accel", component: "x" }
+                                            ]
+                                        },
+                                        {
+                                            id: "g2",
+                                            label: "G2",
+                                            series: [
+                                                { id: "accel-y", label: "Accel Y", key: "accel", component: "y" }
+                                            ]
+                                        },
+                                        {
+                                            id: "g3",
+                                            label: "G3",
+                                            series: [
+                                                { id: "accel-z", label: "Accel Z", key: "accel", component: "z" }
+                                            ]
+                                        }
+                                    ],
+                                    barColors: {
+                                        "accel-x": "#ff4f4f",
+                                        "accel-y": "#4f6bff",
+                                        "accel-z": "#45d36b"
+                                    }
                                 }
                             } as InterfaceObjectRuntimeData
                         ]

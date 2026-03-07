@@ -130,14 +130,31 @@ body {
 .line-graph-host .graph-content {
     flex: 1 1 auto;
     min-height: 0;
-    height: auto;
+    height: 100%;
 }
 
 .line-graph-host .y-axis-section,
 .line-graph-host .y-axis-title,
 .line-graph-host .y-axis-labels,
 .line-graph-host .graph-canvas {
-    height: 100%;
+    height: auto;
+}
+
+.line-graph-host .graph-canvas-wrapper {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.line-graph-host .graph-canvas {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.line-graph-host .x-axis-info {
+    flex: 0 0 auto;
+    min-height: 18px;
 }
 
 .line-graph-host .graph-info {

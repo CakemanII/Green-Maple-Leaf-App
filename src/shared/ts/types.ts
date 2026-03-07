@@ -93,6 +93,7 @@ export type StatusCollectionFileMetadata = FileMetadata & {
 export enum InterfaceObjectType {
     PANEL,
     LINE_GRAPH,
+    BAR_GRAPH,
 }
 
 export type InterfaceObjectData = {
