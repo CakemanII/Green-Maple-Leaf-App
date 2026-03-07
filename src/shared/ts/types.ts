@@ -104,5 +104,6 @@ export type InterfaceObjectData = {
     height: number;
 
     childrenInterfaceObjects?: InterfaceObjectData[]; // Only for panels
-    monitorDataKey?: string; // Only for data display objects
+    monitorDataKey?: string; // Legacy single key support
+    monitorDataKeys?: string[]; // Preferred support for one or more keys
 }

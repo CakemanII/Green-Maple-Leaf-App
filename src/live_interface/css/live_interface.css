@@ -1,0 +1,225 @@
+:root {
+    --bg: #0d0d0d;
+    --panel: #171717;
+    --panel-border: #2e2e2e;
+    --text: #e8e8e8;
+    --muted: #9aa0a8;
+    --accent: #6ba3ff;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: radial-gradient(circle at 10% 10%, #151b24 0%, var(--bg) 40%);
+    color: var(--text);
+    font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+#screens-container {
+    position: absolute;
+    inset: 0 0 40px 0;
+    overflow: hidden;
+}
+
+.interface-screen {
+    position: absolute;
+    inset: 0;
+    transition: opacity 0.12s ease;
+}
+
+.interface-screen.active {
+    visibility: visible;
+    opacity: 1;
+    z-index: 2;
+    pointer-events: auto;
+}
+
+.interface-screen.inactive {
+    visibility: hidden;
+    opacity: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.screen-root-panel {
+    position: absolute;
+    inset: 0;
+    border: 1px solid #1f2630;
+    background: linear-gradient(180deg, #111825 0%, #0d1117 100%);
+}
+
+.iobject-wrapper {
+    position: absolute;
+    border-radius: 0;
+    overflow: hidden;
+}
+
+.iobject-panel {
+    border: 1px solid transparent;
+    overflow: hidden;
+    contain: layout paint;
+    isolation: isolate;
+}
+
+.iobject-display {
+    border: 1px solid var(--panel-border);
+    background: rgba(20, 20, 20, 0.82);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+    contain: layout paint;
+    isolation: isolate;
+}
+
+.iobject-content,
+.line-graph-content {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.panel-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.line-graph-content {
+    padding: 0;
+}
+
+.line-graph-host {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    display: block;
+}
+
+.line-graph-host .graph-row {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    height: auto;
+    width: auto;
+    max-width: none;
+    padding: 8px;
+    gap: 8px;
+    align-items: stretch;
+    overflow: hidden;
+}
+
+.line-graph-host .graph-main,
+.line-graph-host .graph-info {
+    min-height: 0;
+}
+
+.line-graph-host .graph-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+}
+
+.line-graph-host .graph-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+}
+
+.line-graph-host .y-axis-section,
+.line-graph-host .y-axis-title,
+.line-graph-host .y-axis-labels,
+.line-graph-host .graph-canvas {
+    height: 100%;
+}
+
+.line-graph-host .graph-info {
+    flex: 0 0 185px;
+    min-width: 185px;
+    max-width: 185px;
+    padding: 10px;
+    gap: 8px;
+    align-self: stretch;
+    height: 100%;
+}
+
+.line-graph-host .graph-info h3 {
+    padding-bottom: 6px;
+    margin-bottom: 2px;
+}
+
+.line-graph-host .collection-buttons {
+    margin-bottom: 6px !important;
+    gap: 3px !important;
+}
+
+.line-graph-host .collection-button {
+    padding: 3px 4px !important;
+    font-size: 11px !important;
+}
+
+.line-graph-host .info-stats {
+    gap: 6px;
+    align-content: start;
+}
+
+.line-graph-host .info-item {
+    padding: 6px;
+    gap: 3px;
+}
+
+.line-graph-host .info-label {
+    font-size: 0.62rem;
+}
+
+.line-graph-host .info-value {
+    font-size: 0.7rem;
+}
+
+#screen-tabs-container {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 40px;
+    background: #111111;
+    border-top: 1px solid #2f2f2f;
+    display: flex;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.screen-tab {
+    border: none;
+    border-right: 1px solid #2f2f2f;
+    min-width: 160px;
+    background: #1a1a1a;
+    color: #a7a7a7;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0 14px;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.screen-tab:hover {
+    background: #232323;
+    color: #f3f3f3;
+}
+
+.screen-tab.active {
+    background: #0f1420;
+    color: var(--accent);
+}
+
+#audios-container {
+    display: none;
+}

@@ -8,10 +8,12 @@ export abstract class GraphicalRepresentation {
     protected static GRAPHS_CONTAINER_ID: string = "graphs-container"
 
     protected dataPointsCollection: DataPointsCollection;
+    protected readonly graphsContainerId: string;
 
-    constructor() {
+    constructor(graphsContainerId: string = GraphicalRepresentation.GRAPHS_CONTAINER_ID) {
         // Initialize variables
         this.dataPointsCollection = {};
+        this.graphsContainerId = graphsContainerId;
     }
 
     /**
@@ -163,9 +165,10 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
         yMin: number,
         yMax: number,
         timeWindow: number = 30,
-        collections: { [key: string]: LineStyle } = { 'default': LineGraphRepresentation.DEFAULT_LINE_STYLE }
+        collections: { [key: string]: LineStyle } = { 'default': LineGraphRepresentation.DEFAULT_LINE_STYLE },
+        graphsContainerId: string = GraphicalRepresentation.GRAPHS_CONTAINER_ID
     ) {
-        super();
+        super(graphsContainerId);
         
         // Initialize general graph settings
         this.title = title;
@@ -210,9 +213,9 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
 
     private initializeLineGraph(): void {
         // Get the graphs container
-        const container = document.getElementById(GraphicalRepresentation.GRAPHS_CONTAINER_ID);
+        const container = document.getElementById(this.graphsContainerId);
         if (!container) {
-            console.error(`$${GraphicalRepresentation.GRAPHS_CONTAINER_ID} not found`);
+            console.error(`$${this.graphsContainerId} not found`);
             return;
         }
 

@@ -11,6 +11,7 @@ Scope: End-product behavior only (no editor behavior), based on current skeleton
 - Hidden screens still receive telemetry updates and update internal state.
 - Hidden screens perform low-rate rendering (1-2 FPS), while data pipelines continue at full update rate.
 - Interface objects are positioned and sized, and may monitor telemetry data.
+- All interface object positions and sizes are percentages relative to their immediate parent container.
 - Only panel objects can contain children.
 - Panel objects do not have monitorDataKeys because panels do not directly consume telemetry values.
 - The screen background is treated as a root immutable panel (non-editable), so all object seating is panel-local.
@@ -165,6 +166,18 @@ Recommended seating model:
 Practical notes:
 - Use absolute positioning within each screen root for deterministic placement.
 - Panel children positions are local to panel content area (not global screen coordinates).
+- Parent panel geometry is immutable from child content: children never resize or reposition their parent panel.
+- Position anchor is always the object's top-left corner.
+- Coordinate contract:
+  x = 0 means object left edge at parent left edge.
+  x = 100 means object left edge at parent right edge.
+  y = 0 means object top edge at parent top edge.
+  y = 100 means object top edge at parent bottom edge.
+- Size contract:
+  width = 100 means object width equals parent width.
+  height = 100 means object height equals parent height.
+  Example: parent width 50, child width 100 => child spans full parent width.
+- No aspect-ratio inheritance: width and height are applied independently from parent-relative percentages.
 - Treat each screen root as an immutable background panel for layout consistency.
 - Keep render and data concerns split:
   - updateData mutates internal state/buffers

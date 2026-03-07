@@ -71,6 +71,10 @@ def serve_status_editor():
 def serve_live_data():
     return send_from_directory(LIVE_DATA_DIR, 'live_data.html')
 
+@app.route('/live_data/<path:path>')
+def serve_live_data_assets(path):
+    return send_from_directory(LIVE_DATA_DIR, path)
+
 @app.route('/preferences.html')
 def serve_preferences():
     return send_from_directory(PREFERENCES_DIR, 'preferences.html')
@@ -100,8 +104,8 @@ def serve_image(filepath):
 
 @app.route('/<path:path>')
 def serve_static(path):
-    # Try main, geofence_editor, preferences in order
-    for folder in [MAIN_DIR, GEOFENCE_EDITOR_DIR, PREFERENCES_DIR, LIVE_DATA_DIR, STATUS_EDITOR_DIR]:
+    # Try known app folders for static assets (compiled_js, css, assets, etc.)
+    for folder in [MAIN_DIR, LIVE_INTERFACE_DIR, INTERFACE_EDITOR_DIR, GEOFENCE_EDITOR_DIR, PREFERENCES_DIR, LIVE_DATA_DIR, STATUS_EDITOR_DIR]:
         file_path = os.path.join(folder, path)
         if os.path.isfile(file_path):
             return send_from_directory(folder, path)

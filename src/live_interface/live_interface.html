@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Interface — Green Maple Leaf</title>
+    <link rel="stylesheet" href="/css/live_data.css">
+    <link rel="stylesheet" href="css/live_interface.css">
 </head>
 <body>
     <div id="screens-container">
@@ -17,5 +19,17 @@
     <div id="audios-container">
         <!-- Audio elements will be dynamically inserted here and played on command-->
     </div>
+
+    <script type="module" src="../shared/compiled_js/utilities.js"></script>
+
+    <script type="module" src="../shared/compiled_js/global_session_reference.js"></script>
+
+    <script type="module" src="../shared/compiled_js/global_rocket_communication_reference.js"></script>
+
+    <script type="module" src="./compiled_js/interface_objects.js"></script>
+
+    <script type="module" src="./compiled_js/interface_screen.js"></script>
+
+    <script type="module" src="./compiled_js/interface_manager.js"></script>
 </body>
 </html>
