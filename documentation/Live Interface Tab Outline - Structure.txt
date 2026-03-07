@@ -61,6 +61,11 @@ LineGraphIObject:
 - updateData appends/normalizes points
 - renderFrame reads latest buffered state and paints based on screen render policy
 
+THREE_D_MODEL_ABS_ROTATION:
+- Renders a 3D model whose absolute orientation is set directly from Euler input telemetry.
+- Supports vector telemetry key (x=roll, y=pitch, z=yaw) and optional split scalar keys.
+- Rotation is absolute with respect to earth frame, not incremental integration.
+
 
 =====================================
 3) Tabs and Screen Visibility Model

@@ -33,6 +33,7 @@ export class InterfaceScreen {
     private visible: boolean = false;
 
     private readonly dirtyDisplayObjects: Set<InterfaceObject> = new Set();
+    private readonly continuousDisplayObjects: Set<InterfaceObject> = new Set();
 
     private readonly foregroundRenderIntervalMs: number = 1000 / 30;
     private readonly backgroundRenderIntervalMs: number = 500;
@@ -140,6 +141,14 @@ export class InterfaceScreen {
         this.rootInterfaceObjects.forEach((object) => {
             object.collectDataDisplayObjectsByKey(this.interfaceDisplayObjectsByMonitorKey);
         });
+
+        Object.values(this.interfaceDisplayObjectsByMonitorKey).forEach((objects) => {
+            objects.forEach((object) => {
+                if (object.shouldRenderContinuously()) {
+                    this.continuousDisplayObjects.add(object);
+                }
+            });
+        });
     }
 
     private mountObjectTreeAsSiblings(container: HTMLElement): void {
@@ -227,11 +236,15 @@ export class InterfaceScreen {
     }
 
     private renderVisibleDirtyObjects(): void {
-        if (this.dirtyDisplayObjects.size === 0) {
+        if (this.dirtyDisplayObjects.size === 0 && this.continuousDisplayObjects.size === 0) {
             return;
         }
 
-        this.dirtyDisplayObjects.forEach((object) => {
+        const toRender = new Set<InterfaceObject>();
+        this.dirtyDisplayObjects.forEach((object) => toRender.add(object));
+        this.continuousDisplayObjects.forEach((object) => toRender.add(object));
+
+        toRender.forEach((object) => {
             object.renderFrame();
         });
         this.dirtyDisplayObjects.clear();

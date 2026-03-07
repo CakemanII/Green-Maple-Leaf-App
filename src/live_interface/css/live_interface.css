@@ -85,6 +85,87 @@ body {
     overflow: hidden;
 }
 
+.three-model-content {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: 8px;
+}
+
+.three-model-host {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 15%, #1d2230 0%, #0f1420 50%, #0a0d14 100%);
+}
+
+.three-model-css-scene {
+    position: absolute;
+    inset: 0;
+    perspective: 900px;
+    transform-style: preserve-3d;
+}
+
+.three-model-cube {
+    --three-model-color: #7fb8ff;
+    position: absolute;
+    left: 50%;
+    top: 56%;
+    width: 84px;
+    height: 84px;
+    transform-style: preserve-3d;
+    transform: translate(-50%, -50%);
+}
+
+.three-model-face {
+    position: absolute;
+    width: 84px;
+    height: 84px;
+    border: 1px solid #284364;
+    background: color-mix(in srgb, var(--three-model-color) 55%, #0f1724 45%);
+    opacity: 0.92;
+}
+
+.three-model-face-front { transform: translateZ(42px); }
+.three-model-face-back { transform: rotateY(180deg) translateZ(42px); }
+.three-model-face-right { transform: rotateY(90deg) translateZ(42px); }
+.three-model-face-left { transform: rotateY(-90deg) translateZ(42px); }
+.three-model-face-top { transform: rotateX(90deg) translateZ(42px); }
+.three-model-face-bottom { transform: rotateX(-90deg) translateZ(42px); }
+
+.three-model-cone {
+    position: absolute;
+    left: 50%;
+    top: -24px;
+    width: 18px;
+    height: 26px;
+    transform: translateX(-50%) translateZ(42px);
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    background: linear-gradient(180deg, #ffd07a 0%, #b9782b 100%);
+    border: 1px solid rgba(32, 22, 10, 0.55);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.three-model-host canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.three-model-overlay {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(10, 13, 20, 0.72);
+    border: 1px solid #2a3242;
+    color: #d9e5ff;
+    font-size: 11px;
+    line-height: 1.35;
+    z-index: 2;
+    pointer-events: none;
+}
+
 .panel-content {
     position: relative;
     width: 100%;

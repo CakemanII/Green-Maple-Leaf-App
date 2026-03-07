@@ -60,6 +60,7 @@ class InterfaceManager {
 
             const subscribers = this.screenTelemetrySubscriptions[label];
             if (!subscribers || subscribers.size === 0) {
+                console.log(`[InterfaceManager] Received telemetry for "${label}" with no subscribers.`, packet);
                 return;
             }
 
@@ -215,6 +216,22 @@ class InterfaceManager {
                                         "accel-y": "#4f6bff",
                                         "accel-z": "#45d36b"
                                     }
+                                }
+                            } as InterfaceObjectRuntimeData,
+                            {
+                                UUID: "abs-rotation-3d",
+                                type: InterfaceObjectType.THREE_D_MODEL_ABS_ROTATION,
+                                posX: 0,
+                                posY: 52,
+                                width: 50,
+                                height: 48,
+                                monitorDataKeys: ["ang_pos"],
+                                threeDModelAbsRotationSettings: {
+                                    title: "Absolute Rotation (Earth Frame)",
+                                    eulerOrder: "ZYX",
+                                    angleUnit: "deg",
+                                    vectorTelemetryKey: "ang_pos",
+                                    modelColor: "#7fb8ff"
                                 }
                             } as InterfaceObjectRuntimeData
                         ]

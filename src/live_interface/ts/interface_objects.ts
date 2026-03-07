@@ -60,12 +60,24 @@ export type BarGraphIObjectSettings = {
     decimals: number;
 };
 
+export type ThreeDModelAbsRotationIObjectSettings = {
+    title: string;
+    eulerOrder: "XYZ" | "XZY" | "YXZ" | "YZX" | "ZXY" | "ZYX";
+    angleUnit: "deg" | "rad";
+    vectorTelemetryKey?: string;
+    rollKey?: string;
+    pitchKey?: string;
+    yawKey?: string;
+    modelColor: string;
+};
+
 export type InterfaceObjectRuntimeData = InterfaceObjectData & {
     UUID?: string;
     name?: string;
     monitorDataKeys?: string[];
     lineGraphSettings?: Partial<LineGraphIObjectSettings>;
     barGraphSettings?: Partial<BarGraphIObjectSettings>;
+    threeDModelAbsRotationSettings?: Partial<ThreeDModelAbsRotationIObjectSettings>;
 };
 
 export abstract class InterfaceObject {
@@ -161,6 +173,10 @@ export abstract class InterfaceObject {
     protected abstract initializeSecondaryDOM(): void;
     public abstract updateData(packet: TelemetryPacket): void;
     public abstract renderFrame(): void;
+
+    public shouldRenderContinuously(): boolean {
+        return false;
+    }
 }
 
 export class PanelIObject extends InterfaceObject {
@@ -581,6 +597,183 @@ export class BarGraphIObject extends InterfaceObject {
     }
 }
 
+export class ThreeDModelAbsRotationIObject extends InterfaceObject {
+    private readonly settings: ThreeDModelAbsRotationIObjectSettings;
+
+    private hostElement!: HTMLDivElement;
+    private overlayElement!: HTMLDivElement;
+
+    private cubeElement!: HTMLDivElement;
+
+    private rollRad: number = 0;
+    private pitchRad: number = 0;
+    private yawRad: number = 0;
+
+    private isCubeInitialized: boolean = false;
+
+    constructor(
+        uuid: string,
+        monitorDataKeys: string[],
+        posX: number,
+        posY: number,
+        width: number,
+        height: number,
+        settings?: Partial<ThreeDModelAbsRotationIObjectSettings>
+    ) {
+        const resolvedSettings: ThreeDModelAbsRotationIObjectSettings = {
+            title: settings?.title ?? "3D Absolute Rotation",
+            eulerOrder: settings?.eulerOrder ?? "ZYX",
+            angleUnit: settings?.angleUnit ?? "deg",
+            vectorTelemetryKey: settings?.vectorTelemetryKey,
+            rollKey: settings?.rollKey,
+            pitchKey: settings?.pitchKey,
+            yawKey: settings?.yawKey,
+            modelColor: settings?.modelColor ?? "#8ec5ff"
+        };
+
+        super(uuid, false, monitorDataKeys, posX, posY, width, height);
+        this.settings = resolvedSettings;
+        this.refreshOverlayText();
+        this.initializeCubeIfNeeded();
+    }
+
+    protected override initializeSecondaryDOM(): void {
+        this.secondaryDOMElement.classList.add("three-model-content");
+
+        this.hostElement = document.createElement("div");
+        this.hostElement.className = "three-model-host";
+
+        this.overlayElement = document.createElement("div");
+        this.overlayElement.className = "three-model-overlay";
+        this.overlayElement.textContent = "3D Absolute Rotation | R: 0.0 P: 0.0 Y: 0.0";
+
+        const scene = document.createElement("div");
+        scene.className = "three-model-css-scene";
+
+        this.cubeElement = document.createElement("div");
+        this.cubeElement.className = "three-model-cube";
+
+        ["front", "back", "right", "left", "top", "bottom"].forEach((faceName) => {
+            const face = document.createElement("div");
+            face.className = `three-model-face three-model-face-${faceName}`;
+            this.cubeElement.appendChild(face);
+        });
+
+        const cone = document.createElement("div");
+        cone.className = "three-model-cone";
+        this.cubeElement.appendChild(cone);
+
+        scene.appendChild(this.cubeElement);
+        this.hostElement.appendChild(scene);
+
+        this.secondaryDOMElement.appendChild(this.hostElement);
+        this.secondaryDOMElement.appendChild(this.overlayElement);
+    }
+
+    public override updateData(packet: TelemetryPacket): void {
+        if (!this.monitorDataKeys.includes(packet.label)) {
+            return;
+        }
+
+        const vectorKey = this.settings.vectorTelemetryKey ?? this.monitorDataKeys[0];
+
+        if (packet.valueType === "vector3d" && this.isVector3D(packet.value) && packet.label === vectorKey) {
+            this.setEulerInput(packet.value.x, packet.value.y, packet.value.z);
+            return;
+        }
+
+        if (packet.valueType === "number" && typeof packet.value === "number") {
+            if (this.settings.rollKey && packet.label === this.settings.rollKey) {
+                this.rollRad = this.toRadians(packet.value);
+            }
+            if (this.settings.pitchKey && packet.label === this.settings.pitchKey) {
+                this.pitchRad = this.toRadians(packet.value);
+            }
+            if (this.settings.yawKey && packet.label === this.settings.yawKey) {
+                this.yawRad = this.toRadians(packet.value);
+            }
+        }
+    }
+
+    public override renderFrame(): void {
+        this.initializeCubeIfNeeded();
+        if (!this.isCubeInitialized) {
+            return;
+        }
+
+        this.applyCubeRotation();
+        this.refreshOverlayText();
+    }
+
+    public override shouldRenderContinuously(): boolean {
+        return true;
+    }
+
+    private setEulerInput(roll: number, pitch: number, yaw: number): void {
+        this.rollRad = this.toRadians(roll);
+        this.pitchRad = this.toRadians(pitch);
+        this.yawRad = this.toRadians(yaw);
+    }
+
+    private toRadians(value: number): number {
+        return this.settings.angleUnit === "deg" ? (value * Math.PI) / 180 : value;
+    }
+
+    private refreshOverlayText(): void {
+        const toDisplay = (rad: number) => (rad * 180 / Math.PI).toFixed(1);
+        this.overlayElement.textContent = `${this.settings.title} | R: ${toDisplay(this.rollRad)} P: ${toDisplay(this.pitchRad)} Y: ${toDisplay(this.yawRad)}`;
+    }
+
+    private initializeCubeIfNeeded(): void {
+        if (this.isCubeInitialized) {
+            return;
+        }
+        if (!document.body.contains(this.hostElement) || !this.cubeElement) {
+            return;
+        }
+
+        this.isCubeInitialized = true;
+        this.applyCubeRotation();
+    }
+
+    private applyCubeRotation(): void {
+        if (!this.cubeElement) {
+            return;
+        }
+
+        const rollDeg = (this.rollRad * 180) / Math.PI;
+        const pitchDeg = (this.pitchRad * 180) / Math.PI;
+        const yawDeg = (this.yawRad * 180) / Math.PI;
+
+        const angleByAxis: { [axis: string]: number } = {
+            X: rollDeg,
+            Y: pitchDeg,
+            Z: yawDeg
+        };
+
+        const orderedRotations = this.settings.eulerOrder
+            .split("")
+            .map((axis) => `rotate${axis}(${angleByAxis[axis].toFixed(3)}deg)`)
+            .join(" ");
+
+        this.cubeElement.style.transform = `translate(-50%, -50%) ${orderedRotations}`;
+        this.cubeElement.style.setProperty("--three-model-color", this.settings.modelColor);
+    }
+
+    private isVector3D(value: any): value is Vector3D {
+        return value !== null
+            && typeof value === "object"
+            && typeof value.x === "number"
+            && typeof value.y === "number"
+            && typeof value.z === "number";
+    }
+
+    // Keep compatibility with previous class shape; no external script loading required.
+    private static ensureThreeLoaded(): Promise<any> {
+        return Promise.resolve(null);
+    }
+}
+
 export function createInterfaceObjectFromData(
     data: InterfaceObjectRuntimeData,
     warnings: string[]
@@ -641,6 +834,33 @@ export function createInterfaceObjectFromData(
         return new BarGraphIObject(uuid, resolvedKeys, posX, posY, width, height, data.barGraphSettings);
     }
 
+    if (data.type === InterfaceObjectType.THREE_D_MODEL_ABS_ROTATION) {
+        if (data.childrenInterfaceObjects && data.childrenInterfaceObjects.length > 0) {
+            warnings.push(`[${uuid}] Non-panel objects cannot have children. Children were ignored.`);
+        }
+
+        const resolvedKeys = normalizeThreeDModelMonitorDataKeys(
+            data.monitorDataKeys,
+            data.monitorDataKey,
+            data.threeDModelAbsRotationSettings
+        );
+
+        if (resolvedKeys.length === 0) {
+            warnings.push(`[${uuid}] THREE_D_MODEL_ABS_ROTATION missing monitorDataKeys. Object was skipped.`);
+            return null;
+        }
+
+        return new ThreeDModelAbsRotationIObject(
+            uuid,
+            resolvedKeys,
+            posX,
+            posY,
+            width,
+            height,
+            data.threeDModelAbsRotationSettings
+        );
+    }
+
     warnings.push(`[${uuid}] Unsupported interface object type '${String(data.type)}'. Object was skipped.`);
     return null;
 }
@@ -674,6 +894,29 @@ function normalizeBarGraphMonitorDataKeys(
             }
         });
     });
+
+    return Array.from(keys);
+}
+
+function normalizeThreeDModelMonitorDataKeys(
+    monitorDataKeys?: string[],
+    legacyMonitorDataKey?: string,
+    settings?: Partial<ThreeDModelAbsRotationIObjectSettings>
+): string[] {
+    const keys = new Set(normalizeMonitorDataKeys(monitorDataKeys, legacyMonitorDataKey));
+
+    if (settings?.vectorTelemetryKey && settings.vectorTelemetryKey.trim().length > 0) {
+        keys.add(settings.vectorTelemetryKey.trim());
+    }
+    if (settings?.rollKey && settings.rollKey.trim().length > 0) {
+        keys.add(settings.rollKey.trim());
+    }
+    if (settings?.pitchKey && settings.pitchKey.trim().length > 0) {
+        keys.add(settings.pitchKey.trim());
+    }
+    if (settings?.yawKey && settings.yawKey.trim().length > 0) {
+        keys.add(settings.yawKey.trim());
+    }
 
     return Array.from(keys);
 }
