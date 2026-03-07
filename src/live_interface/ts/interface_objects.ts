@@ -653,15 +653,31 @@ export class ThreeDModelAbsRotationIObject extends InterfaceObject {
         this.cubeElement = document.createElement("div");
         this.cubeElement.className = "three-model-cube";
 
-        ["front", "back", "right", "left", "top", "bottom"].forEach((faceName) => {
-            const face = document.createElement("div");
-            face.className = `three-model-face three-model-face-${faceName}`;
-            this.cubeElement.appendChild(face);
-        });
+        const rocket = document.createElement("div");
+        rocket.className = "three-model-rocket";
 
-        const cone = document.createElement("div");
-        cone.className = "three-model-cone";
-        this.cubeElement.appendChild(cone);
+        const rectangle = document.createElement("div");
+        rectangle.className = "three-model-rectangle";
+
+        const triangleLeft = document.createElement("div");
+        triangleLeft.className = "three-model-triangle tri-left";
+
+        const triangleRight = document.createElement("div");
+        triangleRight.className = "three-model-triangle tri-right";
+
+        const triangleBack = document.createElement("div");
+        triangleBack.className = "three-model-triangle tri-back";
+
+        const pyramid = document.createElement("div");
+        pyramid.className = "three-model-pyramid";
+
+        rocket.appendChild(rectangle);
+        rocket.appendChild(triangleLeft);
+        rocket.appendChild(triangleRight);
+        rocket.appendChild(triangleBack);
+        rocket.appendChild(pyramid);
+
+        this.cubeElement.appendChild(rocket);
 
         scene.appendChild(this.cubeElement);
         this.hostElement.appendChild(scene);

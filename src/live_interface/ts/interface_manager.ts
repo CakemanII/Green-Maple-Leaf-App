@@ -60,7 +60,6 @@ class InterfaceManager {
 
             const subscribers = this.screenTelemetrySubscriptions[label];
             if (!subscribers || subscribers.size === 0) {
-                console.log(`[InterfaceManager] Received telemetry for "${label}" with no subscribers.`, packet);
                 return;
             }
 
