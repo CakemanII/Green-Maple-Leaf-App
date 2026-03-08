@@ -1,10 +1,11 @@
 import { IFrameCommunicationUitilies } from "./utilities.js";
+import { Flag } from "../../shared/ts/types.js";
 
 export class StatusesReference {
     private static instance: StatusesReference;
     public static get INSTANCE(): StatusesReference { return StatusesReference.instance; }
 
-    private onStatusUpdateCallback: (statusUUID: string, flagName: string, flagImage: string) => void = () => {};
+    private onStatusUpdateCallback: (statusUUID: string, flag: Flag) => void = () => {};
 
     constructor() {
         // Singleton enforcement
@@ -20,7 +21,7 @@ export class StatusesReference {
     /**
      * Sets the callback to be invoked on status updates.
      */
-    public setOnStatusUpdateCallback(callback: (statusUUID: string, flagName: string, flagImage: string) => void): void {
+    public setOnStatusUpdateCallback(callback: (statusUUID: string, flag: Flag) => void): void {
         this.onStatusUpdateCallback = callback;
     }
 
@@ -47,11 +48,9 @@ export class StatusesReference {
 
             // Split the message data
             const statusUUID = messageData.statusUUID;
-            const flagName = messageData.flagName;
-            const flagImage = messageData.flagImage;
 
             // Invoke the callback with received data
-            this.onStatusUpdateCallback(statusUUID, flagName, flagImage);
+            this.onStatusUpdateCallback(statusUUID, messageData.flag);
         });
     }
 }

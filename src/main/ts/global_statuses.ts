@@ -63,13 +63,13 @@ export class GlobalStatusesManager {
         this.statuses.forEach(status => {
             this.statusEvaluators[status.UUID] = new LiveStatus(
                 status, 
-                () => {
+                (flagsTriggeredUUIDs: string[]) => {
                     // Callback to handle status update
                     const activeFlag = this.statusEvaluators[status.UUID].getActiveFlag();
                     this.sendStatusUpdateToIframes(
                         status.UUID, 
-                        activeFlag.name, 
-                        activeFlag.imageUUID ?? null
+                        activeFlag,
+                        flagsTriggeredUUIDs
                     );
                 }
             );
@@ -123,14 +123,14 @@ export class GlobalStatusesManager {
     /**
      * Send status update to iframes.
      */
-    private sendStatusUpdateToIframes(statusUUID: string, flagName: string, flagImage: string | null): void {
+    private sendStatusUpdateToIframes(statusUUID: string, flag: Flag, flagsTriggeredUUIDs: string[]): void {
         // Send message to all status iframes
         this.telemetryIframes.forEach(iframe => {
             iframe.contentWindow?.postMessage({ 
                 type: 'statusUpdate',
                 statusUUID: statusUUID,
-                flagName: flagName,
-                flagImage: flagImage 
+                flag: flag,
+                flagsTriggeredUUIDs: flagsTriggeredUUIDs
             }, '*');
         });
     }
@@ -163,14 +163,16 @@ export class GlobalStatusesManager {
  */
 class LiveStatus {
     private status: Status;
-    private onStatusUpdateCallback: (() => void);
+    private onStatusUpdateCallback: ((flagsTriggeredUUIDs: string[]) => void);
 
     private activeFlag: Flag;
     public getActiveFlag(): Flag { return this.activeFlag; }
 
     private evaluationTriggers: { telemetry: string[], status: string[] } = { telemetry: [], status: [] };
 
-    constructor(status: Status, onStatusUpdateCallback: (() => void)) {
+    private flagsTriggeredUUIDs: string[] = []; // List of all flag UUIDs that have been triggered.
+
+    constructor(status: Status, onStatusUpdateCallback: ((flagsTriggeredUUIDs: string[]) => void)) {
         // Initialize status
         this.status = status;
         this.activeFlag = status.defaultFlag;
@@ -250,7 +252,8 @@ class LiveStatus {
                 const result = this.evaluateConditionalGroup(flag.primaryConditionalGroup);
                 if (result) {
                     this.activeFlag = flag;
-                    this.onStatusUpdateCallback!();
+                    this.addActiveFlagToTriggered();
+                    this.onStatusUpdateCallback!(this.flagsTriggeredUUIDs);
                     return; // Exit after first matching flag (This goes in prioirity order)
                 }
             }
@@ -259,7 +262,8 @@ class LiveStatus {
         // If no flags matched, set to default flag
         if (this.activeFlag.UUID !== this.status.defaultFlag.UUID) {
             this.activeFlag = this.status.defaultFlag;
-            this.onStatusUpdateCallback!();
+            this.addActiveFlagToTriggered();
+            this.onStatusUpdateCallback!(this.flagsTriggeredUUIDs);
         }
     }
 
@@ -361,6 +365,15 @@ class LiveStatus {
 
         console.error("Invalid condition type.");
         return false; // Default to false
+    }
+
+    /**
+     * Add a flag to the list of triggered flags if not already present.
+     */
+    private addActiveFlagToTriggered(): void {
+        if (!this.flagsTriggeredUUIDs.includes(this.activeFlag.UUID)) {
+            this.flagsTriggeredUUIDs.push(this.activeFlag.UUID);
+        }
     }
 }
 

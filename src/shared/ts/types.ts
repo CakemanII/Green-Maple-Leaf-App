@@ -95,6 +95,7 @@ export enum InterfaceObjectType {
     LINE_GRAPH,
     BAR_GRAPH,
     THREE_D_MODEL_ABS_ROTATION,
+    STATUS_DISPLAY,
 }
 
 export type InterfaceObjectData = {

@@ -1,5 +1,6 @@
 
 import { InterfaceObjectData, InterfaceObjectType, Vector3D } from "../../shared/compiled_js/types.js";
+import { StatusesReference } from "../../shared/compiled_js/global_statuses_reference.js";
 import {
     BarGraphGroupDefinition,
     BarGraphRepresentation,
@@ -9,6 +10,7 @@ import {
     LineGraphYOverflowMode,
     LineStyle
 } from "../../live_data/compiled_js/graph_representations.js";
+import { Flag } from "../../shared/ts/types.js";
 
 export type TelemetryValueType = "number" | "vector3d" | "boolean" | "string" | "unknown";
 
@@ -71,6 +73,12 @@ export type ThreeDModelAbsRotationIObjectSettings = {
     modelColor: string;
 };
 
+export type StatusDisplayIObjectSettings = {
+    statusUUID: string;
+    title: string;
+    emptyText: string;
+};
+
 export type InterfaceObjectRuntimeData = InterfaceObjectData & {
     UUID?: string;
     name?: string;
@@ -78,6 +86,7 @@ export type InterfaceObjectRuntimeData = InterfaceObjectData & {
     lineGraphSettings?: Partial<LineGraphIObjectSettings>;
     barGraphSettings?: Partial<BarGraphIObjectSettings>;
     threeDModelAbsRotationSettings?: Partial<ThreeDModelAbsRotationIObjectSettings>;
+    statusDisplaySettings?: Partial<StatusDisplayIObjectSettings>;
 };
 
 export abstract class InterfaceObject {
@@ -173,6 +182,10 @@ export abstract class InterfaceObject {
     protected abstract initializeSecondaryDOM(): void;
     public abstract updateData(packet: TelemetryPacket): void;
     public abstract renderFrame(): void;
+
+    public destroy(): void {
+        // Optional override for objects that hold external subscriptions/resources.
+    }
 
     public shouldRenderContinuously(): boolean {
         return false;
@@ -790,6 +803,179 @@ export class ThreeDModelAbsRotationIObject extends InterfaceObject {
     }
 }
 
+export class StatusDisplayIObject extends InterfaceObject {
+    private static readonly objectsByStatusUUID: { [statusUUID: string]: Set<StatusDisplayIObject> } = {};
+    private static readonly latestStatusValues: { [statusUUID: string]: { flagName: string; flagImage: string } } = {};
+    private static statusBridgeInitialized: boolean = false;
+    private static initialStatusesLoad: Promise<void> | null = null;
+
+    private readonly settings: StatusDisplayIObjectSettings;
+
+    private titleElement!: HTMLDivElement;
+    private flagImageElement!: HTMLImageElement;
+    private flagNameElement!: HTMLDivElement;
+
+    constructor(
+        uuid: string,
+        posX: number,
+        posY: number,
+        width: number,
+        height: number,
+        settings?: Partial<StatusDisplayIObjectSettings>
+    ) {
+        const resolvedSettings: StatusDisplayIObjectSettings = {
+            statusUUID: settings?.statusUUID?.trim() ?? "",
+            title: settings?.title ?? "Status",
+            emptyText: settings?.emptyText ?? "No active flag"
+        };
+
+        super(uuid, false, [], posX, posY, width, height);
+        this.settings = resolvedSettings;
+
+        this.titleElement.textContent = this.settings.title;
+        this.applyStatusDisplay(this.settings.emptyText, "");
+
+        StatusDisplayIObject.registerObject(this);
+        StatusDisplayIObject.ensureStatusBridgeInitialized();
+        StatusDisplayIObject.applyCachedValueIfPresent(this);
+    }
+
+    protected override initializeSecondaryDOM(): void {
+        this.secondaryDOMElement.classList.add("status-display-content");
+
+        this.titleElement = document.createElement("div");
+        this.titleElement.className = "status-display-title";
+
+        const imageFrame = document.createElement("div");
+        imageFrame.className = "status-display-image-frame";
+
+        this.flagImageElement = document.createElement("img");
+        this.flagImageElement.className = "status-display-image";
+        this.flagImageElement.alt = "Active status flag";
+        this.flagImageElement.style.display = "none";
+
+        this.flagNameElement = document.createElement("div");
+        this.flagNameElement.className = "status-display-flag-name";
+
+        imageFrame.appendChild(this.flagImageElement);
+        this.secondaryDOMElement.appendChild(this.titleElement);
+        this.secondaryDOMElement.appendChild(imageFrame);
+        this.secondaryDOMElement.appendChild(this.flagNameElement);
+    }
+
+    public override updateData(_packet: TelemetryPacket): void {
+        // STATUS_DISPLAY is driven by global status updates, not telemetry packets.
+    }
+
+    public override renderFrame(): void {
+        // Rendering occurs immediately on status update callback.
+    }
+
+    public override destroy(): void {
+        StatusDisplayIObject.unregisterObject(this);
+    }
+
+    public getStatusUUID(): string {
+        return this.settings.statusUUID;
+    }
+
+    private applyStatusDisplay(flagName: string, flagImage: string): void {
+        const hasImage = typeof flagImage === "string" && flagImage.trim().length > 0;
+        const hasFlagName = typeof flagName === "string" && flagName.trim().length > 0;
+
+        if (hasImage) {
+            this.flagImageElement.src = this.convertPathToServerRoute(flagImage);
+            this.flagImageElement.style.display = "block";
+        } else {
+            this.flagImageElement.src = "";
+            this.flagImageElement.style.display = "none";
+        }
+
+        this.flagNameElement.textContent = hasFlagName ? flagName : this.settings.emptyText;
+    }
+
+    private convertPathToServerRoute(path: string): string {
+        const normalizedPath = path.replace(/\\/g, "/");
+        return `/serve_image/${encodeURI(normalizedPath)}`;
+    }
+
+    private static registerObject(object: StatusDisplayIObject): void {
+        const statusUUID = object.getStatusUUID();
+        if (!this.objectsByStatusUUID[statusUUID]) {
+            this.objectsByStatusUUID[statusUUID] = new Set();
+        }
+        this.objectsByStatusUUID[statusUUID].add(object);
+    }
+
+    private static unregisterObject(object: StatusDisplayIObject): void {
+        const statusUUID = object.getStatusUUID();
+        const set = this.objectsByStatusUUID[statusUUID];
+        if (!set) {
+            return;
+        }
+
+        set.delete(object);
+        if (set.size === 0) {
+            delete this.objectsByStatusUUID[statusUUID];
+        }
+    }
+
+    private static ensureStatusBridgeInitialized(): void {
+        if (this.statusBridgeInitialized) {
+            return;
+        }
+        this.statusBridgeInitialized = true;
+
+        StatusesReference.INSTANCE.setOnStatusUpdateCallback((statusUUID: string, flag: Flag) => {
+            this.latestStatusValues[statusUUID] = { flagName: flag.name, flagImage: flag.imageUUID ?? "" };
+            const targets = this.objectsByStatusUUID[statusUUID];
+            if (!targets) {
+                return;
+            }
+
+            targets.forEach((object) => {
+                object.applyStatusDisplay(flag.name, flag.imageUUID ?? "");
+            });
+        });
+
+        if (!this.initialStatusesLoad) {
+            this.initialStatusesLoad = this.loadInitialStatuses();
+        }
+    }
+
+    private static async loadInitialStatuses(): Promise<void> {
+        try {
+            const allStatuses = await StatusesReference.INSTANCE.getAllStatuses();
+            allStatuses.forEach((status) => {
+                this.latestStatusValues[status.statusUUID] = {
+                    flagName: status.currentActiveFlagName,
+                    flagImage: status.currentActiveFlagImage
+                };
+
+                const targets = this.objectsByStatusUUID[status.statusUUID];
+                if (!targets) {
+                    return;
+                }
+
+                targets.forEach((object) => {
+                    object.applyStatusDisplay(status.currentActiveFlagName, status.currentActiveFlagImage);
+                });
+            });
+        } catch (error) {
+            console.warn("[StatusDisplayIObject] Failed to load initial statuses.", error);
+        }
+    }
+
+    private static applyCachedValueIfPresent(object: StatusDisplayIObject): void {
+        const cached = this.latestStatusValues[object.getStatusUUID()];
+        if (!cached) {
+            return;
+        }
+
+        object.applyStatusDisplay(cached.flagName, cached.flagImage);
+    }
+}
+
 export function createInterfaceObjectFromData(
     data: InterfaceObjectRuntimeData,
     warnings: string[]
@@ -875,6 +1061,24 @@ export function createInterfaceObjectFromData(
             height,
             data.threeDModelAbsRotationSettings
         );
+    }
+
+    if (data.type === InterfaceObjectType.STATUS_DISPLAY) {
+        if (data.childrenInterfaceObjects && data.childrenInterfaceObjects.length > 0) {
+            warnings.push(`[${uuid}] Non-panel objects cannot have children. Children were ignored.`);
+        }
+
+        if (data.monitorDataKey || (data.monitorDataKeys && data.monitorDataKeys.length > 0)) {
+            warnings.push(`[${uuid}] STATUS_DISPLAY ignores monitorDataKeys.`);
+        }
+
+        const statusUUID = data.statusDisplaySettings?.statusUUID?.trim() ?? "";
+        if (statusUUID.length === 0) {
+            warnings.push(`[${uuid}] STATUS_DISPLAY requires statusDisplaySettings.statusUUID. Object was skipped.`);
+            return null;
+        }
+
+        return new StatusDisplayIObject(uuid, posX, posY, width, height, data.statusDisplaySettings);
     }
 
     warnings.push(`[${uuid}] Unsupported interface object type '${String(data.type)}'. Object was skipped.`);

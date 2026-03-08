@@ -114,8 +114,14 @@ export class InterfaceScreen {
     public destroy(): void {
         this.stopRenderLoops();
         this.unregisterSubscriptions();
+        this.rootInterfaceObjects.forEach((object) => this.destroyObjectTree(object));
         this.tabElement.remove();
         this.screenElement.remove();
+    }
+
+    private destroyObjectTree(object: InterfaceObject): void {
+        object.getChildren().forEach((child) => this.destroyObjectTree(child));
+        object.destroy();
     }
 
     private buildInterfaceObjects(interfaceObjectsData: InterfaceObjectRuntimeData[]): InterfaceObject[] {
