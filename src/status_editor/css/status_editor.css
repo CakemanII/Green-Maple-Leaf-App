@@ -1149,6 +1149,24 @@ body {
     border-color:var(--accent);
 }
 
+.comment-textarea {
+    background-color:var(--card);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:6px 10px;
+    color:#ffffff;
+    font-size:0.75rem;
+    font-family:inherit;
+    resize:vertical;
+    flex:1;
+    min-height:32px;
+}
+
+.comment-textarea:focus {
+    outline:none;
+    border-color:var(--accent);
+}
+
 .add-condition-btn {
     background-color:var(--panel);
     border:1px dashed var(--border);

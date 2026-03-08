@@ -30,7 +30,7 @@ export type ConditionalGroup = {
     not: boolean;
     type: 'AND' | 'OR' | 'CONDITION';
     embededConditionalGroups?: ConditionalGroup[] | null;
-    condition?: TelemetryCondition | StatusCondition | null;
+    condition?: TelemetryCondition | StatusCondition | CommentCondition | null;
     editorColor?: string;
 }
 
@@ -40,10 +40,16 @@ export type TelemetryCondition = {
     value: any; // Value to compare against
 }
 
+export type StatusConditionalType = 'IS_ACTIVE' | 'IS_NOT_ACTIVE' | 'HAS_BEEN_ACTIVE' | 'HAS_NOT_BEEN_ACTIVE';
+
 export type StatusCondition = {
     statusKey: string;  // "collectionUUID.statusUUID"
-    shouldBeActive: boolean; // Whether the flag should be active or not
+    conditionalType: StatusConditionalType; // Type of conditional check
     flagUUID: string;   // UUID of the flag to check
+}
+
+export type CommentCondition = {
+    comment: string; // The comment text (for documentation purposes only)
 }
 
 // Status Collection Save Simplicity Tytpes

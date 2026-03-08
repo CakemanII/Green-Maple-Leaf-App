@@ -1,5 +1,5 @@
 import { IFrameCommunicationUitilies } from '../../shared/compiled_js/utilities.js';
-import { StatusCollection, Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition } from '../../shared/compiled_js/types.js';
+import { StatusCollection, Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition, CommentCondition } from '../../shared/compiled_js/types.js';
 import { GlobalTelemetryManager } from './global_rocket_communication.js';
 
 // Types for statuses, flags, and etc.
@@ -317,7 +317,12 @@ class LiveStatus {
     /**
      * Evaluate a single condition (telemetry or status).
      */
-    private evaluateCondition(condition: TelemetryCondition | StatusCondition): boolean {
+    private evaluateCondition(condition: TelemetryCondition | StatusCondition | CommentCondition): boolean {
+        // Comment condition (always returns true, doesn't affect evaluation)
+        if ('comment' in condition) {
+            return true; // Comments are for documentation only
+        }
+
         // Telemetry condition
         if ('telemetryKey' in condition) {
             // Split telemetry key if needed (e.g., "vel.y" -> "vel" and "y")
@@ -356,11 +361,29 @@ class LiveStatus {
 
         // Status condition
         else if ('statusKey' in condition) {
-            const statusActiveFlagUUID = GlobalStatusesManager.INSTANCE.getStatusActiveFlag(condition.statusKey);
-            if (!statusActiveFlagUUID) { return false; } // Status not found means condition fails
+            const statusEvaluator = GlobalStatusesManager.INSTANCE['statusEvaluators'][condition.statusKey];
+            if (!statusEvaluator) { return false; } // Status not found means condition fails
 
-            const isActive = (statusActiveFlagUUID === condition.flagUUID);
-            return condition.shouldBeActive ? isActive : !isActive;
+            switch (condition.conditionalType) {
+                case 'IS_ACTIVE': {
+                    const statusActiveFlagUUID = GlobalStatusesManager.INSTANCE.getStatusActiveFlag(condition.statusKey);
+                    return statusActiveFlagUUID === condition.flagUUID;
+                }
+                case 'IS_NOT_ACTIVE': {
+                    const statusActiveFlagUUID = GlobalStatusesManager.INSTANCE.getStatusActiveFlag(condition.statusKey);
+                    return statusActiveFlagUUID !== condition.flagUUID;
+                }
+                case 'HAS_BEEN_ACTIVE': {
+                    const flagsTriggered = statusEvaluator['flagsTriggeredUUIDs'];
+                    return flagsTriggered.includes(condition.flagUUID);
+                }
+                case 'HAS_NOT_BEEN_ACTIVE': {
+                    const flagsTriggered = statusEvaluator['flagsTriggeredUUIDs'];
+                    return !flagsTriggered.includes(condition.flagUUID);
+                }
+                default:
+                    return false;
+            }
         }
 
         console.error("Invalid condition type.");

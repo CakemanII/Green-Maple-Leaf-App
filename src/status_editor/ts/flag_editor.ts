@@ -1,6 +1,6 @@
 // Imports
 import { GeneralUtilities } from '../../shared/compiled_js/utilities.js';
-import { Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition, StatusCollection, MediaFileMetadata } from '../../shared/compiled_js/types.js';
+import { Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition, StatusConditionalType, CommentCondition, StatusCollection, MediaFileMetadata } from '../../shared/compiled_js/types.js';
 import { CollectionEditor } from './collection_saving.js';
 import { CollectionEditorUI } from './collection_editor.js';
 import { ConfirmationPrompt, ColorPickerPrompt, MediaFileListViewerPrompt } from '../../shared/compiled_js/prompts.js';
@@ -294,6 +294,15 @@ export class FlagEditorUI {
                 }
             }
             
+            // Check if clicked element is an "Add Comment" button
+            if (target.classList.contains('add-condition-btn') && target.textContent?.includes('Comment')) {
+                const conditionBody = target.closest('.condition-body') as HTMLDivElement;
+                if (conditionBody) {
+                    this.addCommentCondition(conditionBody);
+                    this.validateAndUpdateConfirmButton();
+                }
+            }
+            
             // Check if clicked element is an "Add Conditional Group" button
             if (target.classList.contains('add-group-btn')) {
                 const conditionBody = target.closest('.condition-body') as HTMLDivElement;
@@ -528,8 +537,10 @@ export class FlagEditorUI {
                 <option value="" disabled selected>Status...</option>
             </select>
             <select class="condition-operator">
-                <option value="is">is</option>
-                <option value="isnot">is not</option>
+                <option value="is">is active</option>
+                <option value="isnot">is not active</option>
+                <option value="hasbeen">has been active</option>
+                <option value="hasnotbeen">has not been active</option>
             </select>
             <select class="condition-select">
                 <option value="" disabled selected>Flag...</option>
@@ -650,6 +661,74 @@ export class FlagEditorUI {
     }
 
     /**
+     * Add a comment condition (documentation only, no evaluation logic)
+     */
+    private addCommentCondition(conditionBody: HTMLDivElement): HTMLDivElement {
+        const conditionRow = document.createElement('div');
+        conditionRow.className = 'condition-row';
+        conditionRow.setAttribute('condition-type', 'comment');
+
+        // Generate random color for the condition
+        const colors = ['rgb(245, 166, 35)', 'rgb(107, 163, 255)', 'rgb(231, 76, 60)', 'rgb(46, 204, 113)', 'rgb(155, 89, 182)'];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+        conditionRow.innerHTML = `
+            <div class="drag-handle" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></div>
+            <textarea class="comment-textarea" placeholder="Add your comment here..." rows="1"></textarea>
+            <div class="color-indicator" style="background-color:${randomColor};" title="Click to change color"></div>
+            <button class="delete-btn"><i class="fas fa-trash"></i></button>
+        `;
+
+        // Insert before the button-row
+        const buttonRow = Array.from(conditionBody.children).find(
+            child => child.classList.contains('button-row')
+        ) as HTMLElement | undefined;
+
+        if (buttonRow) {
+            conditionBody.insertBefore(conditionRow, buttonRow);
+        } else {
+            conditionBody.appendChild(conditionRow);
+        }
+
+        // Make the border change with the color indicator
+        const colorIndicator = conditionRow.querySelector('.color-indicator') as HTMLDivElement;
+        const textarea = conditionRow.querySelector('.comment-textarea') as HTMLTextAreaElement;
+        
+        // Apply initial style
+        this.updateConditionalGroupStyle(conditionRow);
+        
+        // Cycle colors if left click
+        colorIndicator.addEventListener('click', () => {
+            const currentColor = colorIndicator.style.backgroundColor;
+            let currentIndex = colors.indexOf(currentColor);
+            currentIndex = (currentIndex + 1) % colors.length;
+            colorIndicator.style.backgroundColor = colors[currentIndex];
+            this.updateConditionalGroupStyle(conditionRow);
+            this.validateAndUpdateConfirmButton();
+        });
+
+        // Pick color if right click
+        colorIndicator.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            this.openNewColorSelector(e, colorIndicator, conditionRow);
+        });
+
+        // Track changes in textarea
+        textarea.addEventListener('input', () => {
+            this.validateAndUpdateConfirmButton();
+        });
+
+        // Make the delete button remove the entire row
+        const deleteBtn = conditionRow.querySelector('.delete-btn') as HTMLButtonElement;
+        deleteBtn.addEventListener('dblclick', () => {
+            conditionRow.remove();
+            this.validateAndUpdateConfirmButton();
+        });
+
+        return conditionRow;
+    }
+
+    /**
      * Add a new conditional group to the conditions container
      */
     private addConditionalGroup(conditionBody: HTMLDivElement, isMainConditionalGroup: boolean = false): HTMLDivElement {
@@ -672,6 +751,7 @@ export class FlagEditorUI {
                 <div class="button-row">
                     <button class="add-condition-btn">+ Add Telemetry Condition</button>
                     <button class="add-condition-btn">+ Add Status Conditional</button>
+                    <button class="add-condition-btn">+ Add Comment</button>
                     <button class="add-group-btn">+ Add Conditional Group</button>
                 </div>
             </div>
@@ -1135,15 +1215,37 @@ export class FlagEditorUI {
                 // Build key: collectionUUID.statusUUID
                 const statusKey = `${collectionSelectElement.value}.${statusSelectElement.value}`;
 
+                // Map operator value to StatusConditionalType
+                let conditionalType: StatusConditionalType;
+                switch (operatorElement.value) {
+                    case 'is': conditionalType = 'IS_ACTIVE'; break;
+                    case 'isnot': conditionalType = 'IS_NOT_ACTIVE'; break;
+                    case 'hasbeen': conditionalType = 'HAS_BEEN_ACTIVE'; break;
+                    case 'hasnotbeen': conditionalType = 'HAS_NOT_BEEN_ACTIVE'; break;
+                    default: conditionalType = 'IS_ACTIVE'; break;
+                }
+
                 // Build StatusCondition
                 const statusCondition: StatusCondition = {
                     statusKey,
-                    shouldBeActive: operatorElement.value === 'is',
+                    conditionalType,
                     flagUUID: flagSelectElement.value
                 };
 
                 // Assign to embeded group
                 embededGroup.condition = statusCondition;
+            }
+            else if (conditionType === 'comment') {
+                // Comment Condition
+                const textareaElement = row.querySelector('.comment-textarea') as HTMLTextAreaElement;
+
+                // Build CommentCondition
+                const commentCondition: CommentCondition = {
+                    comment: textareaElement.value
+                };
+
+                // Assign to embeded group
+                embededGroup.condition = commentCondition;
             }
             
             // Determine index of this row within its parent
@@ -1346,6 +1448,12 @@ export class FlagEditorUI {
                         conditionGroupElement,
                         embededGroupJSON
                     );
+                } else if (conditionType === 'comment') {
+                    // Comment Condition
+                    this.populateCommentConditionElement(
+                        conditionGroupElement,
+                        embededGroupJSON
+                    );
                 }
             } else {
                 // It's an embeded conditional group
@@ -1437,8 +1545,39 @@ export class FlagEditorUI {
         // Set flag
         flagSelectElement.value = statusCondition.flagUUID;
 
-        // Set operator
-        operatorElement.value = statusCondition.shouldBeActive ? 'is' : 'isnot';
+        // Set operator based on conditionalType
+        switch (statusCondition.conditionalType) {
+            case 'IS_ACTIVE': operatorElement.value = 'is'; break;
+            case 'IS_NOT_ACTIVE': operatorElement.value = 'isnot'; break;
+            case 'HAS_BEEN_ACTIVE': operatorElement.value = 'hasbeen'; break;
+            case 'HAS_NOT_BEEN_ACTIVE': operatorElement.value = 'hasnotbeen'; break;
+            default: operatorElement.value = 'is'; break;
+        }
+
+        // Set color indicator (if any)
+        if (conditionGroupJSON.editorColor) {
+            colorIndicator.style.backgroundColor = conditionGroupJSON.editorColor;
+            this.updateConditionalGroupStyle(conditionRowElement);
+        }
+    }
+
+    /**
+     * Populates a comment condition row element based on the provided JSON representation.
+     */
+    private populateCommentConditionElement(conditionGroupElement: HTMLDivElement, conditionGroupJSON: ConditionalGroup): void {
+        // Create the condition row element
+        const conditionRowElement = this.addCommentCondition(
+            conditionGroupElement.querySelector('.condition-body') as HTMLDivElement
+        );
+
+        // Get Input Elements
+        const textareaElement = conditionRowElement.querySelector('.comment-textarea') as HTMLTextAreaElement;
+        const colorIndicator  = conditionRowElement.querySelector('.color-indicator') as HTMLDivElement;
+
+        const commentCondition = conditionGroupJSON.condition as CommentCondition;
+
+        // Set comment text
+        textareaElement.value = commentCondition.comment;
 
         // Set color indicator (if any)
         if (conditionGroupJSON.editorColor) {
