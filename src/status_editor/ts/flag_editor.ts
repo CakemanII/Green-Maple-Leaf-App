@@ -1187,7 +1187,7 @@ export class FlagEditorUI {
                 const typeSelect      = row.querySelector('#telemetry-type')      as HTMLSelectElement;
                 const unitSelect      = row.querySelector('#telemetry-unit')      as HTMLSelectElement;
                 const operatorElement = row.querySelector('.condition-operator')  as HTMLSelectElement;
-                const valueElement    = row.querySelector('.condition-value-input') as HTMLInputElement;
+                const valueElement    = row.querySelector('.condition-value-input') as HTMLInputElement | HTMLSelectElement;
 
                 // Build key: category.type.unit — use "single" when the unit select is hidden/empty
                 const unitPart = (unitSelect.style.display !== 'none' && unitSelect.value)
@@ -1195,11 +1195,34 @@ export class FlagEditorUI {
                     : 'single';
                 const telemetryKey = `${categorySelect.value}.${typeSelect.value}.${unitPart}`;
 
+                // Validate operator (include boolean operators)
+                const validOperators: TelemetryCondition['operator'][] = ['E', 'NE', 'GT', 'NGT', 'LT', 'NLT', 'GTOE', 'NGTOE', 'LTOE', 'NLTOE', 'IS', 'ISNOT'];
+                const operator = validOperators.includes(operatorElement.value as any) 
+                    ? operatorElement.value as TelemetryCondition['operator']
+                    : 'E'; // Default to 'E' if invalid
+
+                // Parse value based on operator type
+                let parsedValue: any;
+                const rawValue = valueElement.value.trim();
+                
+                if (operator === 'IS' || operator === 'ISNOT') {
+                    // Boolean operator - parse as boolean
+                    parsedValue = rawValue === 'true';
+                } else {
+                    // Numeric operator - parse as number
+                    if (rawValue === '' || isNaN(parseFloat(rawValue))) {
+                        parsedValue = 0; // Default to 0 for invalid/empty values
+                        console.warn(`Invalid telemetry value '${rawValue}' for key '${telemetryKey}', defaulting to 0`);
+                    } else {
+                        parsedValue = parseFloat(rawValue);
+                    }
+                }
+
                 // Build TelemetryCondition
                 const telemetryCondition: TelemetryCondition = {
                     telemetryKey,
-                    operator: operatorElement.value as TelemetryCondition['operator'],
-                    value: parseFloat(valueElement.value)
+                    operator: operator,
+                    value: parsedValue
                 };
 
                 // Assign to embeded group
@@ -1498,12 +1521,23 @@ export class FlagEditorUI {
             unitSelect.value = keyUnit;
         }
 
-        // Set operator
-        operatorElement.value = telemetryCondition.operator;
+        // Set operator (validate it's a valid operator, default to 'E' if not)
+        const validOperators = ['E', 'NE', 'GT', 'NGT', 'LT', 'NLT', 'GTOE', 'NGTOE', 'LTOE', 'NLTOE', 'IS', 'ISNOT'];
+        operatorElement.value = validOperators.includes(telemetryCondition.operator) ? telemetryCondition.operator : 'E';
 
         // Set value (read after potential boolean select swap)
         const valueElement = conditionRowElement.querySelector('.condition-value-input') as HTMLInputElement | HTMLSelectElement;
-        valueElement.value = telemetryCondition.value.toString();
+        // Defensive: Handle null/undefined values and both boolean and numeric types
+        if (valueElement.tagName === 'SELECT') {
+            // Boolean select element
+            valueElement.value = (telemetryCondition.value === true || telemetryCondition.value === 'true') ? 'true' : 'false';
+        } else {
+            // Numeric input element
+            const safeValue = (telemetryCondition.value !== null && telemetryCondition.value !== undefined) 
+                ? telemetryCondition.value.toString() 
+                : '0';
+            valueElement.value = safeValue;
+        }
 
         // Set color indicator (if any)
         if (conditionGroupJSON.editorColor) {

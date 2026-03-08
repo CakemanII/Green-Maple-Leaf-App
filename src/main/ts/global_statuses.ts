@@ -352,9 +352,11 @@ class LiveStatus {
                 case 'LT': return currentValueSub < compareValue;
                 case 'NLT': return currentValueSub >= compareValue;
                 case 'GTOE': return currentValueSub >= compareValue;
-                case 'NLTOE': return currentValueSub < compareValue;
+                case 'NGTOE': return currentValueSub < compareValue;
                 case 'LTOE': return currentValueSub <= compareValue;
                 case 'NLTOE': return currentValueSub > compareValue;
+                case 'IS': return currentValueSub === compareValue; // Boolean: is true/false
+                case 'ISNOT': return currentValueSub !== compareValue; // Boolean: is not true/false
                 default: return false;
             }
         }

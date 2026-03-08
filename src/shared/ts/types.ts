@@ -36,7 +36,7 @@ export type ConditionalGroup = {
 
 export type TelemetryCondition = {
     telemetryKey: string; // Key to check in some global data source
-    operator: 'E' | 'NE' | 'GT' | 'NGT' | 'LT' | 'NLT' | 'GTOE' | 'NLGOE' | 'LTOE' | 'NLTOE';
+    operator: 'E' | 'NE' | 'GT' | 'NGT' | 'LT' | 'NLT' | 'GTOE' | 'NGTOE' | 'LTOE' | 'NLTOE' | 'IS' | 'ISNOT';
     value: any; // Value to compare against
 }
 
