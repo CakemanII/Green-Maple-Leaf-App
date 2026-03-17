@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Green Maple Leaf App</title>
+    
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: #0d0d0d;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        .top-nav {
+            background-color: #1a1a1a;
+            border-bottom: 1px solid #262626;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 45px;
+            padding: 0 15px;
+            position: relative; /* allow absolutely positioned decor */
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 4px;
+            height: 100%;
+            align-items: center;
+            margin-left: 44px; /* leave room for decorative leaf */
+        }
+
+        /* Decorative leaf (non-interactive) */
+        .nav-decor {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 28px;
+            height: 28px;
+            pointer-events: none; /* non-interactive */
+            opacity: 0.95;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .nav-decor img {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        .nav-tab {
+            padding: 12px 20px;
+            background-color: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #888888;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+        
+        .nav-tab:hover {
+            background-color: #242424;
+            color: #ffffff;
+        }
+        
+        .nav-tab.active {
+            color: #6ba3ff;
+            border-bottom-color: #6ba3ff;
+            background-color: #0d0d0d;
+        }
+
+        .nav-tab.disabled {
+            color: #363636;
+            user-select: none;
+            cursor: not-allowed;
+        }
+        
+        .nav-tab.disabled:hover {
+            background-color: transparent;
+        }
+        
+        .nav-right-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-left: auto;
+        }
+        
+        .connectivity-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background-color: #242424;
+            border: 2px solid #333333;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .indicator-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+        
+        .connectivity-indicator.online .indicator-dot {
+            background-color: #4ade80;
+            box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+        }
+        
+        .connectivity-indicator.online {
+            border-color: #4ade80;
+        }
+        
+        .connectivity-indicator.online .indicator-text {
+            color: #4ade80;
+        }
+        
+        .connectivity-indicator.poor-connection .indicator-dot {
+            background-color: #fbbf24;
+            box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        .connectivity-indicator.poor-connection {
+            border-color: #fbbf24;
+        }
+        
+        .connectivity-indicator.poor-connection .indicator-text {
+            color: #fbbf24;
+        }
+        
+        .connectivity-indicator.no-connection .indicator-dot {
+            background-color: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+        }
+        
+        .connectivity-indicator.no-connection {
+            border-color: #ef4444;
+        }
+        
+        .connectivity-indicator.no-connection .indicator-text {
+            color: #ef4444;
+        }
+        
+        .connectivity-indicator.offline .indicator-dot {
+            background-color: #888888;
+        }
+        
+        .connectivity-indicator.offline {
+            border-color: #333333;
+        }
+        
+        .connectivity-indicator.offline .indicator-text {
+            color: #888888;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .indicator-text {
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        
+        .nav-toggle-btn {
+            padding: 8px 16px;
+            background-color: #242424;
+            color: #888888;
+            border: 2px solid #333333;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        
+        .nav-toggle-btn:hover {
+            background-color: #2a2a2a;
+            border-color: #6ba3ff;
+            color: #ffffff;
+        }
+        
+        .nav-toggle-btn.active {
+            background-color: #6ba3ff;
+            color: #181a1b;
+            border-color: #6ba3ff;
+        }
+        
+        .nav-toggle-btn.active:hover {
+            background-color: #5a92ee;
+            border-color: #5a92ee;
+        }
+        
+        .content-container {
+            width: 100%;
+            height: calc(100vh - 45px);
+            position: relative;
+        }
+        
+        iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0px;
+            height: 0px;
+            border: none;
+            display: none;
+        }
+        
+        iframe.active {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-decor" aria-hidden="true">
+            <!-- decorative leaf loaded from external asset -->
+            <img src="./assets/leaf.png" alt="" aria-hidden="true" />
+        </div>
+        <div class="nav-tabs">
+            <button id="live_interface_tab_button" class="nav-tab disabled">Live Interface</button>
+            <!--<button id="live_data_tab_button" class="nav-tab disabled">Live Data</button>-->
+            <button id="interface_editor_tab_button" class="nav-tab disabled">Interface Editor</button>
+            <button id="status_editor_tab_button" class="nav-tab disabled">Status Editor</button>
+            <button id="geofence_editor_tab_button" class="nav-tab disabled">Geofence Editor</button>
+            <button id="preferences_tab_button" class="nav-tab disabled">Preferences</button>
+            <button id="settings_tab_button" class="nav-tab disabled">Settings</button>
+        </div>
+        <div class="nav-right-section">
+            <div id="rocket-connectivity-indicator" class="connectivity-indicator offline" title="Rocket Status: Loading">
+                <div class="indicator-dot"></div>
+                <span class="indicator-text">Loading</span>
+            </div>
+            <button id="nav-toggle-btn" class="nav-toggle-btn" title="Toggle state">
+                <span class="toggle-label">Loading</span>
+            </button>
+        </div>
+    </nav>
+    
+    <div class="content-container">
+        <iframe id="live_interface_tab" src="/live_interface.html" title="Live Interface"></iframe>
+        <!--<iframe id="live_data_tab" src="/live_data.html" title="Live Data"></iframe>-->
+        <iframe id="interface_editor_tab" src="/interface_editor.html" title="Interface Editor"></iframe>
+        <iframe id="status_editor_tab" src="/status_editor.html" title="Status Editor"></iframe>
+        <iframe id="geofence_editor_tab" src="/geofence_editor.html" title="Geofence Editor"></iframe>
+        <iframe id="preferences_tab" src="/preferences.html" title="Preferences"></iframe>
+        <iframe id="settings_tab" src="" title="Settings"></iframe>
+    </div>
+
+    <!-- Socket.IO Client Library -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+    <script type="module" src="../shared/compiled_js/utilities.js"></script>
+
+    <script type="module" src="./compiled_js/tab_handler.js"></script>
+
+    <script type="module" src="./compiled_js/global_preferences.js"></script>
+
+    <script type="module" src="./compiled_js/global_session.js"></script>
+
+    <script type="module" src="./compiled_js/derivative_integral_handling.js"></script>
+
+    <script type="module" src="./compiled_js/global_rocket_communication.js"></script>
+
+    <script type="module" src="./compiled_js/application_operational_state.js"></script>
+
+    <script type="module" src="./compiled_js/global_statuses.js"></script>
+</body>
+</html>

@@ -14,7 +14,8 @@
   },
   "files": [],
   "references": [
-    { "path": "./main" },
+    { "path": "./main_editor" },
+    { "path": "./main_gcs" },
     { "path": "./live_interface" },
     { "path": "./interface_editor" },
     { "path": "./geofence_editor" },
