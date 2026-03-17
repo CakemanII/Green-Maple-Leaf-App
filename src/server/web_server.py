@@ -32,7 +32,8 @@ log.addFilter(RouteFilter())
 SRC_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 ROOT_DIR: str = os.path.abspath(os.path.join(SRC_DIR, '..'))
 SAVES_DIR: str = os.path.join(ROOT_DIR, 'saves')
-MAIN_DIR: str = os.path.join(SRC_DIR, 'main')
+MAIN_EDITOR_DIR: str = os.path.join(SRC_DIR, 'main_editor')
+MAIN_GCS_DIR: str = os.path.join(SRC_DIR, 'main_gcs')
 LIVE_INTERFACE_DIR: str = os.path.join(SRC_DIR, 'live_interface')
 INTERFACE_EDITOR_DIR: str = os.path.join(SRC_DIR, 'interface_editor')
 GEOFENCE_EDITOR_DIR: str = os.path.join(SRC_DIR, 'geofence_editor')
@@ -47,9 +48,13 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 radio_buffer: RadioCommunicationBuffer
 
 #region Initial File Serving Routes
-@app.route('/')
+@app.route('/editor')
 def serve_index():
-    return send_from_directory(MAIN_DIR, 'index.html')
+    return send_from_directory(MAIN_EDITOR_DIR, 'index.html')
+
+@app.route('/gcs')
+def serve_index():
+    return send_from_directory(MAIN_GCS_DIR, 'index.html')
 
 @app.route('/interface_editor.html')
 def serve_interface_editor():
@@ -105,7 +110,7 @@ def serve_image(filepath):
 @app.route('/<path:path>')
 def serve_static(path):
     # Try known app folders for static assets (compiled_js, css, assets, etc.)
-    for folder in [MAIN_DIR, LIVE_INTERFACE_DIR, INTERFACE_EDITOR_DIR, GEOFENCE_EDITOR_DIR, PREFERENCES_DIR, LIVE_DATA_DIR, STATUS_EDITOR_DIR]:
+    for folder in [MAIN_EDITOR_DIR, LIVE_INTERFACE_DIR, INTERFACE_EDITOR_DIR, GEOFENCE_EDITOR_DIR, PREFERENCES_DIR, LIVE_DATA_DIR, STATUS_EDITOR_DIR]:
         file_path = os.path.join(folder, path)
         if os.path.isfile(file_path):
             return send_from_directory(folder, path)

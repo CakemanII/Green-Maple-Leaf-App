@@ -5,7 +5,7 @@
     "rootDir": "./ts",
     "composite": true
   },
-  "include": ["ts/**/*"],
+  "include": ["ts/**/*", "../shared/ts/tab_handler.ts"],
   "references": [
     { "path": "../shared" }
   ]
