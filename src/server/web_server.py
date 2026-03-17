@@ -1,4 +1,4 @@
-from flask import Flask, json, send_from_directory, request, jsonify
+from flask import Flask, json, send_from_directory, request, jsonify, redirect
 from flask_socketio import SocketIO, emit
 import os
 import mimetypes
@@ -60,9 +60,32 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 radio_buffer: RadioCommunicationBuffer
 
 #region Initial File Serving Routes
+def _was_editor_opened_last() -> bool:
+    """Check the session file to determine if the editor or GCS was opened last, to decide which page to serve at the root URL."""
+    try:
+        session_data = FileHandler.load_file("session.json")
+        if session_data:
+            import json as json_lib
+            session = json_lib.loads(session_data)
+            # Return True if editor was opened last, False if GCS was opened last
+            # Default to editor if no preference is stored
+            return session.get('last_opened_page', 'editor') == 'editor'
+    except Exception:
+        pass
+    return True
+
+@app.route('/')
+def serve_index():
+    # Redirect to the appropriate page based on session history
+    if _was_editor_opened_last():
+        return redirect('/editor')
+    else:
+        return redirect('/gcs')
+
 @app.route('/editor')
 def serve_editor():
     return send_from_directory(MAIN_EDITOR_DIR, 'index.html')
+
 
 @app.route('/gcs')
 def serve_gcs():
