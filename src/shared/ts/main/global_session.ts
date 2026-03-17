@@ -5,7 +5,7 @@ export class Session
 
     private currentSession: { [key: string]: any } = {};
 
-    constructor() {
+    constructor(isSessionTheEditor: boolean = false) {
         // Singleton pattern - prevent multiple instances
         if (Session.instance) {
             console.error("Session instance already exists!");
@@ -22,7 +22,7 @@ export class Session
         }, 0);
 
         // Set the last opened page in the session to be the editor.
-        this.updateSession('last_opened_page', 'editor');
+        this.updateSession('last_opened_page', isSessionTheEditor ? 'editor' : 'gcs');
     }
 
     /**

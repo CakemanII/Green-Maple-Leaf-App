@@ -1,4 +1,4 @@
-import { TabHandler } from "../../shared/compiled_js/tab_handler.js";
+import { TabHandler } from "../../shared/compiled_js/main/tab_handler.js";
 
 const TAB_IDS: Record<string, { tabId: string; buttonId: string }> = {
     liveInterface:   { tabId: 'live_interface_tab',   buttonId: 'live_interface_tab_button' },

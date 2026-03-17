@@ -1,4 +1,4 @@
-import { TabHandler } from "../../shared/compiled_js/tab_handler.js";
+import { TabHandler } from "../../shared/compiled_js/main/tab_handler.js";
 
 const TAB_IDS: Record<string, { tabId: string; buttonId: string }> = {
     interfaceEditor: { tabId: 'interface_editor_tab', buttonId: 'interface_editor_tab_button' },

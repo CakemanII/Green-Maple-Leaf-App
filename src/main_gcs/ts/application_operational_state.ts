@@ -1,4 +1,4 @@
-import { TabHandler } from "../../shared/compiled_js/tab_handler.js";
+import { TabHandler } from "../../shared/compiled_js/main/tab_handler.js";
 
 type OperationalState = "active" | "edit"
 
