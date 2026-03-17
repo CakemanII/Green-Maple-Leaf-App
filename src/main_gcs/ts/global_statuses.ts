@@ -30,7 +30,6 @@ export class GlobalStatusesManager {
     public static get INSTANCE(): GlobalStatusesManager { return GlobalStatusesManager.instance; }
 
     private readonly statusIframesIDs: string[] = [
-        'live_data_tab',
         'live_interface_tab',
     ]
     private telemetryIframes: HTMLIFrameElement[] = [];
@@ -74,7 +73,6 @@ export class GlobalStatusesManager {
                 }
             );
         });
-        console.log(`[GlobalStatusesManager] Loaded ${this.statuses.length} statuses.`);
 
         // Setup iframe communication
         this.initializeIFrameCommunication();

@@ -127,13 +127,9 @@ class OperationalStateHandler {
      * Update the active / inactive tabs.
      */
     private updateActiveInactiveTabs(): void {
+        // main_gcs only has liveInterface + preferences tabs.
         TabHandler.INSTANCE?.setTabEnabled("liveInterface", this.operationalState === "active" || this.DEBUGGING_MODE);
-        TabHandler.INSTANCE?.setTabEnabled("interfaceEditor", this.operationalState !== "active" || this.DEBUGGING_MODE);
-        TabHandler.INSTANCE?.setTabEnabled("liveData", this.operationalState === "active" || this.DEBUGGING_MODE);
-        TabHandler.INSTANCE?.setTabEnabled("statusEditor", this.operationalState !== "active" || this.DEBUGGING_MODE);
-        TabHandler.INSTANCE?.setTabEnabled("geofenceEditor", this.operationalState !== "active" || this.DEBUGGING_MODE);
         TabHandler.INSTANCE?.setTabEnabled("preferences", true);
-        TabHandler.INSTANCE?.setTabEnabled("settings", this.operationalState !== "active" || this.DEBUGGING_MODE);
     }
 
     private toggleOperationalState(): void {
@@ -207,7 +203,6 @@ class OperationalStateHandler {
             indicator.title = 'Poor Connection';
         } else {
             indicator.classList.add('no-connection');
-            console.log("Setting rocket connectivity indicator to no connection.");
             indicatorText.textContent = 'No Connection';
             indicator.title = 'No Connection';
         }

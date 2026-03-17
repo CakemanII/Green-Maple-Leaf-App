@@ -9,7 +9,6 @@ export class GlobalTelemetryManager {
     public static get INSTANCE(): GlobalTelemetryManager { return GlobalTelemetryManager.instance; }
 
     private readonly telemetryIframesIDs: string[] = [
-        'live_data_tab',
         'live_interface_tab',
     ]
     private telemetryIframes: HTMLIFrameElement[] = [];
@@ -77,11 +76,11 @@ export class GlobalTelemetryManager {
         });
 
         socket.on('connect', () => {
-            console.log('[LiveDataManager] Connected to web server');
+            // Connected
         });
 
         socket.on('disconnect', () => {
-            console.log('[LiveDataManager] Disconnected from web server');
+            // Disconnected
         });
     }
 

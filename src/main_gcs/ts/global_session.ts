@@ -75,9 +75,7 @@ export class Session
             body: JSON.stringify(this.currentSession)
         })
         .then(response => {
-            if (response.ok) {
-                console.log("Session data saved successfully.");
-            } else {
+            if (!response.ok) {
                 console.error("Error saving session data to server.");
             }
         });

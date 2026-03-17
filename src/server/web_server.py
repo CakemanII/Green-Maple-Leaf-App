@@ -5,6 +5,7 @@ import mimetypes
 import logging
 import uuid
 import datetime
+from urllib.parse import urlparse
 
 # Ensure .js files are served with correct MIME type
 mimetypes.add_type('application/javascript', '.js')
@@ -42,6 +43,17 @@ STATUS_EDITOR_DIR: str = os.path.join(SRC_DIR, 'status_editor')
 PREFERENCES_DIR: str = os.path.join(SRC_DIR, 'preferences')
 SHARED_DIR: str = os.path.join(SRC_DIR, 'shared')
 
+REFERRER_TO_DIR: dict[str, str] = {
+    '/editor': MAIN_EDITOR_DIR,
+    '/gcs': MAIN_GCS_DIR,
+    '/interface_editor.html': INTERFACE_EDITOR_DIR,
+    '/live_interface.html': LIVE_INTERFACE_DIR,
+    '/geofence_editor.html': GEOFENCE_EDITOR_DIR,
+    '/status_editor.html': STATUS_EDITOR_DIR,
+    '/live_data.html': LIVE_DATA_DIR,
+    '/preferences.html': PREFERENCES_DIR,
+}
+
 app = Flask(__name__, static_folder=None)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -49,11 +61,11 @@ radio_buffer: RadioCommunicationBuffer
 
 #region Initial File Serving Routes
 @app.route('/editor')
-def serve_index():
+def serve_editor():
     return send_from_directory(MAIN_EDITOR_DIR, 'index.html')
 
 @app.route('/gcs')
-def serve_index():
+def serve_gcs():
     return send_from_directory(MAIN_GCS_DIR, 'index.html')
 
 @app.route('/interface_editor.html')
@@ -109,8 +121,24 @@ def serve_image(filepath):
 
 @app.route('/<path:path>')
 def serve_static(path):
+    # Prioritize the folder that matches the referring page to avoid collisions
+    # (e.g. /gcs and /editor both having /compiled_js/application_operational_state.js).
+    folder_candidates: list[str] = []
+
+    referrer = request.headers.get('Referer', '')
+    if referrer:
+        referrer_path = urlparse(referrer).path
+        referrer_folder = REFERRER_TO_DIR.get(referrer_path)
+        if referrer_folder:
+            folder_candidates.append(referrer_folder)
+
+    # Fallback search order (kept for direct asset requests without referrer).
+    for folder in [MAIN_EDITOR_DIR, MAIN_GCS_DIR, LIVE_INTERFACE_DIR, INTERFACE_EDITOR_DIR, GEOFENCE_EDITOR_DIR, PREFERENCES_DIR, LIVE_DATA_DIR, STATUS_EDITOR_DIR]:
+        if folder not in folder_candidates:
+            folder_candidates.append(folder)
+
     # Try known app folders for static assets (compiled_js, css, assets, etc.)
-    for folder in [MAIN_EDITOR_DIR, LIVE_INTERFACE_DIR, INTERFACE_EDITOR_DIR, GEOFENCE_EDITOR_DIR, PREFERENCES_DIR, LIVE_DATA_DIR, STATUS_EDITOR_DIR]:
+    for folder in folder_candidates:
         file_path = os.path.join(folder, path)
         if os.path.isfile(file_path):
             return send_from_directory(folder, path)

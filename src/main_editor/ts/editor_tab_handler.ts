@@ -1,4 +1,4 @@
-import { TabHandler } from "../../shared/ts/tab_handler";
+import { TabHandler } from "../../shared/compiled_js/tab_handler.js";
 
 const TAB_IDS: Record<string, { tabId: string; buttonId: string }> = {
     interfaceEditor: { tabId: 'interface_editor_tab', buttonId: 'interface_editor_tab_button' },
@@ -9,3 +9,8 @@ const TAB_IDS: Record<string, { tabId: string; buttonId: string }> = {
 };
 
 new TabHandler(TAB_IDS);
+TabHandler.INSTANCE!.setTabEnabled('interfaceEditor', true);
+TabHandler.INSTANCE!.setTabEnabled('statusEditor', true);
+TabHandler.INSTANCE!.setTabEnabled('geofenceEditor', true);
+TabHandler.INSTANCE!.setTabEnabled('preferences', true);
+TabHandler.INSTANCE!.setTabEnabled('settings', true);
