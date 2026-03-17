@@ -20,6 +20,9 @@ export class Session
         setTimeout(() => {
             this.loadSessionDataFromServer();
         }, 0);
+
+        // Set the last opened page in the session to be the editor.
+        this.updateSession('last_opened_page', 'gcs');
     }
 
     /**
