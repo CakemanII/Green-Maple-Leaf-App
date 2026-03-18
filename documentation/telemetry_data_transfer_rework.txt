@@ -1,0 +1,5 @@
+Objective: To minimize use of application resources, we will now be processing all data at the server level, and then send:
+- Specifically requested data to webserver
+- Statistics about a specific data such as min, max, mean, timedelta, and more.
+
+Purpose: Minimize use of resources
