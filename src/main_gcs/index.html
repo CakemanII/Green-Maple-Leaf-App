@@ -280,7 +280,7 @@
             <button id="nav-toggle-btn" class="nav-toggle-btn" title="Toggle state">
                 <span class="toggle-label">Loading</span>
             </button>
-            <button class="route-switch-btn" title="Go to Editor" onclick="window.location.href='/editor'">
+            <button id="route-switch-btn" class="route-switch-btn" title="Go to Editor">
                 Open Editor
             </button>
         </div>
@@ -295,6 +295,23 @@
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
     <script type="module" src="../shared/compiled_js/utilities.js"></script>
+
+    <script type="module">
+        import { ConfirmationPrompt } from "../shared/compiled_js/prompts.js";
+
+        const routeSwitchButton = document.getElementById("route-switch-btn");
+        routeSwitchButton?.addEventListener("click", () => {
+            new ConfirmationPrompt(
+                "Switch Route",
+                "Are you sure you want to open Editor?",
+                "Open Editor",
+                "Stay Here",
+                () => {
+                    window.location.href = "/editor";
+                }
+            );
+        });
+    </script>
 
     <script type="module" src="./compiled_js/gcs_tab_handler.js"></script>
 

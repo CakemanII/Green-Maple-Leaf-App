@@ -276,7 +276,7 @@
             <button id="settings_tab_button" class="nav-tab disabled">Settings</button>
         </div>
         <div class="nav-right-section">
-            <button class="route-switch-btn" title="Go to GCS" onclick="window.location.href='/gcs'">
+            <button id="route-switch-btn" class="route-switch-btn" title="Go to GCS">
                 Open GCS
             </button>
         </div>
@@ -294,6 +294,23 @@
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
     <script type="module" src="../shared/compiled_js/utilities.js"></script>
+
+    <script type="module">
+        import { ConfirmationPrompt } from "../shared/compiled_js/prompts.js";
+
+        const routeSwitchButton = document.getElementById("route-switch-btn");
+        routeSwitchButton?.addEventListener("click", () => {
+            new ConfirmationPrompt(
+                "Switch Route",
+                "Are you sure you want to open GCS?",
+                "Open GCS",
+                "Stay Here",
+                () => {
+                    window.location.href = "/gcs";
+                }
+            );
+        });
+    </script>
 
     <script type="module" src="./compiled_js/editor_tab_handler.js"></script>
 
