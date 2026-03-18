@@ -4,8 +4,10 @@ export class Session
     public static get Instance(): Session { return this.instance; }
 
     private currentSession: { [key: string]: any } = {};
+    private sessionLoaded: boolean = false;
+    private pendingSessionUpdates: { [key: string]: any } = {};
 
-    constructor(isSessionTheEditor: boolean = false) {
+    constructor(initialLastOpenedPage: 'editor' | 'gcs' | null = null) {
         // Singleton pattern - prevent multiple instances
         if (Session.instance) {
             console.error("Session instance already exists!");
@@ -17,19 +19,22 @@ export class Session
         this.initializeExternalIframeCommunication();
 
         // Load initial session data from server.
-        setTimeout(() => {
-            this.loadSessionDataFromServer();
-        }, 0);
+        setTimeout(async () => {
+            // Load session data from the server after setting up communication.
+            await this.loadSessionDataFromServer();
 
-        // Set the last opened page in the session to be the editor.
-        this.updateSession('last_opened_page', isSessionTheEditor ? 'editor' : 'gcs');
+            // Only top-level main routes should update last_opened_page.
+            if (initialLastOpenedPage !== null) {
+                await this.updateSession('last_opened_page', initialLastOpenedPage);
+            }
+        }, 0);
     }
 
     /**
      * Initialize IFrame to primary window communication.
      */
     private initializeExternalIframeCommunication(): void {
-        window.addEventListener('message', (event) => {
+        window.addEventListener('message', async (event) => {
             // Assuming message is from child iframes.
             const messageData = event.data;
             // Check the message type
@@ -37,7 +42,7 @@ export class Session
                 // Update the specific session
                 const key = messageData.key;
                 const value = messageData.value;
-                this.updateSession(key, value);
+                await this.updateSession(key, value);
             }
             else if (event.data.type === "getSessionValue") {
                 const value = this.getSession(event.data.key);
@@ -54,45 +59,70 @@ export class Session
     /**
      * Load session data from the server.
      */
-    private loadSessionDataFromServer(): void {
-        fetch('/session/load')
-            .then(response => response.json())
-            .then(data => {
-                this.currentSession = data;
-            })
-            .catch(error => {
-                console.error("Error loading session data from server:", error);
-            });
+    private async loadSessionDataFromServer(): Promise<void> {
+        try {
+            const response = await fetch('/session/load');
+            const data = await response.json();
+            this.currentSession = data;
+            this.sessionLoaded = true;
+            await this.applyPendingSessionUpdates();
+        } catch (error) {
+            console.error("Error loading session data from server:", error);
+        }
+    }
+
+    /**
+     * Apply updates that were requested before session data finished loading.
+     */
+    private async applyPendingSessionUpdates(): Promise<void> {
+        const pendingKeys = Object.keys(this.pendingSessionUpdates);
+        if (pendingKeys.length === 0) {
+            return;
+        }
+
+        for (const key of pendingKeys) {
+            this.currentSession[key] = this.pendingSessionUpdates[key];
+        }
+        this.pendingSessionUpdates = {};
+        await this.saveSessionDataToServer();
     }
 
     /**
      * Save current session data to the server.
      */
-    private saveSessionDataToServer(): void {
-        fetch('/session/save', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            // Send current session data as query parameters
-            body: JSON.stringify(this.currentSession)
-        })
-        .then(response => {
+    private async saveSessionDataToServer(): Promise<void> {
+        try {
+            const response = await fetch('/session/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                // Send current session data as query parameters
+                body: JSON.stringify(this.currentSession)
+            });
             if (response.ok) {
                 console.log("Session data saved successfully.");
             } else {
                 console.error("Error saving session data to server.");
             }
-        });
+        } catch (error) {
+            console.error("Error saving session data to server:", error);
+        }
     }
 
     /**
      * Update a specific session and save to server.
      * Triggered from element change events.
      */
-    public updateSession(key: string, value: any): void {
+    public async updateSession(key: string, value: any): Promise<void> {
+        if (!this.sessionLoaded) {
+            this.pendingSessionUpdates[key] = value;
+            console.log(`Queued session update: ${key} = ${value}`);
+            return;
+        }
         this.currentSession[key] = value;
-        this.saveSessionDataToServer();
+        console.log(`Session updated: ${key} = ${value}`);
+        await this.saveSessionDataToServer();
     }
 
     /**
@@ -110,4 +140,17 @@ export class Session
     }
 }
 
-new Session();
+const normalizedPath = window.location.pathname.toLowerCase();
+const isTopLevelWindow = window.top === window;
+
+let initialLastOpenedPage: 'editor' | 'gcs' | null = null;
+if (isTopLevelWindow) {
+    if (normalizedPath === '/editor' || normalizedPath === '/editor/') {
+        initialLastOpenedPage = 'editor';
+    }
+    else if (normalizedPath === '/gcs' || normalizedPath === '/gcs/') {
+        initialLastOpenedPage = 'gcs';
+    }
+}
+
+new Session(initialLastOpenedPage);
