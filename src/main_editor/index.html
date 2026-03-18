@@ -219,6 +219,25 @@
             background-color: #5a92ee;
             border-color: #5a92ee;
         }
+
+        .route-switch-btn {
+            padding: 8px 14px;
+            background-color: #242424;
+            color: #c8c8c8;
+            border: 2px solid #333333;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .route-switch-btn:hover {
+            background-color: #2a2a2a;
+            border-color: #6ba3ff;
+            color: #ffffff;
+        }
         
         .content-container {
             width: 100%;
@@ -255,6 +274,11 @@
             <button id="geofence_editor_tab_button" class="nav-tab disabled">Geofence Editor</button>
             <button id="preferences_tab_button" class="nav-tab disabled">Preferences</button>
             <button id="settings_tab_button" class="nav-tab disabled">Settings</button>
+        </div>
+        <div class="nav-right-section">
+            <button class="route-switch-btn" title="Go to GCS" onclick="window.location.href='/gcs'">
+                Open GCS
+            </button>
         </div>
     </nav>
     

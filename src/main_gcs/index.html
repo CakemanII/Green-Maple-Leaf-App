@@ -219,6 +219,25 @@
             background-color: #5a92ee;
             border-color: #5a92ee;
         }
+
+        .route-switch-btn {
+            padding: 8px 14px;
+            background-color: #242424;
+            color: #c8c8c8;
+            border: 2px solid #333333;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .route-switch-btn:hover {
+            background-color: #2a2a2a;
+            border-color: #6ba3ff;
+            color: #ffffff;
+        }
         
         .content-container {
             width: 100%;
@@ -260,6 +279,9 @@
             </div>
             <button id="nav-toggle-btn" class="nav-toggle-btn" title="Toggle state">
                 <span class="toggle-label">Loading</span>
+            </button>
+            <button class="route-switch-btn" title="Go to Editor" onclick="window.location.href='/editor'">
+                Open Editor
             </button>
         </div>
     </nav>

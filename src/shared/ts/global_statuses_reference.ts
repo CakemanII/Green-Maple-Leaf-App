@@ -1,5 +1,5 @@
 import { IFrameCommunicationUitilies } from "./utilities.js";
-import { Flag } from "../../shared/compiled_js/types.js";
+import { Flag } from "./types.js";
 
 export class StatusesReference {
     private static instance: StatusesReference;
