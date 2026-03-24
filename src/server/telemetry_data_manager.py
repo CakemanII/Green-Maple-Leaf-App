@@ -84,7 +84,7 @@ class TelemetryDataManager:
         # Iterate through each telemetry category in the input telemetry data types
         for telemetry_category in self._input_telemetry_data_types:
             # Iterate through each telemetry data type in the category
-            for telemetry_data_type in telemetry_category:
+            for telemetry_data_type in self._input_telemetry_data_types[telemetry_category]:
                 # Create ID
                 telemetry_id = f"{telemetry_category}.{telemetry_data_type}"
 
@@ -127,6 +127,8 @@ class TelemetryDataManager:
         # Otherwise, create a new entry for the processed output telemetry ID with the processor function
         else:
             self._output_telemetry_processor_data[input_telemetry_id] = [processor_function]
+
+        print(f"Registered processor function for input telemetry data type '{input_telemetry_id}' with output processed telemetry ID '{output_processed_id}'.")
     #endregion
 
     def get_previous_telemetry_data(self, telemetry_id: ProcessedTelemetryID) -> ProcessedDataPoint | None:
