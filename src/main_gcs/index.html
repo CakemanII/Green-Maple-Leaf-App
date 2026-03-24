@@ -219,6 +219,25 @@
             background-color: #5a92ee;
             border-color: #5a92ee;
         }
+
+        .route-switch-btn {
+            padding: 8px 14px;
+            background-color: #242424;
+            color: #c8c8c8;
+            border: 2px solid #333333;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .route-switch-btn:hover {
+            background-color: #2a2a2a;
+            border-color: #6ba3ff;
+            color: #ffffff;
+        }
         
         .content-container {
             width: 100%;
@@ -251,12 +270,7 @@
         </div>
         <div class="nav-tabs">
             <button id="live_interface_tab_button" class="nav-tab disabled">Live Interface</button>
-            <!--<button id="live_data_tab_button" class="nav-tab disabled">Live Data</button>-->
-            <button id="interface_editor_tab_button" class="nav-tab disabled">Interface Editor</button>
-            <button id="status_editor_tab_button" class="nav-tab disabled">Status Editor</button>
-            <button id="geofence_editor_tab_button" class="nav-tab disabled">Geofence Editor</button>
             <button id="preferences_tab_button" class="nav-tab disabled">Preferences</button>
-            <button id="settings_tab_button" class="nav-tab disabled">Settings</button>
         </div>
         <div class="nav-right-section">
             <div id="rocket-connectivity-indicator" class="connectivity-indicator offline" title="Rocket Status: Loading">
@@ -266,17 +280,15 @@
             <button id="nav-toggle-btn" class="nav-toggle-btn" title="Toggle state">
                 <span class="toggle-label">Loading</span>
             </button>
+            <button id="route-switch-btn" class="route-switch-btn" title="Go to Editor">
+                Open Editor
+            </button>
         </div>
     </nav>
     
     <div class="content-container">
         <iframe id="live_interface_tab" src="/live_interface.html" title="Live Interface"></iframe>
-        <!--<iframe id="live_data_tab" src="/live_data.html" title="Live Data"></iframe>-->
-        <iframe id="interface_editor_tab" src="/interface_editor.html" title="Interface Editor"></iframe>
-        <iframe id="status_editor_tab" src="/status_editor.html" title="Status Editor"></iframe>
-        <iframe id="geofence_editor_tab" src="/geofence_editor.html" title="Geofence Editor"></iframe>
         <iframe id="preferences_tab" src="/preferences.html" title="Preferences"></iframe>
-        <iframe id="settings_tab" src="" title="Settings"></iframe>
     </div>
 
     <!-- Socket.IO Client Library -->
@@ -284,11 +296,28 @@
 
     <script type="module" src="../shared/compiled_js/utilities.js"></script>
 
-    <script type="module" src="./compiled_js/tab_handler.js"></script>
+    <script type="module">
+        import { ConfirmationPrompt } from "../shared/compiled_js/prompts.js";
+
+        const routeSwitchButton = document.getElementById("route-switch-btn");
+        routeSwitchButton?.addEventListener("click", () => {
+            new ConfirmationPrompt(
+                "Switch Route",
+                "Are you sure you want to open Editor?",
+                "Open Editor",
+                "Stay Here",
+                () => {
+                    window.location.href = "/editor";
+                }
+            );
+        });
+    </script>
+
+    <script type="module" src="./compiled_js/gcs_tab_handler.js"></script>
 
     <script type="module" src="./compiled_js/global_preferences.js"></script>
 
-    <script type="module" src="./compiled_js/global_session.js"></script>
+    <script type="module" src="../shared/compiled_js/main/global_session.js"></script>
 
     <script type="module" src="./compiled_js/derivative_integral_handling.js"></script>
 

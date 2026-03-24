@@ -1,0 +1,10 @@
+Objective: Split the editor and the GCS into two separate routes.
+
+Purpose: This will separate the editor functions and the GCS functions, 
+making it more simplistic and easy to understand, especially for a LCO.
+
+This would also decrease the application's resources because it
+would only be using what is required.
+
+Additionally, this would also remove the launch mode button as well,
+due to a more simplistic architecture.

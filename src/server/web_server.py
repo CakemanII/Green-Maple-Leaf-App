@@ -1,10 +1,11 @@
-from flask import Flask, json, send_from_directory, request, jsonify
+from flask import Flask, json, send_from_directory, request, jsonify, redirect
 from flask_socketio import SocketIO, emit
 import os
 import mimetypes
 import logging
 import uuid
 import datetime
+from urllib.parse import urlparse
 
 # Ensure .js files are served with correct MIME type
 mimetypes.add_type('application/javascript', '.js')
@@ -32,7 +33,8 @@ log.addFilter(RouteFilter())
 SRC_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 ROOT_DIR: str = os.path.abspath(os.path.join(SRC_DIR, '..'))
 SAVES_DIR: str = os.path.join(ROOT_DIR, 'saves')
-MAIN_DIR: str = os.path.join(SRC_DIR, 'main')
+MAIN_EDITOR_DIR: str = os.path.join(SRC_DIR, 'main_editor')
+MAIN_GCS_DIR: str = os.path.join(SRC_DIR, 'main_gcs')
 LIVE_INTERFACE_DIR: str = os.path.join(SRC_DIR, 'live_interface')
 INTERFACE_EDITOR_DIR: str = os.path.join(SRC_DIR, 'interface_editor')
 GEOFENCE_EDITOR_DIR: str = os.path.join(SRC_DIR, 'geofence_editor')
@@ -41,15 +43,53 @@ STATUS_EDITOR_DIR: str = os.path.join(SRC_DIR, 'status_editor')
 PREFERENCES_DIR: str = os.path.join(SRC_DIR, 'preferences')
 SHARED_DIR: str = os.path.join(SRC_DIR, 'shared')
 
+REFERRER_TO_DIR: dict[str, str] = {
+    '/editor': MAIN_EDITOR_DIR,
+    '/gcs': MAIN_GCS_DIR,
+    '/interface_editor.html': INTERFACE_EDITOR_DIR,
+    '/live_interface.html': LIVE_INTERFACE_DIR,
+    '/geofence_editor.html': GEOFENCE_EDITOR_DIR,
+    '/status_editor.html': STATUS_EDITOR_DIR,
+    '/live_data.html': LIVE_DATA_DIR,
+    '/preferences.html': PREFERENCES_DIR,
+}
+
 app = Flask(__name__, static_folder=None)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 radio_buffer: RadioCommunicationBuffer
 
 #region Initial File Serving Routes
+def _was_editor_opened_last() -> bool:
+    """Check the session file to determine if the editor or GCS was opened last, to decide which page to serve at the root URL."""
+    try:
+        session_data = FileHandler.load_file("session.json")
+        if session_data:
+            import json as json_lib
+            session = json_lib.loads(session_data)
+            # Return True if editor was opened last, False if GCS was opened last
+            # Default to editor if no preference is stored
+            return session.get('last_opened_page', 'editor') == 'editor'
+    except Exception:
+        pass
+    return True
+
 @app.route('/')
 def serve_index():
-    return send_from_directory(MAIN_DIR, 'index.html')
+    # Redirect to the appropriate page based on session history
+    if _was_editor_opened_last():
+        return redirect('/editor')
+    else:
+        return redirect('/gcs')
+
+@app.route('/editor')
+def serve_editor():
+    return send_from_directory(MAIN_EDITOR_DIR, 'index.html')
+
+
+@app.route('/gcs')
+def serve_gcs():
+    return send_from_directory(MAIN_GCS_DIR, 'index.html')
 
 @app.route('/interface_editor.html')
 def serve_interface_editor():
@@ -104,8 +144,24 @@ def serve_image(filepath):
 
 @app.route('/<path:path>')
 def serve_static(path):
+    # Prioritize the folder that matches the referring page to avoid collisions
+    # (e.g. /gcs and /editor both having /compiled_js/application_operational_state.js).
+    folder_candidates: list[str] = []
+
+    referrer = request.headers.get('Referer', '')
+    if referrer:
+        referrer_path = urlparse(referrer).path
+        referrer_folder = REFERRER_TO_DIR.get(referrer_path)
+        if referrer_folder:
+            folder_candidates.append(referrer_folder)
+
+    # Fallback search order (kept for direct asset requests without referrer).
+    for folder in [MAIN_EDITOR_DIR, MAIN_GCS_DIR, LIVE_INTERFACE_DIR, INTERFACE_EDITOR_DIR, GEOFENCE_EDITOR_DIR, PREFERENCES_DIR, LIVE_DATA_DIR, STATUS_EDITOR_DIR]:
+        if folder not in folder_candidates:
+            folder_candidates.append(folder)
+
     # Try known app folders for static assets (compiled_js, css, assets, etc.)
-    for folder in [MAIN_DIR, LIVE_INTERFACE_DIR, INTERFACE_EDITOR_DIR, GEOFENCE_EDITOR_DIR, PREFERENCES_DIR, LIVE_DATA_DIR, STATUS_EDITOR_DIR]:
+    for folder in folder_candidates:
         file_path = os.path.join(folder, path)
         if os.path.isfile(file_path):
             return send_from_directory(folder, path)

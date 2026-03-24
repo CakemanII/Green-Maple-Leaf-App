@@ -1,6 +1,7 @@
 import { StatusCollection, Status, Flag, SimpleStatus, SimpleStatusCollection, ConditionalGroup } from '../../shared/compiled_js/types.js';
 import { GeneralUtilities } from '../../shared/compiled_js/utilities.js';
 import { CollectionEditorUI } from './collection_editor.js';
+import { Session } from '../../shared/compiled_js/main/global_session.js';
 
 export class CollectionEditor
 {
@@ -183,6 +184,9 @@ export class CollectionEditor
         // Save each collection to the server
         for (const collection of newStatusCollections)
             await this.saveCollectionToServer(collection);
+
+        // Set open collection UUIDs in session (for restoration on page reload)
+        await Session.Instance.updateSession('collection_editor_collection_UUIDs_open', this.visualStatusCollections.map(c => c.UUID));
 
         // Save session to server (track open collections)
         await this.saveSessionToServer();

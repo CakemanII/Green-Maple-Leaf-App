@@ -1,24 +1,14 @@
 export class TabHandler {
-    private static readonly TAB_IDS: Record<string, { tabId: string; buttonId: string }> = {
-        liveInterface:   { tabId: 'live_interface_tab',   buttonId: 'live_interface_tab_button' },
-        interfaceEditor: { tabId: 'interface_editor_tab', buttonId: 'interface_editor_tab_button' },
-        //liveData:        { tabId: 'live_data_tab',        buttonId: 'live_data_tab_button' },
-        statusEditor:    { tabId: 'status_editor_tab',     buttonId: 'status_editor_tab_button' },
-        geofenceEditor:  { tabId: 'geofence_editor_tab',  buttonId: 'geofence_editor_tab_button' },
-        preferences:     { tabId: 'preferences_tab',      buttonId: 'preferences_tab_button' },
-        settings:        { tabId: 'settings_tab',         buttonId: 'settings_tab_button' },
-    };
-
     // Tabs can be absent in some views, so allow null and initialize to null.
     // Allow content/button to be null when an element is not present in the DOM.
-    private tabs: Record<string, { content: HTMLIFrameElement | null; button: HTMLButtonElement | null }> = {};
+    private tabs: Record<string, {content: HTMLIFrameElement, button: HTMLButtonElement}> = {};
     private activeTabKey: string | null = null;
 
     private static instance: TabHandler | undefined;
     public static Instance(): TabHandler | undefined { return this.instance; }
     public static get INSTANCE(): TabHandler | undefined { return this.instance; }
 
-    constructor() {
+    constructor(tab_ids: Record<string, { tabId: string; buttonId: string }>) {
         // Singleton pattern - prevent multiple instances
         if (TabHandler.instance) {
             console.error("TabHandler instance already exists!");
@@ -27,42 +17,13 @@ export class TabHandler {
         TabHandler.instance = this;
         
         // Initialize tabs and buttons
-        this.tabs = {
-            liveInterface: { 
-                content: document.getElementById(TabHandler.TAB_IDS.liveInterface.tabId) as HTMLIFrameElement, 
-                button: document.getElementById(TabHandler.TAB_IDS.liveInterface.buttonId) as HTMLButtonElement 
-            },
-
-            /*liveData: { 
-                content: document.getElementById(TabHandler.TAB_IDS.liveData.tabId) as HTMLIFrameElement, 
-                button: document.getElementById(TabHandler.TAB_IDS.liveData.buttonId) as HTMLButtonElement 
-            },*/
-
-            interfaceEditor: { 
-                content: document.getElementById(TabHandler.TAB_IDS.interfaceEditor.tabId) as HTMLIFrameElement, 
-                button: document.getElementById(TabHandler.TAB_IDS.interfaceEditor.buttonId) as HTMLButtonElement 
-            },
-
-            statusEditor: {
-                content: document.getElementById(TabHandler.TAB_IDS.statusEditor.tabId) as HTMLIFrameElement,
-                button: document.getElementById(TabHandler.TAB_IDS.statusEditor.buttonId) as HTMLButtonElement
-            },
-
-            geofenceEditor: { 
-                content: document.getElementById(TabHandler.TAB_IDS.geofenceEditor.tabId) as HTMLIFrameElement, 
-                button: document.getElementById(TabHandler.TAB_IDS.geofenceEditor.buttonId) as HTMLButtonElement 
-            },
-
-            preferences: { 
-                content: document.getElementById(TabHandler.TAB_IDS.preferences.tabId) as HTMLIFrameElement, 
-                button: document.getElementById(TabHandler.TAB_IDS.preferences.buttonId) as HTMLButtonElement 
-            },
-
-            settings:  { 
-                content: document.getElementById(TabHandler.TAB_IDS.settings.tabId) as HTMLIFrameElement, 
-                button: document.getElementById(TabHandler.TAB_IDS.settings.buttonId) as HTMLButtonElement 
-            },
-        };
+        this.tabs = {};
+        for (const key in tab_ids) {
+            this.tabs[key] = {
+                content: document.getElementById(tab_ids[key].tabId) as HTMLIFrameElement,
+                button: document.getElementById(tab_ids[key].buttonId) as HTMLButtonElement
+            };
+        }
 
         // Initialize tab button events (only attach listeners that target existing elements)
         this.initializeTabButtonEvents();
@@ -167,5 +128,3 @@ export class TabHandler {
         tabEntry.content?.classList.remove('active');
     }
 }
-
-new TabHandler();

@@ -10,7 +10,7 @@ import {
     LineGraphYOverflowMode,
     LineStyle
 } from "../../live_data/compiled_js/graph_representations.js";
-import { Flag } from "../../shared/ts/types.js";
+import { Flag } from "../../shared/compiled_js/types.js";
 
 export type TelemetryValueType = "number" | "vector3d" | "boolean" | "string" | "unknown";
 

@@ -55,7 +55,6 @@ class PreferencesUIManager
             // Check the message type
             const messageData = event.data;
             if (messageData.type === 'preferencesUpdate') {
-                console.log("Preferences updated successfully in main window.");
                 this.currentPreferences = messageData.preferences;
                 // Update UI elements with new preferences
                 this.updatePreferencesOntoUIElements();
