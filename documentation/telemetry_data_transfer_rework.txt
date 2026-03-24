@@ -3,3 +3,22 @@ Objective: To minimize use of application resources, we will now be processing a
 - Statistics about a specific data such as min, max, mean, timedelta, and more.
 
 Purpose: Minimize use of resources
+
+New Global Telemetry ID System:
+
+For Vectors
+category.telemetry_name.unit.modifier.measurement
+
+For Numbers
+category.telemetry_name.modifier.measurement
+
+For Bools
+category.telemetry_name
+
+This system is now for:
+derrived from data buffer to server telemetry distrubuter
+to interface.
+
+
+For transfer telemetry data:
+sensor_name.data_name

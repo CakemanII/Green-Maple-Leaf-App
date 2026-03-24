@@ -113,6 +113,7 @@ class RadioCommunicationBuffer:
         """
         Start the Radio Communication Server.
         """
+        pass
         
 
     def set_active(self):

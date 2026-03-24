@@ -6,7 +6,7 @@
         "geofence_intersections": "array<string>"
     },
 
-    "linear_motion": {
+    "absolute_linear_motion": { 
         "velocity": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
         "acceleration": { "latitude": "number", "longitude": "number", "altitude": "number" },
         "jerk": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
@@ -16,7 +16,7 @@
         "amplitude": "number"
     },
 
-    "angular_motion": {
+    "absolute_angular_motion": {
         "angular_velocity": { "pitch": "number", "roll": "number", "yaw": "number" }, 
         "angular_acceleration": { "pitch": "number", "roll": "number", "yaw": "number" },
         "angular_jerk": { "pitch": "number", "roll": "number", "yaw": "number" }, 
@@ -24,6 +24,8 @@
         "angular_displacement": { "pitch": "number", "roll": "number", "yaw": "number" },
         "absolute_orientation": { "pitch": "number", "roll": "number", "yaw": "number" }
     },
+
+    
 
     "internal_state": {
         "temperature": "number",

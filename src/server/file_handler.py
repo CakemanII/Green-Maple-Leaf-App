@@ -69,6 +69,13 @@ class FileHandler:
             print(f'Error deleting file: {e}')
             return False
         
+    
+    @staticmethod
+    def check_file_exists(file_path: str) -> bool:
+        '''
+        Checks if the specified file exists. Returns True if it exists, False otherwise.
+        '''
+        return os.path.isfile(file_path)
 
 class ClientServerDirectoryHandler():
     def __init__(self, directory: str, upload_validation_function: Callable[[dict], bool], required_file_extension: str = None, is_media: bool = False):

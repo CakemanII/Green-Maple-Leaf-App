@@ -1,0 +1,17 @@
+{
+    "imu": {
+        "accel": {"x": "number", "y": "number", "z": "number" },
+        "ang_vel": {"x": "number", "y": "number", "z": "number" },
+        "displ": {"x": "number", "y": "number", "z": "number" }
+    },
+
+    "rasp": {
+        "lat": "number"
+    },
+
+    "states":
+    {
+        "para": "boolean",
+        "m_det": "boolean"
+    }
+}
