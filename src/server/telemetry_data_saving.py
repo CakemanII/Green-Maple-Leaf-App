@@ -1,4 +1,4 @@
-from queue import Queue
+from task_queue import Queue
 
 from data_types import *
 

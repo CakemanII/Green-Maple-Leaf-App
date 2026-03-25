@@ -2,7 +2,7 @@ from typing import TypedDict
 import threading
 import time
 
-from queue import Queue
+from task_queue import Queue
 
 class IncomingTelemetryRadioObject(TypedDict):
     input_id: str
