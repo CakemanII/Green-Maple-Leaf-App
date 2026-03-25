@@ -163,10 +163,10 @@ class InterfaceManager {
                                 posY: 0,
                                 width: 50,
                                 height: 50,
-                                monitorDataKeys: ["accel"],
+                                monitorDataKeys: ["absolute_angular_motion.angular_velocity"],
                                 lineGraphSettings: {
-                                    title: "Linear Acceleration (x, y, z)",
-                                    unit: "m/s²",
+                                    title: "Absolute Angular Velocity (x, y, z)",
+                                    unit: "rad/s",
                                     yMin: -5,
                                     yMax: 5,
                                     maxPoints: 180,

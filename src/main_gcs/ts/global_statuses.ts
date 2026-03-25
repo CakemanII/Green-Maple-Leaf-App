@@ -1,5 +1,5 @@
 import { IFrameCommunicationUitilies } from '../../shared/compiled_js/utilities.js';
-import { StatusCollection, Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition, CommentCondition } from '../../shared/compiled_js/types.js';
+import { StatusCollection, Status, Flag, ConditionalGroup, TelemetryCondition, StatusCondition, CommentCondition } from '../../shared/compiled_js/types';
 import { GlobalTelemetryManager } from './global_rocket_communication.js';
 
 // Types for statuses, flags, and etc.

@@ -6,7 +6,6 @@ from radio_communication_simulation_server import RadioComsSimulationServer
 
 T = TypeVar("T")
 
-
 class LinearMotionComponent(TypedDict):
     lng: float
     lat: float

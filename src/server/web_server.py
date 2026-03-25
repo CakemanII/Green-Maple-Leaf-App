@@ -64,7 +64,7 @@ radio_buffer: RadioCommunicationBuffer
 def _was_editor_opened_last() -> bool:
     """Check the session file to determine if the editor or GCS was opened last, to decide which page to serve at the root URL."""
     try:
-        session_data = FileHandler.load_file("session.json")
+        session_data = FileHandler.load_file("saves/session.json")
         if session_data:
             import json as json_lib
             session = json_lib.loads(session_data)
@@ -175,14 +175,14 @@ def save_config():
     data = request.get_json(silent=True)
     if not data:
         return ('No JSON data provided', 400)
-    success: bool = FileHandler.save_file(data, "preferences.json")
+    success: bool = FileHandler.save_file(data, "saves/preferences.json")
     return ('', 200) if success else ('Error saving preferences', 500)
 
 @app.route('/config/load', methods=['GET'])
 def load_config():
     # Return current preferences data
-    preferences_data = FileHandler.load_file("preferences.json")
-    return preferences_data, 200
+    preferences_data = FileHandler.load_file("saves/preferences.json")
+    return (preferences_data, 200)
 
 #endregion
 
@@ -192,12 +192,12 @@ def save_session():
     data = request.get_json(silent=True)
     if not data:
         return ('No JSON data provided', 400)
-    success: bool = FileHandler.save_file(data, "session.json")
+    success: bool = FileHandler.save_file(data, "saves/session.json")
     return ('', 200) if success else ('Error saving session', 500)
 
 @app.route('/session/load', methods=['GET'])
 def load_session():
-    session_data = FileHandler.load_file("session.json")
+    session_data = FileHandler.load_file("saves/session.json")
     if session_data is None:
         return app.response_class(response='{}', status=200, mimetype='application/json')
     return app.response_class(response=session_data, status=200, mimetype='application/json')
@@ -354,7 +354,7 @@ def get_radio_rocket_comms_server_rocket_connectivity_status():
 #region Telemetry Data Routes
 @app.route('/telemetry/get_types', methods=['GET'])
 def get_telemetry_types():
-    path = os.path.join(ROOT_DIR, 'telemetry_types.json')
+    path = os.path.join(ROOT_DIR, 'saves/telemetry/telemetry_types.json')
     raw = FileHandler.load_file(path)
     if raw is None:
         return 'telemetry_types.json not found', 404
@@ -367,7 +367,7 @@ def process_received_data(received_id: InputTelemetryID, data: TimeStamped[objec
     Callback function to receive rocket data from RadioCommunicationBuffer.
     Stores the data and SENDS it to all connected web clients via WebSocket.
     """
-    telemetryDataManager.process_incoming_telemetry_data(received_id, (data.sent_timestamp, data.data))
+    telemetryDataManager.process_incoming_telemetry_data(received_id, data)
     print(f"[Web Server] Received rocket data - {received_id}: {data}")
 
     return

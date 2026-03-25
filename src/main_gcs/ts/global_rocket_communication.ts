@@ -1,4 +1,3 @@
-import { DerivativeIntegralHandler } from "./derivative_integral_handling.js";
 import { GlobalStatusesManager } from './global_statuses.js';
 
 /**
@@ -41,9 +40,6 @@ export class GlobalTelemetryManager {
 
         // Initialize socket communication
         this.initializeSocketCommunication();
-
-        // Setup derivative and integral calculations
-        this.setupDerivativeIntegralCalculations();
     }
 
     
@@ -65,9 +61,6 @@ export class GlobalTelemetryManager {
             if (!this.dataCache[label]) { this.dataCache[label] = []; }
             this.dataCache[label].push({ x: timestamp, y: content });
 
-            // Notify derivative/integral handler of new telemetry data
-            DerivativeIntegralHandler.INSTANCE.onTelemetryDataReceived(label);
-
             // Send data to all telemetry iframes
             this.sendMessageToTelemetryIframes(label, timestamp, content);
 
@@ -81,16 +74,6 @@ export class GlobalTelemetryManager {
 
         socket.on('disconnect', () => {
             // Disconnected
-        });
-    }
-
-    /**
-     * Sets up derivative and integral calculations for specified telemetry data.
-     */
-    public setupDerivativeIntegralCalculations(): void {
-        this.compute_derivatives_integrals.forEach(item => {
-            DerivativeIntegralHandler.INSTANCE.setDerivativeIntegralCallback(
-                item.input, item.output, item.is_derivative, this.onDerivativeIntegralCalculated.bind(this));
         });
     }
 

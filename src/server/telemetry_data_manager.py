@@ -9,13 +9,7 @@ import time
 import threading
 
 from radio_communication_manager import TimeStamped
-
-DataPoint = tuple[float, list[float]]
-ProcessedDataPoint = DataPoint
-ReceivedDataPoint = DataPoint
-
-ProcessedTelemetryID = str
-InputTelemetryID = str
+from communication_types import *
 
 class TelemetryDataManager:
     def __init__(self, input_telemetries_file_path: str, processed_telemetries_file_path: str, local_telemetry_save_path: str, send_processed_data_to_web_clients_callback: Callable[[ProcessedTelemetryID, ProcessedDataPoint], None]):
@@ -30,6 +24,17 @@ class TelemetryDataManager:
         # Load the telemetry data types from the given paths
         self._input_telemetry_data_types = self._load_json_data(self._input_telemetries_path)
         self._processed_telemetry_data_types = self._load_json_data(self._processed_telemetries_path)
+
+        # Create a list of all input telemetry IDs
+        self._input_telemetry_ids = []
+        self._output_telemetry_ids = []
+
+        # Build mapping from short labels to full telemetry IDs
+        for category, telemetry_types in self._input_telemetry_data_types.items():
+            if isinstance(telemetry_types, dict):
+                for data_type in telemetry_types:
+                    full_id = f"{category}.{data_type}"
+                    print(f"Mapping short label '{data_type}' to full telemetry ID '{full_id}'")
 
         # Setup telemetry data file save sessions dict
         self._telemetry_save_file_sessions: dict[str, TextIOWrapper] = {}
@@ -179,15 +184,21 @@ class TelemetryDataManager:
             file_session.flush()  # Ensure the data is written to the file
             self._telemetry_save_file_sessions[telemetry_id] = file_session
 
-    def process_incoming_telemetry_data(self, telemetry_id: InputTelemetryID, telemetry_data: TimeStamped[ReceivedDataPoint]) -> None:
+    def process_incoming_telemetry_data(self, telemetry_id: InputTelemetryID, timestamped_data: TimeStamped[ReceivedDataPoint]) -> None:
         """
         Process incoming telemetry data by applying any registered processor functions for the given telemetry ID and saving the processed data.
         """
-        # Ensure the input telemetry data type is registered
+        # Convert short label to full telemetry ID if needed
+        full_telemetry_id = telemetry_id
         if telemetry_id not in self._input_telemetry_ids:
-            raise ValueError(f"Input telemetry data type '{telemetry_id}' is not registered. Please ensure it is defined in the input telemetry data types JSON file.")
+            if telemetry_id in self._short_label_to_full_id:
+                full_telemetry_id = self._short_label_to_full_id[telemetry_id]
+            else:
+                raise ValueError(f"Input telemetry data type '{telemetry_id}' is not registered and no mapping found. Please ensure it is defined in the input telemetry data types JSON file.")
 
-        self._data_process_queue.append((telemetry_id, telemetry_data))
+        # Extract the data tuple (timestamp, values) from the TimeStamped dict
+        data_tuple: ReceivedDataPoint = (timestamped_data['sent_timestamp'], timestamped_data['data'])
+        self._data_process_queue.append((full_telemetry_id, data_tuple))
 
     def process_telemetry_data_queue(self) -> None:
         """
