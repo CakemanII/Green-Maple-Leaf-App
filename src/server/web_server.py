@@ -362,16 +362,6 @@ def get_telemetry_types():
 #endregion
 
 #region Store the latest rocket data for web clients
-def process_received_data(received_id: InputTelemetryID, data: TimeStamped[object]):
-    """
-    Callback function to receive rocket data from RadioCommunicationBuffer.
-    Stores the data and SENDS it to all connected web clients via WebSocket.
-    """
-    telemetryDataManager.process_incoming_telemetry_data(received_id, data)
-    print(f"[Web Server] Received rocket data - {received_id}: {data}")
-
-    return
-
 def send_rocket_data_to_web_clients(processed_id: ProcessedTelemetryID, data: ProcessedDataPoint):
     """
     Send the given rocket data to all connected web clients via WebSocket.
@@ -389,20 +379,4 @@ def send_rocket_data_to_web_clients(processed_id: ProcessedTelemetryID, data: Pr
 
 if __name__ == '__main__':
     # Initialize file saving and data processing
-    telemetryDataManager = TelemetryDataManager(
-        input_telemetries_file_path = "saves/telemetry/telemetry_data_transfer_types.json",
-        processed_telemetries_file_path = "saves/telemetry/telemetry_types.json",
-        local_telemetry_save_path = "saves/telemetry/local/",
-        send_processed_data_to_web_clients_callback = send_rocket_data_to_web_clients
-    )
-
-    telemetryDataManager.register_telemetry_processor(
-        input_telemetry_id = "imu.ang_vel",
-        processor_function = None,
-        output_processed_id = "absolute_angular_motion.angular_velocity"
-    )
-
-    # Initialize RadioCommunicationBuffer with callback
-    radio_buffer = RadioCommunicationBuffer(min_send_interval=0.030, on_receive_data=process_received_data)
-
     socketio.run(app, debug=True, use_reloader=False)
