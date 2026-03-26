@@ -1,6 +1,7 @@
 from typing import TypedDict
 import threading
 import time
+import sys
 
 class Queue:
     def __init__(self, operations_per_second: float, queue_processor: callable, queue_name: str = "(Unnamed)"):
@@ -8,9 +9,9 @@ class Queue:
         self._queue_name = queue_name
         self._queue_processor = queue_processor
         self._active = False
-        
+
         self._thread: threading.Thread | None = None
-        
+
         # Calculate the time interval between each process
         self._process_interval = 1.0 / operations_per_second
 
@@ -24,16 +25,24 @@ class Queue:
             if len(self._queue) > 0:
                 # Process the first item in the queue
                 queue_object = self._queue.pop(0)
-                self._queue_processor(queue_object)
+                print(f"Processing object from queue {self._queue_name}: {queue_object}")
+                sys.stdout.flush()
+                try:
+                    self._queue_processor(queue_object)
+                except Exception as e:
+                    print(f"Error processing object in queue {self._queue_name}: {e}")
+                    sys.stdout.flush()
+                print(f"Finished processing object from queue {self._queue_name}: {queue_object}")
+                sys.stdout.flush()
             else:
                 # No data to process, just wait for the next interval
                 pass
-            
+
             # Wait for the next processing interval
             time_remaining = self._process_interval - (time.time() - start_process_time)
             if time_remaining > 0:
                 time.sleep(time_remaining)
-    
+
     # region Queue Control Methods
     def _start_queue(self):
         """
@@ -42,10 +51,11 @@ class Queue:
         # Ensure we are not already running
         if self._thread is not None and self._thread.is_alive():
             print(f"Queue {self._queue_name} Already running")
+            sys.stdout.flush()
             return
-        
+
         # Run the main loop in a separate thread
-        self._thread = threading.Thread(target=self._main)
+        self._thread = threading.Thread(target=self._main, daemon=True)
         self._thread.start()
 
         # Set the queue to active

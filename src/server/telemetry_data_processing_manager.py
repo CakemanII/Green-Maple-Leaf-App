@@ -12,16 +12,17 @@ SingleProcessedHandler = Callable[[ProcessedTelemetryID, ProcessedDataPoint], li
 MultiProcessedInputHandler = Callable[[list[ProcessedTelemetryID]], list[ProcessedTelemetryID]]
 
 class Utils:
-    @staticmethod 
+    @staticmethod
     def load_json(filepath: str) -> dict:
         import json
         with open(filepath, 'r') as f:
             return json.load(f)
 
 class TelemetryDataProcessingManager:
-    def __init__(self, save_queue: TelemetrySaveQueue, cache: TelemetryDataCacheManager):
+    def __init__(self, save_queue: TelemetrySaveQueue, cache: TelemetryDataCacheManager, send_to_clients_queue=None):
         self._save_queue: TelemetrySaveQueue = save_queue
         self._cache: TelemetryDataCacheManager = cache
+        self._send_to_clients_queue = send_to_clients_queue  # Optional queue for sending data to web clients
 
         # Create variables
         self._accpetable_input_ids: list[InputTelemetryID] = [] # List of input IDs to process
@@ -87,7 +88,12 @@ class TelemetryDataProcessingManager:
 
             def func(_, data):
                 # Save the telemetry data
-                self._save_queue.add_to_queue((handler, data))
+                self._save_queue.add_to_queue((True, handler, data))
+                # Update the cache
+                self._cache.update_cache(handler, data)
+                # Send to web clients if queue is available
+                if self._send_to_clients_queue:
+                    self._send_to_clients_queue.add_to_queue((handler, data))
                 return [handler]
 
             handler_function = func
@@ -96,7 +102,7 @@ class TelemetryDataProcessingManager:
             handler_function = handler
         else:
             raise ValueError("Handler must be a callable function or a valid string identifier.")
-        
+
         # Register the handler function for the input ID
         self._single_input_handler_mapping.setdefault(input_id, []).append(handler_function)
 

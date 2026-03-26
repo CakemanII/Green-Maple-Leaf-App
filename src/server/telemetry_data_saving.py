@@ -1,3 +1,4 @@
+import os
 from task_queue import Queue
 
 from data_types import *
@@ -10,6 +11,14 @@ class TelemetrySaveQueue(Queue):
 
         # Create list for keeping ongoing sessions for file saving, to reduce ram usage and increase performance
         self._ongoing_file_sessions: dict[ProcessedTelemetryID | InputTelemetryID, any] = {}
+
+        # Ensure directories exist
+        self._ensure_directories()
+
+    def _ensure_directories(self):
+        """Create necessary directories for telemetry data storage."""
+        os.makedirs("saves/telemetry/processed", exist_ok=True)
+        os.makedirs("saves/telemetry/input", exist_ok=True)
 
     def _data_handler(self, queueObject: SaveQueueObject):
         is_processed, telemetry_id, data_point = queueObject

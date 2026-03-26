@@ -20,13 +20,14 @@ class TelemetryDataManager:
         self.send_data_to_web_clients_callback = send_data_to_web_clients_callback # Function for sending processed telemetry data to web clients
         self._cache = TelemetryDataCacheManager() # Cache for telemetry data points, used for multi processed input handlers
         self._saving_manager = TelemetrySaveQueue(30) # Manager for saving telemetry data to files
-        self._processing_manager = TelemetryDataProcessingManager(self._saving_manager, self._cache) # Manager for processing telemetry data and generating new processed data
-        self._simulation_server = TelemetryReceiverSimulationServer(on_receive_radio_data=self.receive_new_data_point) # Simulation server for receiving telemetry data from the rocket
         self._send_data_to_clients_queue = SendDataToClientsQueue(60, self.send_data_to_web_clients_callback) # Queue for sending processed telemetry data to web clients at a controlled rate
+        self._processing_manager = TelemetryDataProcessingManager(self._saving_manager, self._cache, self._send_data_to_clients_queue) # Manager for processing telemetry data and generating new processed data
+        self._simulation_server = TelemetryReceiverSimulationServer(on_receive_radio_data=self.receive_new_data_point) # Simulation server for receiving telemetry data from the rocket
 
         self._is_active: bool = False
 
         self._initialize_handlers()
+        self.set_active(True)
 
     def set_active(self, active: bool):
         if active:
