@@ -85,10 +85,10 @@ class TelemetryDataProcessingManager:
             if not self._is_processed_id_acceptable(handler):
                 raise ValueError(f"Processed telemetry ID '{handler}' is not acceptable.")
 
-            def func(data, _):
+            def func(_, data):
                 # Save the telemetry data
                 self._save_queue.add_to_queue((handler, data))
-                return handler
+                return [handler]
 
             handler_function = func
         # Use the provided handler function
@@ -98,7 +98,7 @@ class TelemetryDataProcessingManager:
             raise ValueError("Handler must be a callable function or a valid string identifier.")
         
         # Register the handler function for the input ID
-        self._single_input_handler_mapping[input_id].append(handler_function)
+        self._single_input_handler_mapping.setdefault(input_id, []).append(handler_function)
 
     def register_single_processed_handler(self, processed_id: ProcessedTelemetryID, handler: SingleProcessedHandler) -> None:
         """
@@ -110,7 +110,7 @@ class TelemetryDataProcessingManager:
             raise ValueError(f"Processed telemetry ID '{processed_id}' is not acceptable.")
         
         # Register the handler function for the processed ID
-        self._single_processed_handler_mapping[processed_id].append(handler)
+        self._single_processed_handler_mapping.setdefault(processed_id, []).append(handler)
 
     def register_multi_processed_handler(self, processed_ids: list[ProcessedTelemetryID], handler: MultiProcessedInputHandler) -> None:
         """
@@ -123,7 +123,7 @@ class TelemetryDataProcessingManager:
                 raise ValueError(f"Processed telemetry ID '{processed_id}' is not acceptable.")
         
         # Register the handler function for the processed IDs
-        self._multi_processed_handler_mapping[processed_ids] = (handler, [0.0] * len(processed_ids))
+        self._multi_processed_handler_mapping.append((processed_ids, handler, [0.0] * len(processed_ids)))
 
     def process_new_input_data(self, input_id: InputTelemetryID, new_data: object) -> None:
         """
@@ -137,7 +137,7 @@ class TelemetryDataProcessingManager:
         new_ids: list[ProcessedTelemetryID] = []
         if input_id in self._single_input_handler_mapping:
             for handler_function in self._single_input_handler_mapping[input_id]:
-                new_ids = handler_function(new_data)
+                new_ids = handler_function(input_id, new_data)
 
         # Process single processed handlers
         for new_id in new_ids:
@@ -145,7 +145,11 @@ class TelemetryDataProcessingManager:
 
     def _process_all_related_processed_handlers(self, processed_id: ProcessedTelemetryID) -> None:
         # Process single processed handlers
-        data: ProcessedDataPoint = self._cache.get_cache_data(processed_id)[0] # Get the latest data point for the processed ID from the cache
+        cache: ProcessedDataPoint = self._cache.get_cache_data(processed_id)
+        if not cache:
+            return
+        
+        data = cache[0] # Get the data of the latest data point for this processed ID
         new_ids: list[ProcessedTelemetryID] = self._process_single_processed_handler(processed_id, data)
         for new_id in new_ids:
             self._process_all_related_processed_handlers(new_id)

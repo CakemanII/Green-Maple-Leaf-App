@@ -58,6 +58,9 @@ REFERRER_TO_DIR: dict[str, str] = {
 app = Flask(__name__, static_folder=None)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+# Global telemetry manager - initialized in main block
+telemetry_manager = None
+
 #region Initial File Serving Routes
 def _was_editor_opened_last() -> bool:
     """Check the session file to determine if the editor or GCS was opened last, to decide which page to serve at the root URL."""
@@ -366,7 +369,7 @@ def send_rocket_data_to_web_clients(processed_id: ProcessedTelemetryID, data: Pr
     """
     Send the given rocket data to all connected web clients via WebSocket.
     """
-
+    print(f"[Web Server] Preparing to send rocket data to clients - {processed_id}: {data}")
     # SEND the data to all connected web clients immediately
     socketio.emit('rocket_data', {
         'label': processed_id,
@@ -378,9 +381,9 @@ def send_rocket_data_to_web_clients(processed_id: ProcessedTelemetryID, data: Pr
 #endregion
 
 if __name__ == '__main__':
-    # Initialize file saving and data processing
-    socketio.run(app, debug=True, use_reloader=False)
-
-    # Run Telemetry Data Manager
-    telemetry_manager = TelemetryDataManager()
+    # Initialize Telemetry Data Manager BEFORE starting Flask
+    telemetry_manager = TelemetryDataManager(send_rocket_data_to_web_clients)
     telemetry_manager.set_active(True)
+
+    # Now start the Flask/SocketIO server
+    socketio.run(app, debug=True, use_reloader=False)
