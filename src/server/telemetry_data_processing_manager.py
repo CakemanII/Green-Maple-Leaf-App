@@ -156,7 +156,7 @@ class TelemetryDataProcessingManager:
         if not cache:
             return
 
-        new_ids: list[ProcessedTelemetryID] = self._process_single_processed_handler(self, processed_id)
+        new_ids: list[ProcessedTelemetryID] = self._process_single_processed_handler(self)
         for new_id in new_ids:
             self._process_all_related_processed_handlers(new_id)
 
@@ -179,7 +179,7 @@ class TelemetryDataProcessingManager:
 
                     if can_run:
                         # Run the multi processed input handler function
-                        new_ids = handler_function(self, processed_ids)
+                        new_ids = handler_function()
 
                         # Update the last run times for the input processed IDs
                         for i, input_processed_id in enumerate(processed_ids):
@@ -197,7 +197,7 @@ class TelemetryDataProcessingManager:
         new_ids: list[ProcessedTelemetryID] = []
         if processed_id in self._single_processed_handler_mapping:
             for handler_function in self._single_processed_handler_mapping[processed_id]:
-                new_ids = handler_function(telemetry_data_processing_manager, processed_id)
+                new_ids = handler_function()
 
         return new_ids
 
