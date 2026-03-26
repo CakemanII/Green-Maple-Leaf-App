@@ -19,7 +19,7 @@ class TelemetryDataManager:
     def __init__(self, send_data_to_web_clients_callback: Callable[[ProcessedTelemetryID, ProcessedDataPoint], None]):
         self.send_data_to_web_clients_callback = send_data_to_web_clients_callback # Function for sending processed telemetry data to web clients
         self._cache = TelemetryDataCacheManager() # Cache for telemetry data points, used for multi processed input handlers
-        self._saving_manager = TelemetrySaveQueue(30) # Manager for saving telemetry data to files
+        self._saving_manager = TelemetrySaveQueue(30, None) # Manager for saving telemetry data to files
         self._send_data_to_clients_queue = SendDataToClientsQueue(60, self.send_data_to_web_clients_callback) # Queue for sending processed telemetry data to web clients at a controlled rate
         self._processing_manager = TelemetryDataProcessingManager(self._saving_manager, self._cache, self._send_data_to_clients_queue) # Manager for processing telemetry data and generating new processed data
         self._simulation_server = TelemetryReceiverSimulationServer(on_receive_radio_data=self.receive_new_data_point) # Simulation server for receiving telemetry data from the rocket
@@ -75,7 +75,7 @@ class TelemetryDataManager:
                 self._processing_manager,
                 "absolute_angular_motion.angular_velocity",
                 "absolute_angular_motion.angular_acceleration",
-            )
+            ).handler
         )
 
         self._processing_manager.register_single_processed_handler(
@@ -84,5 +84,5 @@ class TelemetryDataManager:
                 self._processing_manager,
                 "absolute_angular_motion.angular_velocity",
                 "absolute_angular_motion.angle_displacement",
-            )
+            ).handler
         )

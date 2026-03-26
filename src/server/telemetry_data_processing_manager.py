@@ -256,7 +256,7 @@ class IntegralHandlerCreator:
         self._processed_id = processed_id
         self._output_processed_id = output_processed_id
 
-    def handle(self):
+    def handler(self) -> list[ProcessedTelemetryID]:
         if not self._processed_id or not self._output_processed_id:
             raise ValueError("Processed ID and output processed ID must be provided.")
         if not self._telemetry_data_processing_manager._is_processed_id_acceptable(self._processed_id):

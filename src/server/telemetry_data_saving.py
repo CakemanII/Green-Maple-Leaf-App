@@ -1,4 +1,6 @@
 import os
+import time
+import uuid
 from task_queue import Queue
 
 from data_types import *
@@ -6,19 +8,26 @@ from data_types import *
 SaveQueueObject = tuple[bool, ProcessedTelemetryID | InputTelemetryID, ProcessedDataPoint | InputDataPoint]
 
 class TelemetrySaveQueue(Queue):
-    def __init__(self, operations_per_second: FloatingPointError):
+    def __init__(self, operations_per_second: FloatingPointError, session_uuid: str):
         super().__init__(operations_per_second, self._data_handler, "Telemetry Save Data")
 
         # Create list for keeping ongoing sessions for file saving, to reduce ram usage and increase performance
         self._ongoing_file_sessions: dict[ProcessedTelemetryID | InputTelemetryID, any] = {}
+        if not session_uuid:
+            session_uuid = self._create_session()
+        self._save_directory: str = f"saves/telemetry/{session_uuid}"
 
         # Ensure directories exist
         self._ensure_directories()
 
     def _ensure_directories(self):
         """Create necessary directories for telemetry data storage."""
-        os.makedirs("saves/telemetry/processed", exist_ok=True)
-        os.makedirs("saves/telemetry/input", exist_ok=True)
+        os.makedirs(f"{self._save_directory}/processed", exist_ok=True)
+        os.makedirs(f"{self._save_directory}/input", exist_ok=True)
+
+    def _create_session(self) -> str:
+        return uuid.uuid4()
+    
 
     def _data_handler(self, queueObject: SaveQueueObject):
         is_processed, telemetry_id, data_point = queueObject
@@ -29,7 +38,7 @@ class TelemetrySaveQueue(Queue):
             file_session = self._ongoing_file_sessions[telemetry_id]
         else:
             # Create a new file session for this telemetry ID
-            file_session = open(f"saves/telemetry/{('processed' if is_processed else 'input')}/{telemetry_id}.csv", "a")
+            file_session = open(f"{self._save_directory}/{'processed' if is_processed else 'input'}/{telemetry_id}.csv", "a")
             self._ongoing_file_sessions[telemetry_id] = file_session
 
             # If the file is new, write the header
