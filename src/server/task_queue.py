@@ -9,9 +9,9 @@ class Queue:
         self._queue_name = queue_name
         self._queue_processor = queue_processor
         self._active = False
-
+        
         self._thread: threading.Thread | None = None
-
+        
         # Calculate the time interval between each process
         self._process_interval = 1.0 / operations_per_second
 
@@ -21,18 +21,14 @@ class Queue:
         """
         start_process_time: float = 0.0
         while self._active:
+            sys.stdout.flush()
+            sys.stdout.flush()
             start_process_time = time.time()
             if len(self._queue) > 0:
                 # Process the first item in the queue
                 queue_object = self._queue.pop(0)
-                print(f"Processing object from queue {self._queue_name}: {queue_object}")
                 sys.stdout.flush()
-                try:
-                    self._queue_processor(queue_object)
-                except Exception as e:
-                    print(f"Error processing object in queue {self._queue_name}: {e}")
-                    sys.stdout.flush()
-                print(f"Finished processing object from queue {self._queue_name}: {queue_object}")
+                self._queue_processor(queue_object)
                 sys.stdout.flush()
             else:
                 # No data to process, just wait for the next interval
@@ -42,7 +38,7 @@ class Queue:
             time_remaining = self._process_interval - (time.time() - start_process_time)
             if time_remaining > 0:
                 time.sleep(time_remaining)
-
+    
     # region Queue Control Methods
     def _start_queue(self):
         """
@@ -54,12 +50,14 @@ class Queue:
             sys.stdout.flush()
             return
 
+        # Set the queue to active BEFORE starting the thread to avoid race condition
+        self._active = True
+
         # Run the main loop in a separate thread
+        print(f"Queue {self._queue_name} Starting queue")
+        sys.stdout.flush()
         self._thread = threading.Thread(target=self._main, daemon=True)
         self._thread.start()
-
-        # Set the queue to active
-        self._active = True
 
     def _stop_queue(self):
         """
@@ -82,10 +80,12 @@ class Queue:
         # Activate the queue
         if active and not self._active:
             print(f"Queue {self._queue_name} Activating queue")
+            sys.stdout.flush()
             self._start_queue()
 
         # Deactivate the queue
         elif not active and self._active:
             print(f"Queue {self._queue_name} Deactivating queue")
+            sys.stdout.flush()
             self._stop_queue()
     
