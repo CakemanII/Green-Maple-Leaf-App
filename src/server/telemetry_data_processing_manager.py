@@ -3,13 +3,15 @@ from typing import Callable
 import time
 from telemetry_data_cache_manager import TelemetryDataCacheManager
 from telemetry_data_saving import TelemetrySaveQueue
+from telemetry_data_to_clients import SendDataToClientsQueue
 
 from data_types import ProcessedTelemetryID, ProcessedDataPoint, InputTelemetryID, InputDataPoint
 
+TelemetryDataProcessingManager = None # Placeholder for type hinting, will be properly defined later to avoid circular import issues
 SingleInputHandler = Callable[[InputTelemetryID, InputDataPoint], list[ProcessedTelemetryID]]
-SingleProcessedHandler = Callable[[ProcessedTelemetryID, ProcessedDataPoint], list[ProcessedTelemetryID]]
+SingleProcessedHandler = Callable[[], list[ProcessedTelemetryID]]
 # Function that inputs multiple processed inputs and outputs one processed input
-MultiProcessedInputHandler = Callable[[list[ProcessedTelemetryID]], list[ProcessedTelemetryID]]
+MultiProcessedInputHandler = Callable[[], list[ProcessedTelemetryID]]
 
 class Utils:
     @staticmethod
@@ -19,10 +21,10 @@ class Utils:
             return json.load(f)
 
 class TelemetryDataProcessingManager:
-    def __init__(self, save_queue: TelemetrySaveQueue, cache: TelemetryDataCacheManager, send_to_clients_queue=None):
+    def __init__(self, save_queue: TelemetrySaveQueue, cache: TelemetryDataCacheManager, send_to_clients_queue: SendDataToClientsQueue):
         self._save_queue: TelemetrySaveQueue = save_queue
         self._cache: TelemetryDataCacheManager = cache
-        self._send_to_clients_queue = send_to_clients_queue  # Optional queue for sending data to web clients
+        self._send_to_clients_queue: SendDataToClientsQueue = send_to_clients_queue  # Optional queue for sending data to web clients
 
         # Create variables
         self._accpetable_input_ids: list[InputTelemetryID] = [] # List of input IDs to process
@@ -91,9 +93,8 @@ class TelemetryDataProcessingManager:
                 self._save_queue.add_to_queue((True, handler, data))
                 # Update the cache
                 self._cache.update_cache(handler, data)
-                # Send to web clients if queue is available
-                if self._send_to_clients_queue:
-                    self._send_to_clients_queue.add_to_queue((handler, data))
+                # Send to web clients
+                self._send_to_clients_queue.add_to_queue((handler, data))
                 return [handler]
 
             handler_function = func
@@ -143,7 +144,7 @@ class TelemetryDataProcessingManager:
         new_ids: list[ProcessedTelemetryID] = []
         if input_id in self._single_input_handler_mapping:
             for handler_function in self._single_input_handler_mapping[input_id]:
-                new_ids = handler_function(input_id, new_data)
+                new_ids = handler_function(self, input_id, new_data)
 
         # Process single processed handlers
         for new_id in new_ids:
@@ -154,9 +155,8 @@ class TelemetryDataProcessingManager:
         cache: ProcessedDataPoint = self._cache.get_cache_data(processed_id)
         if not cache:
             return
-        
-        data = cache[0] # Get the data of the latest data point for this processed ID
-        new_ids: list[ProcessedTelemetryID] = self._process_single_processed_handler(processed_id, data)
+
+        new_ids: list[ProcessedTelemetryID] = self._process_single_processed_handler(self, processed_id)
         for new_id in new_ids:
             self._process_all_related_processed_handlers(new_id)
 
@@ -179,7 +179,7 @@ class TelemetryDataProcessingManager:
 
                     if can_run:
                         # Run the multi processed input handler function
-                        new_ids = handler_function(processed_ids)
+                        new_ids = handler_function(self, processed_ids)
 
                         # Update the last run times for the input processed IDs
                         for i, input_processed_id in enumerate(processed_ids):
@@ -190,13 +190,105 @@ class TelemetryDataProcessingManager:
                         for new_id in new_ids:
                             self._process_all_related_processed_handlers(new_id)
 
-    def _process_single_processed_handler(self, processed_id: ProcessedTelemetryID, new_data: ProcessedDataPoint) -> list[ProcessedTelemetryID]:
+    def _process_single_processed_handler(self, telemetry_data_processing_manager: TelemetryDataProcessingManager, processed_id: ProcessedTelemetryID) -> list[ProcessedTelemetryID]:
         """
         Run all single processed handlers for a specific processed telemetry ID.
         """
         new_ids: list[ProcessedTelemetryID] = []
         if processed_id in self._single_processed_handler_mapping:
             for handler_function in self._single_processed_handler_mapping[processed_id]:
-                new_ids = handler_function(processed_id, new_data)
+                new_ids = handler_function(telemetry_data_processing_manager, processed_id)
 
         return new_ids
+
+class DerivativeHandlerCreator:
+    def __init__(self, telemetry_data_processing_manager: TelemetryDataProcessingManager, processed_id: ProcessedTelemetryID, output_processed_id: ProcessedTelemetryID):
+        self._telemetry_data_processing_manager = telemetry_data_processing_manager
+        self._processed_id = processed_id
+        self._output_processed_id = output_processed_id
+
+    def handler(self) -> list[ProcessedTelemetryID]:
+        if not self._processed_id or not self._output_processed_id:
+            raise ValueError("Processed ID and output processed ID must be provided.")
+        if not self._telemetry_data_processing_manager._is_processed_id_acceptable(self._processed_id):
+            raise ValueError(f"Processed telemetry ID '{self._processed_id}' is not acceptable.")
+        if not self._telemetry_data_processing_manager._is_processed_id_acceptable(self._output_processed_id):
+            raise ValueError(f"Output processed telemetry ID '{self._output_processed_id}' is not acceptable.")
+        
+        # Check for previous cache data for the input processed ID
+        cache_object: object = self._telemetry_data_processing_manager._cache.get_cache_data(self._processed_id)
+
+        # Check for the previous derivative data for the output processed ID
+        previous_derivative_cache_object: object = self._telemetry_data_processing_manager._cache.get_cache_data(self._output_processed_id)
+
+        # If there is no cache data for the input processed ID, we cannot calculate the derivative, so return an empty list
+        if not cache_object:
+            return []
+        
+        # Get the latest data point for the input processed ID
+        latest_datapoint: tuple[float, list[float]] = cache_object[0]
+        latest_time: float = latest_datapoint[0]
+
+        # If not previous data calculate with the previous derivative as zero.
+        if not previous_derivative_cache_object:
+            previous_derivative_datapoint: tuple[float, list[float]] = (latest_time, [0.0] * len(latest_datapoint[1]))
+        else:
+            previous_derivative_datapoint = previous_derivative_cache_object[0]
+
+        # Calculate the derivative using the latest data point and the previous derivative data point
+        time_diff = latest_time - previous_derivative_datapoint[0]
+        if time_diff == 0:
+            derivative_values = [0.0] * len(latest_datapoint[1])
+        else:
+            # Calculate
+            derivative_values = [(latest_datapoint[1][i] - previous_derivative_datapoint[1][i]) / time_diff for i in range(len(latest_datapoint[1]))]
+
+        # Save the derivative data to the cache and the save queue
+        self._telemetry_data_processing_manager._save_queue.add_to_queue((True, self._output_processed_id, (latest_time, derivative_values)))
+        self._telemetry_data_processing_manager._cache.update_cache(self._output_processed_id, (latest_time, derivative_values))
+
+        # Send to web clients if queue is available
+        self._telemetry_data_processing_manager._send_to_clients_queue.add_to_queue((self._output_processed_id, (latest_time, derivative_values)))
+
+class IntegralHandlerCreator:
+    def __init__(self, telemetry_data_processing_manager: TelemetryDataProcessingManager, processed_id: ProcessedTelemetryID, output_processed_id: ProcessedTelemetryID):
+        self._telemetry_data_processing_manager = telemetry_data_processing_manager
+        self._processed_id = processed_id
+        self._output_processed_id = output_processed_id
+
+    def handle(self):
+        if not self._processed_id or not self._output_processed_id:
+            raise ValueError("Processed ID and output processed ID must be provided.")
+        if not self._telemetry_data_processing_manager._is_processed_id_acceptable(self._processed_id):
+            raise ValueError(f"Processed telemetry ID '{self._processed_id}' is not acceptable.")
+        if not self._telemetry_data_processing_manager._is_processed_id_acceptable(self._output_processed_id):
+            raise ValueError(f"Output processed telemetry ID '{self._output_processed_id}' is not acceptable.")
+        
+        # Check for previous cache data for the input processed ID
+        cache_object: object = self._telemetry_data_processing_manager._cache.get_cache_data(self._processed_id)
+
+        # If there is no cache data for the input processed ID, we cannot calculate the integral, so return an empty list
+        if not cache_object:
+            return []
+        
+        # Get the latest data point for the input processed ID
+        latest_datapoint: tuple[float, list[float]] = cache_object[0]
+        latest_time: float = latest_datapoint[0]
+
+        # Get the previous integral data for the output processed ID, if it exists, otherwise use zero as the initial integral value
+        previous_integral_cache_object: object = self._telemetry_data_processing_manager._cache.get_cache_data(self._output_processed_id)
+        if not previous_integral_cache_object:
+            previous_integral_datapoint: tuple[float, list[float]] = (latest_time, [0.0] * len(latest_datapoint[1]))
+        else:
+            previous_integral_datapoint = previous_integral_cache_object[0]
+
+        # Calculate the integral using the latest data point and the previous integral data point
+        time_diff = latest_time - previous_integral_datapoint[0]
+        integral_values = [previous_integral_datapoint[1][i] + latest_datapoint[1][i] * time_diff for i in range(len(latest_datapoint[1]))]
+
+        # Save the integral data to the cache and the save queue
+        self._telemetry_data_processing_manager._save_queue.add_to_queue((True, self._output_processed_id, (latest_time, integral_values)))
+        self._telemetry_data_processing_manager._cache.update_cache(self._output_processed_id, (latest_time, integral_values))
+
+        # Send to web clients if queue is available
+        self._telemetry_data_processing_manager._send_to_clients_queue.add_to_queue((self._output_processed_id, (latest_time, integral_values)))

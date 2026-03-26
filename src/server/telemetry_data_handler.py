@@ -2,7 +2,7 @@ import time
 
 from telemetry_data_to_clients import SendDataToClientsQueue
 from telemetry_data_cache_manager import TelemetryDataCacheManager
-from telemetry_data_processing_manager import TelemetryDataProcessingManager
+from telemetry_data_processing_manager import TelemetryDataProcessingManager, IntegralHandlerCreator, DerivativeHandlerCreator
 from telemetry_data_saving import TelemetrySaveQueue
 from telemetry_receiver_simulation_server import TelemetryReceiverSimulationServer
 
@@ -68,3 +68,21 @@ class TelemetryDataManager:
         # Input handlers
         # self._processing_manager.register_single_input_handler("imu.acc", "absolute_linear_motion.acceleration")
         self._processing_manager.register_single_input_handler("imu.ang_vel", "absolute_angular_motion.angular_velocity")
+
+        self._processing_manager.register_single_processed_handler(
+            "absolute_angular_motion.angular_velocity",
+            DerivativeHandlerCreator(
+                self._processing_manager,
+                "absolute_angular_motion.angular_velocity",
+                "absolute_angular_motion.angular_acceleration",
+            )
+        )
+
+        self._processing_manager.register_single_processed_handler(
+            "absolute_angular_motion.angular_velocity",
+            IntegralHandlerCreator(
+                self._processing_manager,
+                "absolute_angular_motion.angular_velocity",
+                "absolute_angular_motion.angle_displacement",
+            )
+        )

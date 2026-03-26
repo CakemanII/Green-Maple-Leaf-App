@@ -1,5 +1,5 @@
 from flask import Flask
-from torch import Callable
+from typing import Callable
 import time
 
 import threading
