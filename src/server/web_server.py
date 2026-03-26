@@ -13,9 +13,9 @@ mimetypes.add_type('text/javascript', '.mjs')
 
 from file_handler import FileHandler
 from file_handler import ClientServerDirectoryHandler
-from server.telemetry_data_handler import InputTelemetryID, ProcessedDataPoint, TelemetryDataManager, ProcessedTelemetryID
-from radio_communication_manager import RadioCommunicationBuffer, TimeStamped
-from radio_communication_simulation_server import RadioComsSimulationServer
+
+from telemetry_data_handler import TelemetryDataManager
+from data_types import ProcessedTelemetryID, ProcessedDataPoint
 
 # Configure logging to suppress specific routes
 class RouteFilter(logging.Filter):
@@ -57,8 +57,6 @@ REFERRER_TO_DIR: dict[str, str] = {
 
 app = Flask(__name__, static_folder=None)
 socketio = SocketIO(app, cors_allowed_origins="*")
-
-radio_buffer: RadioCommunicationBuffer
 
 #region Initial File Serving Routes
 def _was_editor_opened_last() -> bool:
@@ -314,27 +312,29 @@ for key, config in file_saving_dictionary.items():
         methods=['GET']
     )
 
+telemetry_manager: TelemetryDataManager = None
+
 #region Active / Disable Rocket Communication Server Routes
 @app.route('/radio_rocket_comms_server/set_active', methods=['POST'])
 def activate_radio_rocket_comms_server():
     # Activate server if not already active
-    global radio_buffer
-    radio_buffer.set_active()
+    global telemetry_manager
+    telemetry_manager.set_active(True)
     return ('', 200)
 
 @app.route('/radio_rocket_comms_server/set_inactive', methods=['POST'])
 def deactivate_radio_rocket_comms_server():
     # Deactivate server if active
-    global radio_buffer
-    radio_buffer.set_inactive()
+    global telemetry_manager
+    telemetry_manager.set_active(False)
     return ('', 200)
 
 @app.route('/radio_rocket_comms_server/get_operational_status', methods=['GET'])
 def get_radio_rocket_comms_server_status():
     # Return the status of the radio communication server
-    global radio_buffer
-    is_active = radio_buffer._thread and radio_buffer._thread.is_alive() # (Still a valid way of checking)
-    
+    global telemetry_manager
+    is_active = telemetry_manager._is_active
+
     return {
         'is_operational': is_active,
     }, 200
@@ -343,8 +343,8 @@ def get_radio_rocket_comms_server_status():
 @app.route('/radio_rocket_comms_server/get_rocket_connectivity_status', methods=['GET'])
 def get_radio_rocket_comms_server_rocket_connectivity_status():
     # Return whether the radio communication server is connected to the rocket
-    global radio_buffer
-    connection_status = radio_buffer.is_connected_to_rocket()
+    global telemetry_manager
+    connection_status = telemetry_manager.is_connected_to_rocket()
     return {
         'rocket_connection_status': connection_status
     }, 200
@@ -380,3 +380,7 @@ def send_rocket_data_to_web_clients(processed_id: ProcessedTelemetryID, data: Pr
 if __name__ == '__main__':
     # Initialize file saving and data processing
     socketio.run(app, debug=True, use_reloader=False)
+
+    # Run Telemetry Data Manager
+    telemetry_manager = TelemetryDataManager()
+    telemetry_manager.set_active(True)

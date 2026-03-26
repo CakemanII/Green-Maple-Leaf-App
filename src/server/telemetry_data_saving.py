@@ -20,7 +20,7 @@ class TelemetrySaveQueue(Queue):
             file_session = self._ongoing_file_sessions[telemetry_id]
         else:
             # Create a new file session for this telemetry ID
-            file_session = open(f"saves/telemetry/{"processed" if is_processed else "input"}/{telemetry_id}.csv", "a")
+            file_session = open(f"saves/telemetry/{('processed' if is_processed else 'input')}/{telemetry_id}.csv", "a")
             self._ongoing_file_sessions[telemetry_id] = file_session
 
             # If the file is new, write the header

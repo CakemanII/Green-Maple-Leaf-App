@@ -1,8 +1,13 @@
+import time
+
 from telemetry_data_cache_manager import TelemetryDataCacheManager
 from telemetry_data_processing_manager import TelemetryDataProcessingManager
 from telemetry_data_saving import TelemetrySaveQueue
+from telemetry_receiver_simulation_server import TelemetryReceiverSimulationServer
 
 from data_types import InputDataPoint, InputTelemetryID, ProcessedDataPoint, RadioDataObject
+
+RocketConnectionStatus = int # 0 = No Connection, 1 = Poor Connection, 2 = Connected
 
 class TelemetryDataManager:
     """
@@ -13,19 +18,46 @@ class TelemetryDataManager:
         self._cache = TelemetryDataCacheManager() # Cache for telemetry data points, used for multi processed input handlers
         self._saving_manager = TelemetrySaveQueue(30) # Manager for saving telemetry data to files
         self._processing_manager = TelemetryDataProcessingManager(self._saving_manager, self._cache) # Manager for processing telemetry data and generating new processed data
+        self._simulation_server = TelemetryReceiverSimulationServer(on_receive_radio_data=self.receive_new_data_point) # Simulation server for receiving telemetry data from the rocket
+
+        self._is_active: bool = False
 
         self._initialize_handlers()
 
+    def set_active(self, active: bool):
+        if active:
+            self._saving_manager.set_queue_active(True)
+            self._simulation_server.set_active(True)
+        else:
+            self._saving_manager.set_queue_active(False)
+            self._simulation_server.set_active(False)
+        self._is_active = active
+
+    def is_connected_to_rocket(self) -> int:
+        """
+        Check the connectivity status to the rocket based on the timestamp of the last received packet.
+        Returns:
+            int: 0 for No Connection, 1 for Poor Connection, 2 for Connected
+        """
+        last_packet_time = self._simulation_server.get_time_since_last_packet()
+        if last_packet_time is None:
+            return 0 # No Connection
+
+        time_since_last_packet = time.time() - last_packet_time
+        if time_since_last_packet < 0.2: # If we received a packet in the last 5 seconds, consider it connected
+            return 2 # Connected
+        elif time_since_last_packet < 5: # If we received a packet in the last 15 seconds, consider it poor connection
+            return 1 # Poor Connection
+        else:
+            return 0 # No Connection
+
     def receive_new_data_point(self, radio_data: RadioDataObject) -> None:
+        if not self._is_active: return
+
         # Convert radio data object to input telemetry ID and data point
-        input_id: InputTelemetryID = radio_data.get("l")
-
-        data_values: list[float] = radio_data.get("d")
-        timestamp: float = radio_data.get("s")
-        new_datapoint: InputDataPoint = (timestamp, data_values)
-
-        self._processing_manager.process_new_input_data(input_id, new_datapoint)
+        self._processing_manager.process_new_input_data(radio_data[0], radio_data[1])
 
     def _initialize_handlers(self):
         # Input handlers
-        pass
+        # self._processing_manager.register_single_input_handler("imu.acc", "absolute_linear_motion.acceleration")
+        self._processing_manager.register_single_input_handler("imu.ang_vel", "absolute_angular_motion.angular_velocity")

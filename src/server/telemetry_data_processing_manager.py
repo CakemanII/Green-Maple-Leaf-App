@@ -1,7 +1,7 @@
 import threading
 from typing import Callable
 import time
-from server.telemetry_data_cache_manager import TelemetryDataCacheManager
+from telemetry_data_cache_manager import TelemetryDataCacheManager
 from telemetry_data_saving import TelemetrySaveQueue
 
 from data_types import ProcessedTelemetryID, ProcessedDataPoint, InputTelemetryID, InputDataPoint

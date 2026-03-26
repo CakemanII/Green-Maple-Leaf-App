@@ -6,4 +6,4 @@ ProcessedDataPoint = DataPoint
 InputTelemetryID = str
 ProcessedTelemetryID = str
 
-RadioDataObject = dict[str, any]
+RadioDataObject = list[InputTelemetryID, InputDataPoint, float]
