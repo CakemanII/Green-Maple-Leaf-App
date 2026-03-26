@@ -13,7 +13,7 @@ mimetypes.add_type('text/javascript', '.mjs')
 
 from file_handler import FileHandler
 from file_handler import ClientServerDirectoryHandler
-from telemetry_data_manager import InputTelemetryID, ProcessedDataPoint, TelemetryDataManager, ProcessedTelemetryID
+from server.telemetry_data_handler import InputTelemetryID, ProcessedDataPoint, TelemetryDataManager, ProcessedTelemetryID
 from radio_communication_manager import RadioCommunicationBuffer, TimeStamped
 from radio_communication_simulation_server import RadioComsSimulationServer
 

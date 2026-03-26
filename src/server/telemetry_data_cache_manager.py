@@ -15,7 +15,7 @@ class TelemetryDataCacheManager:
         # Create variables
         self._cache: dict[ProcessedTelemetryID, ProcessedDataPoint] = {} # Cache for storing the latest processed data points for each telemetry ID
 
-    def update_cache(self, telemetry_id: ProcessedTelemetryID, data_point: ProcessedDataPoint):
+    def update_cache(self, telemetry_id: ProcessedTelemetryID, data_point: ProcessedDataPoint) -> None:
         """
         Update the cache with a new processed data point for a given telemetry ID.
         """
@@ -92,5 +92,5 @@ class TelemetryDataCacheManager:
         # Return the new stats, as a list if the current data point is a list, or as a single object if the current data point is a single value
         return new_stats
 
-    def get_cache(self, telemetry_id: ProcessedTelemetryID) -> CacheItem | None:
+    def get_cache_data(self, telemetry_id: ProcessedTelemetryID) -> CacheItem | None:
         return self._cache.get(telemetry_id, None)

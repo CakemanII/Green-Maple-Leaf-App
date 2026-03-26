@@ -5,3 +5,5 @@ ProcessedDataPoint = DataPoint
 
 InputTelemetryID = str
 ProcessedTelemetryID = str
+
+RadioDataObject = dict[str, any]
