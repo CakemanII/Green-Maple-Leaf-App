@@ -67,16 +67,16 @@ class TelemetryDataCacheManager:
                 return current_datapoint_values if isinstance(current_datapoint[1], list) else current_datapoint_values[0]
             
             # Get number of entries
-            previous_number_of_entries: int = (previous_stats['Entries'] if previous_stats else 0)
+            previous_number_of_entries: int = (previous_stats[2]['Entries'] if previous_stats else 0)
 
             # Calculate the average
-            mean: float = ((previous_stats['Avg'] * previous_number_of_entries) + sum(current_datapoint_values)) / (previous_number_of_entries + len(current_datapoint_values))
+            mean: float = ((previous_stats[2]['Avg'] * previous_number_of_entries) + sum(current_datapoint_values)) / (previous_number_of_entries + len(current_datapoint_values))
 
             # Calculate the max
-            max_value: float = max([previous_stats['Max']] + current_datapoint_values) if previous_stats else max(current_datapoint_values)
+            max_value: float = max([previous_stats[2]['Max']] + current_datapoint_values) if previous_stats else max(current_datapoint_values)
 
             # Calculate the min
-            min_value: float = min([previous_stats['Min']] + current_datapoint_values) if previous_stats else min(current_datapoint_values)
+            min_value: float = min([previous_stats[2]['Min']] + current_datapoint_values) if previous_stats else min(current_datapoint_values)
 
             # Create the stats object
             stats: CacheStats = {

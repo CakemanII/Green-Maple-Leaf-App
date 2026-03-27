@@ -8,10 +8,10 @@ from telemetry_data_to_clients import SendDataToClientsQueue
 from data_types import ProcessedTelemetryID, ProcessedDataPoint, InputTelemetryID, InputDataPoint
 
 TelemetryDataProcessingManager = None # Placeholder for type hinting, will be properly defined later to avoid circular import issues
-SingleInputHandler = Callable[[InputTelemetryID, InputDataPoint], list[ProcessedTelemetryID]]
-SingleProcessedHandler = Callable[[], list[ProcessedTelemetryID]]
+SingleInputHandler = Callable[[TelemetryDataProcessingManager, InputTelemetryID, InputDataPoint], list[ProcessedTelemetryID]]
+SingleProcessedHandler = Callable[[TelemetryDataProcessingManager], list[ProcessedTelemetryID]]
 # Function that inputs multiple processed inputs and outputs one processed input
-MultiProcessedInputHandler = Callable[[], list[ProcessedTelemetryID]]
+MultiProcessedInputHandler = Callable[[TelemetryDataProcessingManager], list[ProcessedTelemetryID]]
 
 class Utils:
     @staticmethod
@@ -88,7 +88,7 @@ class TelemetryDataProcessingManager:
             if not self._is_processed_id_acceptable(handler):
                 raise ValueError(f"Processed telemetry ID '{handler}' is not acceptable.")
 
-            def func(_, data):
+            def func(_, __, data):
                 # Save the telemetry data
                 self._save_queue.add_to_queue((True, handler, data))
                 # Update the cache
@@ -144,7 +144,11 @@ class TelemetryDataProcessingManager:
         new_ids: list[ProcessedTelemetryID] = []
         if input_id in self._single_input_handler_mapping:
             for handler_function in self._single_input_handler_mapping[input_id]:
-                new_ids = handler_function(self, input_id, new_data)
+                results = handler_function(self, input_id, new_data)
+                if (results):
+                    new_ids.extend(results)
+                else:
+                    raise ValueError(f"Single input handler functions must return a list of new processed telemetry IDs, but got '{results}'.")
 
         # Process single processed handlers
         for new_id in new_ids:
@@ -156,7 +160,7 @@ class TelemetryDataProcessingManager:
         if not cache:
             return
 
-        new_ids: list[ProcessedTelemetryID] = self._process_single_processed_handler(self)
+        new_ids: list[ProcessedTelemetryID] = self._process_single_processed_handler(processed_id)
         for new_id in new_ids:
             self._process_all_related_processed_handlers(new_id)
 
@@ -190,14 +194,19 @@ class TelemetryDataProcessingManager:
                         for new_id in new_ids:
                             self._process_all_related_processed_handlers(new_id)
 
-    def _process_single_processed_handler(self, telemetry_data_processing_manager: TelemetryDataProcessingManager, processed_id: ProcessedTelemetryID) -> list[ProcessedTelemetryID]:
+    def _process_single_processed_handler(self, processed_id: ProcessedTelemetryID) -> list[ProcessedTelemetryID]:
         """
         Run all single processed handlers for a specific processed telemetry ID.
         """
         new_ids: list[ProcessedTelemetryID] = []
         if processed_id in self._single_processed_handler_mapping:
             for handler_function in self._single_processed_handler_mapping[processed_id]:
-                new_ids = handler_function()
+                results = handler_function()
+                if (results):
+                    new_ids.extend(results)
+                else:
+                    raise ValueError(f"Single processed handler functions should not return any new processed IDs, but got '{results}'.")
+                    
 
         return new_ids
 
@@ -250,6 +259,9 @@ class DerivativeHandlerCreator:
         # Send to web clients if queue is available
         self._telemetry_data_processing_manager._send_to_clients_queue.add_to_queue((self._output_processed_id, (latest_time, derivative_values)))
 
+        # Return the output processed ID as a list since the handler is expected to return a list of new processed IDs
+        return [self._output_processed_id]
+
 class IntegralHandlerCreator:
     def __init__(self, telemetry_data_processing_manager: TelemetryDataProcessingManager, processed_id: ProcessedTelemetryID, output_processed_id: ProcessedTelemetryID):
         self._telemetry_data_processing_manager = telemetry_data_processing_manager
@@ -292,3 +304,6 @@ class IntegralHandlerCreator:
 
         # Send to web clients if queue is available
         self._telemetry_data_processing_manager._send_to_clients_queue.add_to_queue((self._output_processed_id, (latest_time, integral_values)))
+
+        # Return the output processed ID as a list since the handler is expected to return a list of new processed IDs
+        return [self._output_processed_id]

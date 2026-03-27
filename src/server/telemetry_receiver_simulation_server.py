@@ -41,12 +41,11 @@ class TelemetryReceiverSimulationServer:
             data = request.get_json(force=True)
             
             # Format data content
-            data_data = data.get("data", {})
-            data_in_data: any = data_data.get(data_data.get("type", None), None)
+            data_data = data.get("data")
 
             data_object: RadioDataObject = [
                 data.get("label"),
-                [data.get("sent_timestamp", 0.0), data_in_data],
+                [data.get("sent_timestamp", 0.0), data_data],
                 time.time()
             ]
             
