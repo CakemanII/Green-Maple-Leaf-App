@@ -2,27 +2,44 @@
     "gps": {
         "signal": "number", 
         "position": { "latitude": "number", "longitude": "number", "altitude": "number" },
-        "satellites": "number", 
+        "number_of_satellites": "number", 
         "geofence_intersections": "array<string>"
     },
 
-    "absolute_linear_motion": { 
+    "relative_linear_motion":
+    {
+        "displacement": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
+        "distance": "number",
         "velocity": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
+        "speed": "number",
         "acceleration": { "latitude": "number", "longitude": "number", "altitude": "number" },
         "jerk": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
         "snap": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
-        "displacement": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
         "mach": "number", 
         "amplitude": "number"
     },
 
-    "absolute_angular_motion": {
+    "absolute_linear_motion": { 
+        "displacement": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
+        "distance": "number",
+        "velocity": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
+        "speed": "number",
+        "acceleration": { "latitude": "number", "longitude": "number", "altitude": "number" },
+        "jerk": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
+        "snap": { "latitude": "number", "longitude": "number", "altitude": "number" }, 
+        "mach": "number", 
+        "amplitude": "number"
+    },
+
+    "angular_motion": {
+        "absolute_orientation": { "pitch": "number", "roll": "number", "yaw": "number" },
+        "angular_displacement": { "pitch": "number", "roll": "number", "yaw": "number" },
+        "angular_distance": "number",
         "angular_velocity": { "pitch": "number", "roll": "number", "yaw": "number" }, 
+        "angular_speed": "number",
         "angular_acceleration": { "pitch": "number", "roll": "number", "yaw": "number" },
         "angular_jerk": { "pitch": "number", "roll": "number", "yaw": "number" }, 
-        "angular_snap": { "pitch": "number", "roll": "number", "yaw": "number" }, 
-        "angular_displacement": { "pitch": "number", "roll": "number", "yaw": "number" },
-        "absolute_orientation": { "pitch": "number", "roll": "number", "yaw": "number" }
+        "angular_snap": { "pitch": "number", "roll": "number", "yaw": "number" }
     },
 
     
@@ -30,7 +47,8 @@
     "internal_state": {
         "temperature": "number",
         "pressure": "number",
-        "vibration": "number"
+        "vibration": "number",
+        "experimentally_derived_mass": "number"
     },
 
     "rocket_computer": {
@@ -45,19 +63,15 @@
     },
 
     "rocket_computer_states": {
-        "parachute_deployed_state": "boolean",
-        "rocket_motors_detached_state": "boolean"
+        "launch_initiated": "boolean",
+        "motors_fired": "boolean",
+        "apogee_reached": "boolean",
+        "final_apogee": "number",
+        "parachute_deployed_state": "boolean"
     },
 
-    "parachute_servo_1": {
-        "servo_position": "number"
-    },
-
-    "parachute_servo_2": {
-        "servo_position": "number"
-    },
-
-    "rocket_motor_servo": {
-        "servo_position": "number"
+    "parachute_servos": {
+        "servo_1_position": "number",
+        "servo_2_position": "number"
     }
 }
