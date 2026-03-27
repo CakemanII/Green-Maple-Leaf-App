@@ -1,17 +1,43 @@
 {
     "imu": {
-        "accel": {"x": "number", "y": "number", "z": "number" },
-        "ang_vel": {"x": "number", "y": "number", "z": "number" },
-        "displ": {"x": "number", "y": "number", "z": "number" }
+        "acc": {"x": "number", "y": "number", "z": "number" },
+        "anv": {"x": "number", "y": "number", "z": "number" },
+        "dis": {"x": "number", "y": "number", "z": "number" }
+    },
+
+    "gps": {
+
+    },
+
+    "dps": {
+
+    },
+
+    "cam": {
+
     },
 
     "rasp": {
-        "lat": "number"
+        "lat": "number",
+        "ram": "number",
+        "cpu": "number",
+        "disk": "number",
+        "volt": "number",
+        "pwr": "number",
+        "temp": "number",
+        "upt": "number"
     },
 
     "states":
     {
-        "para": "boolean",
-        "m_det": "boolean"
+        "lch": "boolean",
+        "apr": "boolean",
+        "par": "boolean",
+        "mas": "number"
+    },
+
+    "servos": {
+        "s1p": "number",
+        "s2p": "number"
     }
 }
