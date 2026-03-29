@@ -43,11 +43,11 @@ class TelemetryReceiverSimulationServer:
             # Format data content
             data_data = data.get("data")
 
-            data_object: RadioDataObject = [
-                data.get("label"),
-                [data.get("sent_timestamp", 0.0), data_data],
-                time.time()
-            ]
+            data_object: RadioDataObject = {
+                "l": data.get("label"),
+                "s": data.get("sent_timestamp"),
+                "d": data_data
+            }
             
             if self._on_receive_radio_data:
                 self._on_receive_radio_data(data_object)

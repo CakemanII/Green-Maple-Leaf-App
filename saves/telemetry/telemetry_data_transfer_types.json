@@ -2,29 +2,40 @@
     "imu": {
         "acc": {"x": "number", "y": "number", "z": "number" },
         "anv": {"x": "number", "y": "number", "z": "number" },
-        "dis": {"x": "number", "y": "number", "z": "number" }
+        "mgn": {"x": "number", "y": "number", "z": "number" },
+        "ori": {"r": "number", "p": "number", "y": "number" },
+        "grv": {"x": "number", "y": "number", "z": "number" },
+        "lac": {"x": "number", "y": "number", "z": "number" }
     },
 
     "gps": {
-
+        "pos": {"lat": "number", "lon": "number"},
+        "alt": "number",
+        "spd": "number",
+        "hdg": "number",
+        "sat": "number"
     },
 
     "dps": {
-
+        "prs": "number",
+        "alt": "number",
+        "tmp": "number"
     },
 
     "cam": {
-
+        "fps": "number",
+        "res": {"w": "number", "h": "number"},
+        "on": "boolean"
     },
 
     "rasp": {
         "lat": "number",
         "ram": "number",
         "cpu": "number",
-        "disk": "number",
-        "volt": "number",
+        "dsk": "number",
+        "vlt": "number",
         "pwr": "number",
-        "temp": "number",
+        "tmp": "number",
         "upt": "number"
     },
 

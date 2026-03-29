@@ -5,6 +5,7 @@ from telemetry_data_cache_manager import TelemetryDataCacheManager
 from telemetry_data_processing_manager import TelemetryDataProcessingManager, IntegralHandlerCreator, DerivativeHandlerCreator
 from telemetry_data_saving import TelemetrySaveQueue
 from telemetry_receiver_simulation_server import TelemetryReceiverSimulationServer
+from rocket_communication_controller import RocketCommunication
 
 from data_types import InputDataPoint, InputTelemetryID, ProcessedDataPoint, ProcessedTelemetryID, RadioDataObject
 from typing import Callable
@@ -22,7 +23,7 @@ class TelemetryDataManager:
         self._saving_manager = TelemetrySaveQueue(150, None) # Manager for saving telemetry data to files
         self._send_data_to_clients_queue = SendDataToClientsQueue(60, self.send_data_to_web_clients_callback) # Queue for sending processed telemetry data to web clients at a controlled rate
         self._processing_manager = TelemetryDataProcessingManager(self._saving_manager, self._cache, self._send_data_to_clients_queue) # Manager for processing telemetry data and generating new processed data
-        self._simulation_server = TelemetryReceiverSimulationServer(on_receive_radio_data=self.receive_new_data_point) # Simulation server for receiving telemetry data from the rocket
+        self._communication_server = RocketCommunication(on_receive_radio_data=self.receive_new_data_point) # Simulation server for receiving telemetry data from the rocket
 
         self._is_active: bool = False
 
@@ -33,11 +34,11 @@ class TelemetryDataManager:
         if active:
             self._saving_manager.set_queue_active(True)
             self._send_data_to_clients_queue.set_queue_active(True)
-            self._simulation_server.set_active()
+            self._communication_server.set_active()
         else:
             self._saving_manager.set_queue_active(False)
             self._send_data_to_clients_queue.set_queue_active(False)
-            self._simulation_server.set_inactive()
+            self._communication_server.set_inactive()
         self._is_active = active
 
     def is_connected_to_rocket(self) -> int:
@@ -46,7 +47,7 @@ class TelemetryDataManager:
         Returns:
             int: 0 for No Connection, 1 for Poor Connection, 2 for Connected
         """
-        last_packet_time = self._simulation_server.get_time_since_last_packet()
+        last_packet_time = self._communication_server.get_time_since_last_packet()
         if last_packet_time is None:
             return 0 # No Connection
 
@@ -74,7 +75,7 @@ class TelemetryDataManager:
             DerivativeHandlerCreator(
                 self._processing_manager,
                 "angular_motion.angular_velocity",
-                "angular_motion.angular_acceleration",
+                "angular_motion.angular_acceleration"
             ).handler
         )
 
@@ -83,6 +84,6 @@ class TelemetryDataManager:
             IntegralHandlerCreator(
                 self._processing_manager,
                 "angular_motion.angular_velocity",
-                "angular_motion.angular_displacement",
+                "angular_motion.angular_displacement"
             ).handler
         )
