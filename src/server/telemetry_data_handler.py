@@ -6,6 +6,7 @@ from telemetry_data_processing_manager import TelemetryDataProcessingManager, In
 from telemetry_data_saving import TelemetrySaveQueue
 from telemetry_receiver_simulation_server import TelemetryReceiverSimulationServer
 from rocket_communication_controller import RocketCommunication
+from telemetry_data_transfer_types_retrieval import TelemetryDataTransferTypes
 
 from data_types import InputDataPoint, InputTelemetryID, ProcessedDataPoint, ProcessedTelemetryID, RadioDataObject
 from typing import Callable
@@ -23,7 +24,7 @@ class TelemetryDataManager:
         self._saving_manager = TelemetrySaveQueue(150, None) # Manager for saving telemetry data to files
         self._send_data_to_clients_queue = SendDataToClientsQueue(60, self.send_data_to_web_clients_callback) # Queue for sending processed telemetry data to web clients at a controlled rate
         self._processing_manager = TelemetryDataProcessingManager(self._saving_manager, self._cache, self._send_data_to_clients_queue) # Manager for processing telemetry data and generating new processed data
-        self._communication_server = RocketCommunication(on_receive_radio_data=self.receive_new_data_point) # Simulation server for receiving telemetry data from the rocket
+        self._communication_server = RocketCommunication(915, None, TelemetryDataTransferTypes()) # Simulation server for receiving telemetry data from the rocket
 
         self._is_active: bool = False
 
