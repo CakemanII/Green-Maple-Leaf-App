@@ -1,0 +1,7 @@
+Flask
+Flask-SocketIO
+requests
+cryptography
+msgpack
+adafruit-circuitpython-rfm9x
+adafruit-blinka
