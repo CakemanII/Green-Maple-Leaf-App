@@ -1,7 +1,7 @@
 {
     "imu": {
         "acc": {"x": "number", "y": "number", "z": "number" },
-        "anv": {"x": "number", "y": "number", "z": "number" },
+        "anv": {"r": "number", "p": "number", "y": "number" },
         "mgn": {"x": "number", "y": "number", "z": "number" },
         "ori": {"r": "number", "p": "number", "y": "number" },
         "grv": {"x": "number", "y": "number", "z": "number" },
