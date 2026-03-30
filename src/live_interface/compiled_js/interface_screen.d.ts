@@ -1,0 +1,51 @@
+import { InterfaceObjectRuntimeData, TelemetryPacket, TelemetryValueType } from "./interface_objects.js";
+export type InterfaceScreenData = {
+    UUID: string;
+    name: string;
+    interfaceObjects: InterfaceObjectRuntimeData[];
+};
+type ScreenCallbacks = {
+    onTabSelected: (screenUUID: string) => void;
+    onSubscribeKey: (key: string, callback: (packet: TelemetryPacket) => void) => void;
+    onUnsubscribeKey: (key: string, callback: (packet: TelemetryPacket) => void) => void;
+};
+export declare class InterfaceScreen {
+    private readonly uuid;
+    private readonly name;
+    private readonly rootInterfaceObjects;
+    private readonly interfaceDisplayObjectsByMonitorKey;
+    private readonly callbacks;
+    private readonly screenElement;
+    private readonly tabElement;
+    private visible;
+    private readonly dirtyDisplayObjects;
+    private readonly continuousDisplayObjects;
+    private readonly foregroundRenderIntervalMs;
+    private readonly backgroundRenderIntervalMs;
+    private readonly backgroundRenderBudgetPerSecond;
+    private foregroundRenderTimerId;
+    private backgroundRenderTimerId;
+    private backgroundWindowStartedAt;
+    private backgroundRenderedThisWindow;
+    private readonly telemetryCallbackByKey;
+    constructor(data: InterfaceScreenData, screensContainer: HTMLElement, tabsContainer: HTMLElement, callbacks: ScreenCallbacks, backgroundRenderBudgetPerSecond?: number);
+    getUUID(): string;
+    getName(): string;
+    showScreen(): void;
+    hideScreen(): void;
+    destroy(): void;
+    private destroyObjectTree;
+    private buildInterfaceObjects;
+    private buildMonitorIndex;
+    private mountObjectTreeAsSiblings;
+    private seedInitialRenderPass;
+    private registerSubscriptions;
+    private unregisterSubscriptions;
+    private updateDataForLabel;
+    private startRenderLoops;
+    private stopRenderLoops;
+    private renderVisibleDirtyObjects;
+    private renderHiddenDirtyObjectsWithBudget;
+    static inferTelemetryValueType(value: any): TelemetryValueType;
+}
+export {};

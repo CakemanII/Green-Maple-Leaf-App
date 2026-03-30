@@ -1,0 +1,785 @@
+/// <reference types="leaflet" />
+import { ConfirmationPrompt } from "../../../shared/compiled_js/prompts.js";
+import { MapRegionEditor, MapRegionRegionManager, MapRegionEditorKeyStates, MapRegionDataManager, MapRegionAnchorManager } from "../interactable_map/map_region_editor.js";
+import { InteractiveMap } from "./map.js";
+import { RegionType } from "./region.js";
+export var ToolType;
+(function (ToolType) {
+    ToolType[ToolType["Move"] = 0] = "Move";
+    ToolType[ToolType["Rotate"] = 1] = "Rotate";
+    ToolType[ToolType["Scale"] = 2] = "Scale";
+    ToolType[ToolType["AddAnchor"] = 3] = "AddAnchor";
+    ToolType[ToolType["Delete"] = 4] = "Delete";
+    ToolType[ToolType["ConvertToFreeform"] = 5] = "ConvertToFreeform";
+    ToolType[ToolType["AddHandles"] = 6] = "AddHandles";
+})(ToolType || (ToolType = {}));
+export class MapRegionEditorTool {
+    constructor() { }
+    // #region Override Functions
+    /**
+     * Called when an anchor point is actively being dragged.
+     * @param {AnchorPoint} anchorPoint - The anchor point being dragged.
+     */
+    onAnchorDrag(anchorPoint) { }
+    /**
+     * Called when an anchor point drag operation has ended.
+     * @param {AnchorPoint} anchorPoint - The anchor point where dragging has ended.
+     */
+    onAnchorDragEnd(anchorPoint) { }
+    /**
+     * Called when an anchor point is clicked.
+     * @param {AnchorPoint} anchorPoint - The anchor point that was clicked.
+     */
+    onAnchorClick(anchorPoint) { }
+    /**
+     * Called when an anchor point is right-clicked.
+     * @param anchorPoint - The anchor point that was right clicked.
+     * @param event - DOM event
+     */
+    onAnchorRightClick(anchorPoint, event) { }
+    /**
+     * Called when a control handle is dragged.
+     * @param {AnchorPoint} anchorPoint - The anchor point the handle belongs to.
+     * @param {boolean} isIncoming - True if the handle is the incoming handle, false for outgoing.
+     */
+    onHandleDrag(anchorPoint, isIncoming) { }
+    /**
+     * Called when a control handle drag operation has ended.
+     * @param anchorPoint - The anchor point the handle belongs to.
+     * @param isIncoming - True if the handle is the incoming handle, false for outgoing.
+     */
+    onHandleDragEnd(anchorPoint, isIncoming) { }
+    /**
+     * Called when a control handle is clicked.
+     * @param anchorPoint - The anchor point the handle belongs to.
+     * @param isIncoming - True if the handle is the incoming handle, false for outgoing.
+     */
+    onHandleClick(anchorPoint, isIncoming) { }
+}
+/**
+ * Map Region Editor Translate tool (Move Tool)
+ */
+export class MapRegionEditorTranslateTool extends MapRegionEditorTool {
+    constructor() {
+        super();
+        this.ToolType = ToolType.Move;
+    }
+    // #region Utility Functions
+    /**
+     * Moves all anchor points based on the movement of the centralized point.
+     * @param {AnchorPoint} anchorPoint - The anchor point being dragged.
+     * @param {L.Marker} anchorVisual - The visual marker of the anchor point.
+     */
+    moveAllPointsWithCentralizedPoint(anchorPoint, anchorVisual) {
+        // Check if a centralized point is set
+        if (MapRegionAnchorManager.INSTANCE.CentralizedPoint === null) {
+            console.warn("No centralized point set for movement.");
+            return;
+        }
+        // Calculate the movement offset
+        const offset = L.latLng(anchorVisual.getLatLng().lat - anchorPoint.GetAnchorPosition.lat, anchorVisual.getLatLng().lng - anchorPoint.GetAnchorPosition.lng);
+        // Move all anchor points by the offset
+        MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints.forEach(anchor => {
+            const newPos = L.latLng(anchor.GetAnchorPosition.lat + offset.lat, anchor.GetAnchorPosition.lng + offset.lng);
+            anchor.setAnchorPosition(newPos);
+        });
+        // If the anchor point is the centralized point, handle the anchor itself too
+        if (anchorPoint === MapRegionAnchorManager.INSTANCE.CentralizedPoint) {
+            MapRegionAnchorManager.INSTANCE.CentralizedPoint.setAnchorPosition(anchorVisual.getLatLng());
+        }
+    }
+    // #endregion
+    // #region Main Functions
+    onAnchorDrag(anchorPoint) {
+        // Get the list of selected anchors
+        const selectedAnchors = MapRegionAnchorManager.INSTANCE.SelectedAnchors;
+        if (selectedAnchors.size < 1) {
+            return; // No other anchors to move with
+        }
+        if (anchorPoint.GetMainVisual === null) {
+            console.log("No visual found");
+            return;
+        }
+        const anchorVisual = anchorPoint.GetMainVisual;
+        // If the moved anchor is the centralized point or if the centralized point is selected, move all points
+        if (anchorPoint === MapRegionAnchorManager.INSTANCE.CentralizedPoint || selectedAnchors.has(MapRegionAnchorManager.INSTANCE.CentralizedPoint)) {
+            this.moveAllPointsWithCentralizedPoint(anchorPoint, anchorVisual);
+            return;
+        }
+        // If not moving the centralized point, move all selected anchors by the same delta.
+        // Calculate the movement delta
+        const delta = L.latLng(anchorVisual.getLatLng().lat - anchorPoint.GetAnchorPosition.lat, anchorVisual.getLatLng().lng - anchorPoint.GetAnchorPosition.lng);
+        // Move all selected anchors by the same delta
+        selectedAnchors.forEach((anchor) => {
+            if (anchor !== anchorPoint) { // Skip the anchor that was just moved
+                const anchorCurrentPos = anchor.GetAnchorPosition;
+                const newAnchorPos = L.latLng(anchorCurrentPos.lat + delta.lat, anchorCurrentPos.lng + delta.lng);
+                anchor.setAnchorPosition(newAnchorPos);
+            }
+        });
+        // Set the point we just moved
+        anchorPoint.setAnchorPosition(anchorVisual.getLatLng());
+    }
+    onHandleDrag(anchorPoint, isIncoming) {
+        // Move only the selected handles
+        const selectedHandles = MapRegionAnchorManager.INSTANCE.SelectedHandles;
+        if (selectedHandles.size < 1) {
+            return; // No other handles to move with
+        }
+        if (isIncoming ? anchorPoint.GetIncomingHandleVisual : anchorPoint.GetOutgoingHandleVisual === null) {
+            console.log("No visual found");
+            return;
+        }
+        const handleVisual = isIncoming ? anchorPoint.GetIncomingHandleVisual : anchorPoint.GetOutgoingHandleVisual;
+        // Move all selected handles by the same delta.
+        // Calculate the movement delta
+        const delta = L.latLng(handleVisual.getLatLng().lat - (isIncoming ? anchorPoint.GetRelativeIncomingHandlePosition.lat + anchorPoint.GetAnchorPosition.lat : anchorPoint.GetRelativeOutgoingHandlePosition.lat + anchorPoint.GetAnchorPosition.lat), handleVisual.getLatLng().lng - (isIncoming ? anchorPoint.GetRelativeIncomingHandlePosition.lng + anchorPoint.GetAnchorPosition.lng : anchorPoint.GetRelativeOutgoingHandlePosition.lng + anchorPoint.GetAnchorPosition.lng));
+        // Move all selected handles by the same delta and mirror if needed
+        const mirror = !MapRegionEditorKeyStates.INSTANCE.isCtrlPressedDown;
+        selectedHandles.forEach(([anchor, handleIsIncoming]) => {
+            // Get the current handle position 
+            const relHandleCurrentPos = handleIsIncoming ? anchor.GetRelativeIncomingHandlePosition : anchor.GetRelativeOutgoingHandlePosition;
+            if (!relHandleCurrentPos) {
+                return;
+            } // Ensure the handle exists
+            // Determine if should mirror (Check if the other handle on the anchor is not selected) and mirror is enabled.
+            let otherHandleSelected = false;
+            for (const [entryAnchor, entryIsIncoming] of selectedHandles) {
+                if (entryAnchor === anchor && entryIsIncoming !== handleIsIncoming) {
+                    otherHandleSelected = true;
+                    break;
+                }
+            }
+            const shouldMirror = mirror && !otherHandleSelected;
+            // Move the handle
+            anchor.setHandlePosition(handleIsIncoming, L.latLng(relHandleCurrentPos.lat + anchor.GetAnchorPosition.lat + delta.lat, relHandleCurrentPos.lng + anchor.GetAnchorPosition.lng + delta.lng), shouldMirror);
+        });
+    }
+}
+/**
+ * Map Region Editor Rotate tool (Rotate Tool)
+ */
+export class MapRegionEditorRotateTool extends MapRegionEditorTool {
+    constructor() {
+        super(); // Initialize parent class
+        this.ToolType = ToolType.Rotate;
+        this.lastAnchorMoved = null;
+        this.pivotDistance = 0;
+        this.originalAngle = 0;
+        this.originalAnchorPositions = new Map();
+        this.originalPivotPosition = null;
+        this.isDragActive = false;
+        this.gridLineTargets = [];
+    }
+    // #region Utility Functions
+    /**
+     * Set active pivot element on the pivot/scale point visual.
+     * @param {AnchorPoint} anchorPoint
+     */
+    setPointActivePivot(anchorPoint) {
+        // Set the anchor as active pivot and deactivate others
+        MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints.forEach(anchor => anchor.setActivePivot(false));
+        MapRegionAnchorManager.INSTANCE.CentralizedPoint.setActivePivot(false);
+        anchorPoint.setActivePivot(true);
+    }
+    // #endregion
+    // #region Main Functions
+    onAnchorDrag(anchorPoint) {
+        let pivotAnchorPoint = MapRegionAnchorManager.INSTANCE.getCurrentPivotAnchor();
+        // If no pivot point is set, do nothing.
+        if (!pivotAnchorPoint) {
+            console.warn("No pivot point set for rotation, setting pivot to centralized point.");
+            pivotAnchorPoint = MapRegionAnchorManager.INSTANCE.CentralizedPoint;
+        }
+        if (anchorPoint.GetMainVisual === null) {
+            console.log("No visual found");
+            return;
+        }
+        const anchorVisual = anchorPoint.GetMainVisual;
+        // Check if the lastAnchorMoved is changed or if this is a new drag operation.
+        if (this.lastAnchorMoved !== anchorPoint || !this.isDragActive) {
+            // Set the lastAnchorMoved to the current anchorPoint.
+            this.lastAnchorMoved = anchorPoint;
+            this.isDragActive = true;
+            let pivotAnchorPoint = MapRegionAnchorManager.INSTANCE.getCurrentPivotAnchor();
+            // Save the pivot's original position at the start of rotation
+            this.originalPivotPosition = new L.LatLng(pivotAnchorPoint.GetAnchorPosition.lat, pivotAnchorPoint.GetAnchorPosition.lng);
+            // Determine which anchors to rotate based on selection
+            const anchorsToRotate = MapRegionAnchorManager.INSTANCE.SelectedAnchors.has(MapRegionAnchorManager.INSTANCE.CentralizedPoint) ?
+                MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints : Array.from(MapRegionAnchorManager.INSTANCE.SelectedAnchors);
+            // Determine grid line targets: if centralized point is being rotated alone, only show line to it
+            let gridLineTargets;
+            if (anchorsToRotate.length === 1 && anchorsToRotate.indexOf(MapRegionAnchorManager.INSTANCE.CentralizedPoint) !== -1) {
+                // Only rotating centralized point - draw line just to centralized point
+                gridLineTargets = [MapRegionAnchorManager.INSTANCE.CentralizedPoint];
+            }
+            else {
+                // Rotating multiple points or regular anchors - draw lines to all being rotated
+                gridLineTargets = anchorsToRotate;
+            }
+            // Store grid line targets for updating during drag
+            this.gridLineTargets = gridLineTargets;
+            // Show ghost anchor at original pivot position with grid lines
+            MapRegionAnchorManager.INSTANCE.showGhostAnchor(L.latLng(this.originalPivotPosition.lat, this.originalPivotPosition.lng), 'pivot', gridLineTargets);
+            // Store original positions of anchors to rotate
+            this.originalAnchorPositions.clear();
+            anchorsToRotate.forEach(anchor => {
+                this.originalAnchorPositions.set(anchor, {
+                    lat: anchor.GetAnchorPosition.lat,
+                    lng: anchor.GetAnchorPosition.lng
+                });
+            });
+            // Store the original angle of the moved anchor relative to the fixed pivot position
+            const originalVector = L.latLng(anchorPoint.GetAnchorPosition.lat - this.originalPivotPosition.lat, anchorPoint.GetAnchorPosition.lng - this.originalPivotPosition.lng);
+            this.originalAngle = Math.atan2(originalVector.lat, originalVector.lng);
+            // Store distance in degrees (lat/lng space) to avoid conversion errors
+            this.pivotDistance = Math.sqrt(originalVector.lat * originalVector.lat + originalVector.lng * originalVector.lng);
+        }
+        // Calculate the new angle of the dragged anchor relative to the fixed pivot position
+        const newVector = L.latLng(anchorVisual.getLatLng().lat - this.originalPivotPosition.lat, anchorVisual.getLatLng().lng - this.originalPivotPosition.lng);
+        const newAngle = Math.atan2(newVector.lat, newVector.lng);
+        // Calculate the total rotation angle from the original position
+        const totalRotationAngle = newAngle - this.originalAngle;
+        // Constrain the moved anchor to maintain its distance from the fixed pivot position (in lat/lng degrees)
+        const constrainedPos = L.latLng(this.originalPivotPosition.lat + this.pivotDistance * Math.sin(newAngle), this.originalPivotPosition.lng + this.pivotDistance * Math.cos(newAngle));
+        anchorPoint.setAnchorPosition(constrainedPos);
+        // Rotate all other anchors (selected or all, depending on centralized point selection) around the pivot from their original positions
+        const anchorsToRotate = MapRegionAnchorManager.INSTANCE.SelectedAnchors.has(MapRegionAnchorManager.INSTANCE.CentralizedPoint) ?
+            MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints : Array.from(MapRegionAnchorManager.INSTANCE.SelectedAnchors);
+        anchorsToRotate.forEach(anchor => {
+            if (anchor !== anchorPoint) { // Skip the anchor that was just moved
+                const originalPos = this.originalAnchorPositions.get(anchor);
+                if (!originalPos)
+                    return;
+                // Get original position relative to the fixed pivot position
+                const originalVector = L.latLng(originalPos.lat - this.originalPivotPosition.lat, originalPos.lng - this.originalPivotPosition.lng);
+                const originalAngle = Math.atan2(originalVector.lat, originalVector.lng);
+                const distance = Math.sqrt(originalVector.lat * originalVector.lat + originalVector.lng * originalVector.lng);
+                // Apply total rotation to this anchor from its original position around the fixed pivot
+                const rotatedAngle = originalAngle + totalRotationAngle;
+                const newPos = L.latLng(this.originalPivotPosition.lat + distance * Math.sin(rotatedAngle), this.originalPivotPosition.lng + distance * Math.cos(rotatedAngle));
+                anchor.setAnchorPosition(newPos);
+            }
+        });
+        // Update ghost anchor grid lines with new positions
+        if (this.gridLineTargets && this.gridLineTargets.length > 0) {
+            MapRegionAnchorManager.INSTANCE.updateGhostGridLines(this.gridLineTargets, 'pivot');
+        }
+    }
+    onAnchorDragEnd(anchorPoint) {
+        // Hide ghost anchor and grid lines when rotation ends
+        MapRegionAnchorManager.INSTANCE.hideGhostAnchor();
+        // Reset drag state
+        this.isDragActive = false;
+        this.lastAnchorMoved = null;
+    }
+    onHandleDrag(anchorPoint, isIncoming) {
+        // Set the handle visual back to it's previous position.
+        const previousRelHandlePos = isIncoming ? anchorPoint.GetRelativeIncomingHandlePosition : anchorPoint.GetRelativeOutgoingHandlePosition;
+        const previousAbsHandlePos = L.latLng(previousRelHandlePos.lat + anchorPoint.GetAnchorPosition.lat, previousRelHandlePos.lng + anchorPoint.GetAnchorPosition.lng);
+        anchorPoint.GetMainVisual.setLatLng(previousAbsHandlePos);
+    }
+    onAnchorRightClick(anchorPoint) {
+        // Use centralized system to set pivot anchor status
+        MapRegionAnchorManager.INSTANCE.setPivotAnchor(anchorPoint);
+        // Reset the last anchor moved so next drag will be treated as a new rotation
+        this.lastAnchorMoved = null;
+    }
+}
+/**
+ * Map Region Editor Scale tool (Scale Tool)
+ */
+export class MapRegionEditorScaleTool extends MapRegionEditorTool {
+    constructor() {
+        super(); // Initialize parent class
+        this.ToolType = ToolType.Scale;
+        this.originalAnchorPositions = new Map(); // Store original positions of all anchors for scaling
+        this.originalDistance = 0; // Store the original distance from scale anchor to the dragged anchor
+        // Scaling State
+        this.lastAnchorMoved = null; // The last anchor point that was moved (used to track when new drag starts)
+        this.originalAnchorPositions = new Map(); // Store original positions of all anchors for scaling
+        this.originalScaleAnchorPosition = null; // Store the scale anchor's position at the start of scaling
+        this.originalDistance = 0; // Store the original distance from scale anchor to the dragged anchor
+        this.anchorsToScale = []; // Store which anchors should be scaled for this operation
+        this.originalCentralizedPosition = null; // Store original centralized position for centralized scaling
+    }
+    // #region Utility Functions
+    /**
+     * Scales all anchors relative to the scale point when centralized point is moved.
+     * @param {AnchorPoint} anchorPoint - The centralized anchor point being dragged.
+     * @param {L.Marker} anchorVisual - The visual marker of the centralized anchor point.
+     */
+    scaleByCentralizedPoint(anchorPoint, anchorVisual) {
+        // Initialize scaling state if this is a new drag operation for centralized point
+        if (this.lastAnchorMoved !== anchorPoint) {
+            this.lastAnchorMoved = anchorPoint;
+            // Store the original position of the centralized point
+            this.originalCentralizedPosition = new L.LatLng(anchorPoint.GetAnchorPosition.lat, anchorPoint.GetAnchorPosition.lng);
+            // Store original positions of all anchor points (excluding centralized point)
+            this.originalAnchorPositions.clear();
+            MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints.forEach(anchor => {
+                this.originalAnchorPositions.set(anchor, {
+                    lat: anchor.GetAnchorPosition.lat,
+                    lng: anchor.GetAnchorPosition.lng
+                });
+            });
+            let scaleAnchorPoint = MapRegionAnchorManager.INSTANCE.getCurrentScaleAnchor();
+            // Store the fixed scale anchor position (the pivot point for scaling)
+            this.originalScaleAnchorPosition = new L.LatLng(scaleAnchorPoint.GetAnchorPosition.lat, scaleAnchorPoint.GetAnchorPosition.lng);
+            console.log("Initialized centralized point scaling relative to scale point");
+        }
+        // Calculate original vector from scale point to original centralized position
+        const originalCentralizedVector = L.latLng(this.originalCentralizedPosition.lat - this.originalScaleAnchorPosition.lat, this.originalCentralizedPosition.lng - this.originalScaleAnchorPosition.lng);
+        // Calculate new vector from scale point to current centralized position
+        const newCentralizedVector = L.latLng(anchorVisual.getLatLng().lat - this.originalScaleAnchorPosition.lat, anchorVisual.getLatLng().lng - this.originalScaleAnchorPosition.lng);
+        // Calculate scale factors based on the ratio of new to original vectors
+        const scaleFactorLat = originalCentralizedVector.lat !== 0 ? newCentralizedVector.lat / originalCentralizedVector.lat : 1;
+        const scaleFactorLng = originalCentralizedVector.lng !== 0 ? newCentralizedVector.lng / originalCentralizedVector.lng : 1;
+        // Move the centralized point to its new position
+        anchorPoint.setAnchorPosition(anchorVisual.getLatLng());
+        // Scale all other anchor points relative to the scale point using the same scale factors
+        MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints.forEach(anchor => {
+            if (anchor !== anchorPoint) { // Skip the centralized point itself
+                const originalPos = this.originalAnchorPositions.get(anchor);
+                if (!originalPos)
+                    return;
+                // Calculate vector from scale point to original anchor position
+                const originalAnchorVector = L.latLng(originalPos.lat - this.originalScaleAnchorPosition.lat, originalPos.lng - this.originalScaleAnchorPosition.lng);
+                // Scale the vector using the same scale factors as the centralized point
+                const scaledAnchorVector = L.latLng(originalAnchorVector.lat * scaleFactorLat, originalAnchorVector.lng * scaleFactorLng);
+                // Set new position relative to the scale point
+                const newPos = L.latLng(this.originalScaleAnchorPosition.lat + scaledAnchorVector.lat, this.originalScaleAnchorPosition.lng + scaledAnchorVector.lng);
+                anchor.setAnchorPosition(newPos);
+            }
+        });
+    }
+    // #endregion
+    // #region Main Functions
+    onAnchorDrag(anchorPoint) {
+        // Get the current scale anchor from the manager (it's set when the tool is activated or via right-click)
+        let scaleAnchorPoint = MapRegionAnchorManager.INSTANCE.getCurrentScaleAnchor();
+        // If no scale anchor point is set, set it to the centralized point as fallback
+        if (!scaleAnchorPoint) {
+            scaleAnchorPoint = MapRegionAnchorManager.INSTANCE.CentralizedPoint;
+            MapRegionAnchorManager.INSTANCE.setScaleAnchor(scaleAnchorPoint);
+            console.log("Set scale reference point to centralized:", scaleAnchorPoint);
+        }
+        if (anchorPoint.GetMainVisual === null) {
+            console.log("No visual found");
+            return;
+        }
+        const anchorVisual = anchorPoint.GetMainVisual;
+        // Prevent dragging the scale anchor itself (unless it's the centralized point being used for special scaling)
+        if (anchorPoint === scaleAnchorPoint && anchorPoint !== MapRegionAnchorManager.INSTANCE.CentralizedPoint) {
+            // Reset the scale anchor to its original position - it should not move
+            anchorVisual.setLatLng(anchorPoint.GetAnchorPosition);
+            console.log("Cannot drag the scale anchor point - it must remain fixed");
+            return;
+        }
+        // Special handling when moving the centralized point - scale all other anchors relative to scale point
+        if (anchorPoint === MapRegionAnchorManager.INSTANCE.CentralizedPoint) {
+            console.log("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
+            this.scaleByCentralizedPoint(anchorPoint, anchorVisual);
+            return;
+        }
+        // Helper function to check if selection has actually changed
+        const hasSelectionChanged = () => {
+            const currentSelection = MapRegionAnchorManager.INSTANCE.SelectedAnchors.has(MapRegionAnchorManager.INSTANCE.CentralizedPoint) ?
+                MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints : Array.from(MapRegionAnchorManager.INSTANCE.SelectedAnchors);
+            // Check if the arrays have different lengths
+            if (this.anchorsToScale.length !== currentSelection.length)
+                return true;
+            // Check if they contain the same anchors
+            return !this.anchorsToScale.every(anchor => currentSelection.indexOf(anchor) !== -1);
+        };
+        // Check if the lastAnchorMoved is changed or if we need to initialize for the first drag.
+        if (this.lastAnchorMoved !== anchorPoint || this.anchorsToScale.length === 0 || hasSelectionChanged()) {
+            // Set the lastAnchorMoved to the current anchorPoint.
+            this.lastAnchorMoved = anchorPoint;
+            // Save the scale anchor's original position at the start of scaling
+            this.originalScaleAnchorPosition = new L.LatLng(scaleAnchorPoint.GetAnchorPosition.lat, scaleAnchorPoint.GetAnchorPosition.lng);
+            // Determine which anchors to scale based on Ctrl key and selection
+            if (MapRegionEditorKeyStates.INSTANCE.isZPressedDown) {
+                // scale all anchor points
+                this.anchorsToScale = MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints.slice(); // Use slice() to create a copy
+            }
+            else {
+                // Normal mode: Scale based on selection
+                this.anchorsToScale = MapRegionAnchorManager.INSTANCE.SelectedAnchors.has(MapRegionAnchorManager.INSTANCE.CentralizedPoint) ?
+                    MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints.slice() : Array.from(MapRegionAnchorManager.INSTANCE.SelectedAnchors);
+            }
+            // Show ghost anchor at the scale anchor position with grid lines to anchors being scaled
+            MapRegionAnchorManager.INSTANCE.showGhostAnchor(L.latLng(this.originalScaleAnchorPosition.lat, this.originalScaleAnchorPosition.lng), 'scale', this.anchorsToScale);
+            // Store original positions of anchors to scale
+            this.originalAnchorPositions.clear();
+            this.anchorsToScale.forEach(anchor => {
+                this.originalAnchorPositions.set(anchor, {
+                    lat: anchor.GetAnchorPosition.lat,
+                    lng: anchor.GetAnchorPosition.lng
+                });
+            });
+            // Store the original distance from scale anchor to the dragged anchor
+            this.originalDistance = L.latLng(this.originalScaleAnchorPosition.lat, this.originalScaleAnchorPosition.lng).distanceTo(anchorPoint.GetAnchorPosition);
+        }
+        // Prevent division by zero
+        if (this.originalDistance === 0) {
+            console.warn("Original distance is zero, cannot scale.");
+            // Prevent anchor movement
+            anchorVisual.setLatLng(anchorPoint.GetAnchorPosition);
+            return;
+        }
+        // Calculate the new position vector from scale anchor to the dragged anchor
+        const newVector = L.latLng(anchorVisual.getLatLng().lat - this.originalScaleAnchorPosition.lat, anchorVisual.getLatLng().lng - this.originalScaleAnchorPosition.lng);
+        // Calculate the original position vector from scale anchor to the dragged anchor
+        const originalDraggedPos = this.originalAnchorPositions.get(anchorPoint);
+        const originalVector = L.latLng(originalDraggedPos.lat - this.originalScaleAnchorPosition.lat, originalDraggedPos.lng - this.originalScaleAnchorPosition.lng);
+        // Calculate scale factors for each axis (this allows for negative scaling when crossing origin)
+        const scaleFactorLat = originalVector.lat !== 0 ? newVector.lat / originalVector.lat : 1;
+        const scaleFactorLng = originalVector.lng !== 0 ? newVector.lng / originalVector.lng : 1;
+        // Allow the dragged anchor to move freely without constraining it to scale
+        anchorPoint.setAnchorPosition(anchorVisual.getLatLng());
+        // Determine which anchors to scale based on current Ctrl key state (dynamic)
+        let currentAnchorsToScale;
+        if (MapRegionEditorKeyStates.INSTANCE.isZPressedDown) {
+            // Ctrl held: Scale all anchor points
+            currentAnchorsToScale = MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints;
+        }
+        else {
+            // Normal mode: Use the originally determined selection
+            currentAnchorsToScale = this.anchorsToScale;
+        }
+        // Ensure we have original positions for all anchors that might be scaled
+        MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints.forEach(anchor => {
+            if (!this.originalAnchorPositions.has(anchor)) {
+                // If we don't have the original position stored, store the current position.
+                // This can happen when switching to Ctrl mode mid-drag.
+                this.originalAnchorPositions.set(anchor, {
+                    lat: anchor.GetAnchorPosition.lat,
+                    lng: anchor.GetAnchorPosition.lng
+                });
+            }
+        });
+        // Scale the appropriate anchors
+        currentAnchorsToScale.forEach(anchor => {
+            if (anchor !== anchorPoint) { // Skip the anchor that was just moved
+                const originalPos = this.originalAnchorPositions.get(anchor);
+                if (!originalPos)
+                    return;
+                // Calculate the vector from the fixed scale anchor position to the original anchor position
+                const vector = L.latLng(originalPos.lat - this.originalScaleAnchorPosition.lat, originalPos.lng - this.originalScaleAnchorPosition.lng);
+                // Scale the vector using separate scale factors for lat/lng (allows crossing origin)
+                const scaledPos = L.latLng(this.originalScaleAnchorPosition.lat + vector.lat * scaleFactorLat, this.originalScaleAnchorPosition.lng + vector.lng * scaleFactorLng);
+                anchor.setAnchorPosition(scaledPos);
+            }
+        });
+        // Update ghost anchor grid lines with the current set of anchors being scaled
+        MapRegionAnchorManager.INSTANCE.updateGhostGridLines(currentAnchorsToScale, 'scale');
+    }
+    onAnchorDragEnd(anchorPoint) {
+        // Hide ghost anchor and grid lines when scaling ends
+        MapRegionAnchorManager.INSTANCE.hideGhostAnchor();
+        // Reset drag state
+        this.lastAnchorMoved = null;
+    }
+    // Prevent Direct Handle Manipulation
+    onHandleDrag(anchorPoint, isIncoming) {
+        // Set the handle visual back to it's previous position.
+        const previousRelHandlePos = isIncoming ? anchorPoint.GetRelativeIncomingHandlePosition : anchorPoint.GetRelativeOutgoingHandlePosition;
+        const previousAbsHandlePos = L.latLng(previousRelHandlePos.lat + anchorPoint.GetAnchorPosition.lat, previousRelHandlePos.lng + anchorPoint.GetAnchorPosition.lng);
+        (isIncoming ? anchorPoint.GetIncomingHandleVisual : anchorPoint.GetOutgoingHandleVisual).setLatLng(previousAbsHandlePos);
+    }
+    onAnchorRightClick(anchorPoint, event) {
+        // Use centralized system to set scale anchor status
+        MapRegionAnchorManager.INSTANCE.setScaleAnchor(anchorPoint);
+        // Reset the last anchor moved so next drag will be treated as a new scaling operation
+        this.lastAnchorMoved = null;
+    }
+}
+/**
+ * Map Region Editor Add Anchor tool (Add Anchor Tool)
+ */
+export class MapRegionEditorAddAnchorTool extends MapRegionEditorTool {
+    constructor() {
+        super();
+        this.ToolType = ToolType.AddAnchor;
+        this.anchorHandleDistance = 1.5; // Distance for new anchor handles 
+        this.removed = false;
+        // Initialize map click event for adding anchor points
+        this.initalizeMapClickEvent();
+    }
+    /**
+     * Initialize map click event for adding anchor points.
+     */
+    initalizeMapClickEvent() {
+        InteractiveMap.mapInstance.on('click', (event) => {
+            if (this.removed) {
+                return;
+            } // If tool is removed, do nothing.
+            this.mapClicked(event.latlng);
+        });
+    }
+    // #region Main Functions
+    mapClicked(clickPosition) {
+        // Ignore click if it's immediately after a drag operation
+        if (MapRegionEditor.INSTANCE.JustFinishedDragging) {
+            return;
+        }
+        // Check if there's an active editing region
+        if (!MapRegionRegionManager.INSTANCE.ActiveEditingRegion) {
+            console.warn("Cannot add anchor - no active editing region.");
+            return;
+        }
+        // Check if the active region is a freeform region
+        if (MapRegionRegionManager.INSTANCE.ActiveEditingRegion.regionType !== RegionType.Freeform) {
+            console.warn("Cannot add anchor - active region is not freeform.");
+            return;
+        }
+        // Calculate handle positions to maintain curve shape
+        let incomingHandle = null;
+        let outgoingHandle = null;
+        const activeAnchors = MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints;
+        if (activeAnchors.length >= 2) {
+            // Find the closest segment to determine where we're inserting
+            const segmentInfo = MapRegionAnchorManager.INSTANCE.findClosestSegment(clickPosition);
+            if (segmentInfo) {
+                // The segment gives us the exact previous and next anchors in path order
+                const prevAnchor = activeAnchors[segmentInfo.startIndex];
+                const nextAnchor = activeAnchors[segmentInfo.endIndex];
+                // Calculate vectors from click position to each neighboring anchor
+                const toPrevAnchor = L.latLng(prevAnchor.GetAnchorPosition.lat - clickPosition.lat, prevAnchor.GetAnchorPosition.lng - clickPosition.lng);
+                const toNextAnchor = L.latLng(nextAnchor.GetAnchorPosition.lat - clickPosition.lat, nextAnchor.GetAnchorPosition.lng - clickPosition.lng);
+                // Calculate distances
+                const distToPrev = Math.sqrt(toPrevAnchor.lat * toPrevAnchor.lat + toPrevAnchor.lng * toPrevAnchor.lng);
+                const distToNext = Math.sqrt(toNextAnchor.lat * toNextAnchor.lat + toNextAnchor.lng * toNextAnchor.lng);
+                if (distToPrev > 0 && distToNext > 0) {
+                    // Get the outgoing handle of prevAnchor if it exists
+                    const prevOutgoingHandle = prevAnchor.GetRelativeOutgoingHandlePosition;
+                    // Get the incoming handle of nextAnchor if it exists
+                    const nextIncomingHandle = nextAnchor.GetRelativeIncomingHandlePosition;
+                    // Calculate handle length based on distance to neighbors
+                    const incomingHandleLength = Math.min(distToPrev * 0.3, this.anchorHandleDistance);
+                    const outgoingHandleLength = Math.min(distToNext * 0.3, this.anchorHandleDistance);
+                    // If prevAnchor has an outgoing handle, mirror its direction for our incoming handle
+                    if (prevOutgoingHandle) {
+                        // The incoming handle should point in a similar direction as prevAnchor's outgoing handle
+                        const normLat = toPrevAnchor.lat / distToPrev;
+                        const normLng = toPrevAnchor.lng / distToPrev;
+                        incomingHandle = L.latLng(normLat * incomingHandleLength, normLng * incomingHandleLength);
+                    }
+                    else {
+                        // Default: point toward prevAnchor
+                        const normLat = toPrevAnchor.lat / distToPrev;
+                        const normLng = toPrevAnchor.lng / distToPrev;
+                        incomingHandle = L.latLng(normLat * incomingHandleLength, normLng * incomingHandleLength);
+                    }
+                    // If nextAnchor has an incoming handle, mirror its direction for our outgoing handle
+                    if (nextIncomingHandle) {
+                        // The outgoing handle should point in a similar direction as nextAnchor's incoming handle
+                        const normLat = toNextAnchor.lat / distToNext;
+                        const normLng = toNextAnchor.lng / distToNext;
+                        outgoingHandle = L.latLng(normLat * outgoingHandleLength, normLng * outgoingHandleLength);
+                    }
+                    else {
+                        // Default: point toward nextAnchor
+                        const normLat = toNextAnchor.lat / distToNext;
+                        const normLng = toNextAnchor.lng / distToNext;
+                        outgoingHandle = L.latLng(normLat * outgoingHandleLength, normLng * outgoingHandleLength);
+                    }
+                }
+            }
+        }
+        // If we couldn't calculate handles (less than 2 anchors), use default small handles
+        if (!incomingHandle && !outgoingHandle) {
+            incomingHandle = L.latLng(-this.anchorHandleDistance, 0);
+            outgoingHandle = L.latLng(this.anchorHandleDistance, 0);
+        }
+        // Add a new anchor point at the clicked location with calculated handles
+        MapRegionAnchorManager.INSTANCE.createAnchorPoint(clickPosition, incomingHandle, outgoingHandle, true, true, true);
+    }
+    removeTool() { this.removed = true; }
+}
+/**
+ * Add Handles Tool - Adds missing handles to selected anchors
+ */
+export class MapRegionEditorAddHandlesTool extends MapRegionEditorTool {
+    constructor() {
+        super(...arguments);
+        this.ToolType = ToolType.AddHandles;
+    }
+    execute() {
+        var _a;
+        const selectedAnchors = MapRegionAnchorManager.INSTANCE.SelectedAnchors;
+        const activeAnchors = MapRegionAnchorManager.INSTANCE.ActiveAnchorPoints;
+        // Check if there are any selected anchors
+        if (selectedAnchors.size === 0) {
+            console.warn("No anchors selected. Please select anchors to add handles to.");
+            return;
+        }
+        // Check if active region is freeform
+        const activeRegion = MapRegionRegionManager.INSTANCE.ActiveEditingRegion;
+        if (!activeRegion || activeRegion.regionType !== RegionType.Freeform) {
+            console.warn("Cannot add handles - active region is not freeform.");
+            return;
+        }
+        let handlesAdded = 0;
+        // Process each selected anchor
+        selectedAnchors.forEach(anchor => {
+            // Find the anchor's position in the path
+            const anchorIndex = activeAnchors.indexOf(anchor);
+            if (anchorIndex === -1) {
+                console.warn("Selected anchor not found in active anchors.");
+                return;
+            }
+            const hasIncoming = anchor.GetRelativeIncomingHandlePosition !== null;
+            const hasOutgoing = anchor.GetRelativeOutgoingHandlePosition !== null;
+            // Skip if anchor already has both handles
+            if (hasIncoming && hasOutgoing) {
+                return;
+            }
+            // Calculate neighboring anchors in the path (for closed loop)
+            const prevIndex = (anchorIndex - 1 + activeAnchors.length) % activeAnchors.length;
+            const nextIndex = (anchorIndex + 1) % activeAnchors.length;
+            const prevAnchor = activeAnchors[prevIndex];
+            const nextAnchor = activeAnchors[nextIndex];
+            const anchorPos = anchor.GetAnchorPosition;
+            const handleDistance = 1.5; // Default handle length
+            // Add incoming handle if missing
+            if (!hasIncoming) {
+                // Calculate direction to previous anchor
+                const toPrev = L.latLng(prevAnchor.GetAnchorPosition.lat - anchorPos.lat, prevAnchor.GetAnchorPosition.lng - anchorPos.lng);
+                const distToPrev = Math.sqrt(toPrev.lat * toPrev.lat + toPrev.lng * toPrev.lng);
+                if (distToPrev > 0) {
+                    // Create handle pointing toward previous anchor
+                    const handleLength = Math.min(distToPrev * 0.3, handleDistance);
+                    const incomingHandle = L.latLng((toPrev.lat / distToPrev) * handleLength, (toPrev.lng / distToPrev) * handleLength);
+                    // Set the handle using the anchor's method
+                    // We need to set the relative position directly
+                    anchor.relativeIncomingHandlePosition = incomingHandle;
+                    anchor.createHandleVisual(true);
+                    handlesAdded++;
+                }
+            }
+            // Add outgoing handle if missing
+            if (!hasOutgoing) {
+                // Calculate direction to next anchor
+                const toNext = L.latLng(nextAnchor.GetAnchorPosition.lat - anchorPos.lat, nextAnchor.GetAnchorPosition.lng - anchorPos.lng);
+                const distToNext = Math.sqrt(toNext.lat * toNext.lat + toNext.lng * toNext.lng);
+                if (distToNext > 0) {
+                    // Create handle pointing toward next anchor
+                    const handleLength = Math.min(distToNext * 0.3, handleDistance);
+                    const outgoingHandle = L.latLng((toNext.lat / distToNext) * handleLength, (toNext.lng / distToNext) * handleLength);
+                    // Set the handle using the anchor's method
+                    // We need to set the relative position directly
+                    anchor.relativeOutgoingHandlePosition = outgoingHandle;
+                    anchor.createHandleVisual(false);
+                    handlesAdded++;
+                }
+            }
+        });
+        if (handlesAdded > 0) {
+            console.log(`Added ${handlesAdded} handle(s) to selected anchors.`);
+            // Update the region to reflect changes
+            (_a = MapRegionRegionManager.INSTANCE.ActiveEditingRegion) === null || _a === void 0 ? void 0 : _a.update();
+        }
+        else {
+            console.log("No handles were added. Selected anchors may already have all handles.");
+        }
+    }
+    removeTool() { }
+}
+/**
+ * Delete Region Tool - Handles region deletion with confirmation
+ */
+export class MapRegionEditorDeleteTool extends MapRegionEditorTool {
+    constructor(regionUUID) {
+        super();
+        this.ToolType = ToolType.Delete;
+        this.removed = false;
+        this.targetUUID = regionUUID;
+    }
+    /**
+     * Execute the delete operation
+     */
+    execute() {
+        if (this.removed)
+            return;
+        const regionData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(this.targetUUID);
+        const regionName = regionData ? regionData.General.Name : 'this region';
+        new ConfirmationPrompt('Delete Region', `Are you sure you want to delete "<b>${regionName}</b>"? This action cannot be undone.`, "Delete", "Cancel", () => {
+            MapRegionRegionManager.INSTANCE.deleteRegion(this.targetUUID);
+        });
+    }
+    removeTool() {
+        this.removed = true;
+    }
+}
+/**
+ * Convert to Freeform Tool - Converts Rectangle/Circle regions to Freeform
+ */
+export class MapRegionEditorConvertToFreeformTool extends MapRegionEditorTool {
+    constructor(regionUUID) {
+        super();
+        this.ToolType = ToolType.ConvertToFreeform;
+        this.removed = false;
+        this.targetUUID = regionUUID;
+    }
+    /**
+     * Execute the conversion operation
+     */
+    execute() {
+        if (this.removed)
+            return;
+        const regionData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(this.targetUUID);
+        if (!regionData) {
+            throw new Error(`Region data not found for UUID: ${this.targetUUID}`);
+        }
+        const currentType = regionData.RegionType;
+        // Only allow conversion from Rectangle or Circle to Freeform
+        if (currentType !== RegionType.Rectangle && currentType !== RegionType.Circle) {
+            console.warn(`Cannot convert ${RegionType[currentType]} region to freeform. Only Rectangle and Circle regions can be converted.`);
+            return;
+        }
+        const regionName = regionData.General.Name;
+        const regionTypeName = RegionType[currentType];
+        new ConfirmationPrompt('Convert to Freeform', `Are you sure you want to convert "<b>${regionName}</b>" from <b>${regionTypeName}</b> to a freeform region? This will allow for more complex shapes but cannot be easily undone.`, "Yes", "Cancel", () => {
+            // Confirmed - perform the conversion
+            this.performConversion();
+        });
+    }
+    /**
+     * Performs the actual conversion after confirmation
+     */
+    performConversion() {
+        const regionData = MapRegionDataManager.INSTANCE.getRegionDataByUUID(this.targetUUID);
+        if (!regionData) {
+            console.error(`Region data not found for UUID: ${this.targetUUID}`);
+            return;
+        }
+        console.log(`Converting ${RegionType[regionData.RegionType]} region to Freeform...`);
+        // Get the backend anchor point data and convert to frontend format.
+        const backendAnchorData = regionData.DerivedBackendData;
+        const frontendAnchorData = backendAnchorData;
+        // Remove the old region first - find and remove from regions array
+        const oldRegion = MapRegionRegionManager.INSTANCE.getRegionByUUID(this.targetUUID);
+        if (oldRegion) {
+            // Fully remove all visual elements from the old region
+            MapRegionRegionManager.INSTANCE.deleteRegion(this.targetUUID);
+            console.log("Old region removed.");
+        }
+        // Stop editing the current region (after removing it)
+        MapRegionRegionManager.INSTANCE.stopEditingRegion();
+        // Update the region type and frontend data
+        regionData.RegionType = RegionType.Freeform;
+        regionData.FrontEndData = frontendAnchorData;
+        // Update the region data in the data manager
+        MapRegionDataManager.INSTANCE.appendRegionData(regionData);
+        MapRegionRegionManager.INSTANCE.loadRegion(this.targetUUID);
+        // Start editing the new freeform region
+        MapRegionRegionManager.INSTANCE.setActiveEditingRegion(this.targetUUID);
+        console.log("Region successfully converted to Freeform.");
+    }
+    removeTool() {
+        this.removed = true;
+    }
+}
+//# sourceMappingURL=map_region_editor_tools.js.map
