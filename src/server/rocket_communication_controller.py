@@ -81,7 +81,7 @@ class RocketCommunication:
         while self._is_active or force_verify:
             try:
                 # Define pins connected to the RFM9x
-                CS = digitalio.DigitalInOut(board.CE1)
+                CS = digitalio.DigitalInOut(board.CE0)
                 RESET = digitalio.DigitalInOut(board.D25)
 
                 # Initialize SPI bus
