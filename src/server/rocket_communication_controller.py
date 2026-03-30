@@ -202,7 +202,7 @@ class RocketCommunication:
         byte_data = json.dumps(data_packet).encode("utf-8")
         
         # Encrypt with AES
-        encrypted_data = self._encrypt_aes(byte_data)
+        encrypted_data = byte_data # self._encrypt_aes(byte_data)
 
         # Send via RFM9x
         self._rfm9x.send(encrypted_data)
