@@ -8,32 +8,41 @@ import threading
 
 import time
 import os
+import zlib
+import lzma
+import json
+from telemetry_data_transfer_types_retrieval import TelemetryDataTransferTypes
+try:
+    import msgpack
+    HAS_MSGPACK = True
+except ImportError:
+    HAS_MSGPACK = False
+
+from data_compression import DataCompression
+
+DataValue = float | bool | list[float | bool]
+class TelemetryObject(TypedDict):
+    label: str # label
+    timestamp: float # timestamp in seconds
+    data: DataValue # data payload
+
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
 
-class RadioDataObject(TypedDict):
-    l: str # label
-    s: float # timestamp in seconds
-    d: object # data payload
-
-import json
+from task_queue import Queue
 
 class RocketCommunication:
-    RECEIVE_LISTENER_INTERVAL = 0.05
+    RECEIVE_LISTENER_INTERVAL = 1
     SENSOR_VERIFY_ATTEMPT_DELAY = 0.2
     LATENCY_TEST_SEND_INTERVAL = 0.25
 
-    LATENCY_OUT_LABEL = "gcsp" # Ground station to Rocket
-    LATENCY_IN_LABEL = "rokp" # Rocket to Ground station response
+    LATENCY_IN_LABEL = "gcsp" # Ground station to Rocket
+    LATENCY_OUT_LABEL = "rokp" # Rocket to Ground station response
 
-    def __init__(
-        self,
-        radio_freq_mhz: float = 915.0,
-        aes_key: bytes = None,
-        on_receive_radio_data: callable | None = None,
-    ):
+    def __init__(self, radio_freq_mhz: float = 915.0, aes_key: bytes = None, telemetry_data_transfer_types: TelemetryDataTransferTypes = None):
         # Initialize RocketCommunication with RocketController and radio frequency
+        self._telemetry_data_transfer_types = telemetry_data_transfer_types
         self._radio_freq_mhz = radio_freq_mhz
         self._rfm9x = None
         self._listeners: dict[str, list[callable]] = {}
@@ -46,7 +55,6 @@ class RocketCommunication:
         self._latency_test: tuple[float, float] = None
         self._start_time = None
         self._last_packet_timestamp = None
-        self._on_receive_radio_data = on_receive_radio_data
 
         # AES encryption key (32 bytes for AES-256)
         if aes_key is None:
@@ -60,17 +68,17 @@ class RocketCommunication:
             self._aes_key = aes_key
             print(f"✅ Using provided AES-{len(aes_key)*8} key")
 
+        # Create the send queue
+        self._send_queue = Queue(operations_per_second=20, queue_processor=self._send_data, queue_name="Rocket Send Queue", print_length_of_queue=True, enable_replacing_queue_objects=True)
+
         # Verify RFM9x device is connected and wired connection
-        self._verify_rfm9x_device()
+        self._verify_rfm9x_device(True)
 
     def _verify_rfm9x_device(self, force_verify: bool = False):
         """
         Verify the RFM9x device is connected and wired connection.
         """
-        # Always attempt at least once. If active/forced, keep retrying.
-        first_attempt = True
-        while first_attempt or self._is_active or force_verify:
-            first_attempt = False
+        while self._is_active or force_verify:
             try:
                 # Define pins connected to the RFM9x
                 CS = digitalio.DigitalInOut(board.CE1)
@@ -80,14 +88,18 @@ class RocketCommunication:
                 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
 
                 # Initialize RFM9x
-                rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, self._radio_freq_mhz)
+                rfm9x = adafruit_rfm9x.RFM9x(
+                    spi=spi, 
+                    cs=CS, 
+                    agc=True,
+                    reset=RESET, 
+                    frequency=self._radio_freq_mhz
+                )
                 self._rfm9x = rfm9x
                 print("✅ RFM9x found and initialized.")
                 break
-            except Exception:
+            except:
                 print("❌ RFM9x not found, retrying...")
-                if not (self._is_active or force_verify):
-                    break
                 time.sleep(RocketCommunication.SENSOR_VERIFY_ATTEMPT_DELAY)
 
     def _receive_listener_loop(self):
@@ -99,15 +111,11 @@ class RocketCommunication:
         while self._is_active:
             # Delay
             time.sleep(RocketCommunication.RECEIVE_LISTENER_INTERVAL)
-
-            if self._rfm9x is None:
-                self._verify_rfm9x_device()
-                continue
             
             # Check for incoming packet
             try:
                 packet = self._rfm9x.receive(timeout=0.5)
-            except Exception:
+            except:
                 print("❌ RFM9x connection lost, reinitializing...")
                 self._verify_rfm9x_device()
                 continue
@@ -176,7 +184,11 @@ class RocketCommunication:
         return data
     # endregion
 
-    def send_data(self, label: str, data: object):
+    # region Compression and Sending
+    def send_data(self, datas: list[TelemetryObject]):
+        self._send_queue.add_to_queue(datas)
+
+    def _send_data(self, datas: list[TelemetryObject]):
         """
         Send data via RFM9x.
         """
@@ -187,25 +199,86 @@ class RocketCommunication:
         if self._rfm9x is None:
             print("❌ RFM9x not initialized, cannot send data.")
             return
-        
+                
         # Get current seconds
-        time_seconds = time.time()
+        current_time = time.time()
 
-        # Create object
-        data_packet: RadioDataObject = {
-            "l": label,
-            "s": time_seconds,
-            "d": data
-        }
-
-        # Convert to bytes
-        byte_data = json.dumps(data_packet).encode("utf-8")
+        # Iterate and ensure each telemetry label is correct
+        for data in datas:
+            if "label" not in data or "timestamp" not in data or "data" not in data:
+                print(f"❌ Invalid telemetry object format: {data}. Skipping this object.")
+                return
+            if not isinstance(data["label"], str) or not isinstance(data["timestamp"], (int, float)):
+                print(f"❌ Invalid telemetry object types: {data}. Skipping this object.")
+                return
+            
+            # Ensure they're correct
+            correct: bool = self._telemetry_data_transfer_types.is_type_for_label_in_category_valid(data["label"], data["data"])
+            if not correct:
+                print(f"❌ Telemetry object has invalid data type for its label: {data}. Skipping this object.")
+                return
         
-        # Encrypt with AES
-        encrypted_data = byte_data # self._encrypt_aes(byte_data)
+        # Compress data to raw bytes.
+        compressed_bytes = DataCompression.compress_data(datas, self._telemetry_data_transfer_types)
+
+        if compressed_bytes is None:
+            print("❌ Data compression failed, cannot send data.")
+            return
+        
+        if len(compressed_bytes) > 252:
+            print(f"⚠️  Compressed data size ({len(compressed_bytes)} bytes) exceeds RFM9x limit. Cannot send..")
+            return
+        
+        # Apply AES encryption
+        final_data = self._encrypt_aes(compressed_bytes)
+        
+        # Validate packet size doesn't exceed RFM9x 252-byte limit
+        if len(final_data) > 252:
+            print(f"❌ Packet too large ({len(final_data)} bytes > 252 max). Skipping transmission.")
+            return
 
         # Send via RFM9x
-        self._rfm9x.send(encrypted_data)
+        try:
+            self._rfm9x.send(final_data)
+            time_spent = time.time() - current_time
+            byte_size = len(final_data)
+            print(f"📡 Sent data with time: {time_spent:.3f}s | Size: {byte_size} bytes")
+        except AssertionError as e:
+            print(f"❌ RFM9x packet size error: {len(final_data)} bytes exceeds 252-byte limit: {e}")
+        except Exception as e:
+            print(f"❌ RFM9x send error: {e}")
+    
+    def _on_receive_data(self, packet) -> None:
+        """
+        Receive data via RFM9x.
+        Send to appropriate listeners.
+        """
+        return
+        try:
+            # Decrypt packet when encryption is enabled; fallback to raw packet otherwise.
+            try:
+                decrypted_bytes = self._decrypt_aes(packet)
+            except Exception:
+                decrypted_bytes = packet
+
+            # Decompress payload if compressed
+            decoded_bytes = self._decompress_payload(decrypted_bytes)
+            
+            # Deserialize from binary (MessagePack) or JSON
+            data_obj: RadioDataObject = self._deserialize_data(decoded_bytes)
+
+            # Set the latency
+            self._set_latency_from_data(data_obj)
+
+            # Notify listeners
+            label = data_obj.get("l")
+            if label in self._listeners:
+                for callback in self._listeners[label]:
+                    callback(data_obj)
+
+        except Exception as e:
+            print(f"❌ Error decrypting/processing received data: {e}")
+    # endregion
 
     # region Latency Test
     def latency_test_loop(self):
@@ -219,7 +292,7 @@ class RocketCommunication:
     def _set_latency_from_data(self, data_obj):
         # Extract timestamp from received data
         sent_timestamp = data_obj.get('s')
-        if sent_timestamp is not None:
+        if self._latency is not None:
             latency = time.time() - sent_timestamp
             self._latency_test = (time.time(), latency)
             print(f"📶 Latency test response received! Latency: {latency:.3f} seconds")
@@ -227,46 +300,20 @@ class RocketCommunication:
 
     def set_active(self):
         self._is_active = True
-        self._latency_thread = threading.Thread(target=self.latency_test_loop)
-        self._latency_thread.start()
+        # Activate the queue
+        self._send_queue.set_queue_active(True)
 
+        self._latency_thread = threading.Thread(target=self.latency_test_loop)
+        #self._latency_thread.start()
         self._receiver_thread = threading.Thread(target=self._receive_listener_loop, daemon=True)
-        self._receiver_thread.start()
+        #self._receiver_thread.start()
 
     def set_inactive(self):
         self._is_active = False
         self._start_time = None
         self._last_packet_timestamp = None
         self._latency_test = None
-
-    def _on_receive_data(self, packet) -> None:
-        """
-        Receive data via RFM9x.
-        Send to appropriate listeners.
-        """
-        try:
-            # Decrypt packet
-            decrypted_bytes = self._decrypt_aes(packet)
-            
-            # Convert bytes back to object DO NOT USE EVAL!!!!!!!!
-            data_str = decrypted_bytes.decode("utf-8")
-            data_obj: RadioDataObject = json.loads(data_str)
-
-            # Set the latency
-            self._set_latency_from_data(data_obj)
-
-            # Notify listeners
-            label = data_obj.get("l")
-            if label in self._listeners:
-                for callback in self._listeners[label]:
-                    callback(data_obj)
-
-            # Backward-compatible callback path used by existing telemetry manager code.
-            if self._on_receive_radio_data is not None:
-                self._on_receive_radio_data(data_obj)
-
-        except Exception as e:
-            print(f"❌ Error decrypting/processing received data: {e}")
+        self._send_queue.set_queue_active(False)
 
     def add_listener(self, label: str, callback: callable) -> None:
         """

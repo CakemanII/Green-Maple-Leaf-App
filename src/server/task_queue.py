@@ -4,11 +4,13 @@ import time
 import sys
 
 class Queue:
-    def __init__(self, operations_per_second: float, queue_processor: callable, queue_name: str = "(Unnamed)"):
+    def __init__(self, operations_per_second: float, queue_processor: callable, queue_name: str = "(Unnamed)", print_length_of_queue: bool = False, enable_replacing_queue_objects: bool = False):
         self._queue: list[any] = []
         self._queue_name = queue_name
         self._queue_processor = queue_processor
         self._active = False
+        self._print_length_of_queue = print_length_of_queue
+        self._enable_replacing_queue_objects = enable_replacing_queue_objects
         
         self._thread: threading.Thread | None = None
         
@@ -26,13 +28,18 @@ class Queue:
             start_process_time = time.time()
             if len(self._queue) > 0:
                 # Process the first item in the queue
-                queue_object = self._queue.pop(0)
+                queue_object = self._queue.pop(0)[1]
                 sys.stdout.flush()
                 self._queue_processor(queue_object)
                 sys.stdout.flush()
             else:
                 # No data to process, just wait for the next interval
                 pass
+
+            # Optionally print the length of the queue for debugging
+            if self._print_length_of_queue:
+                print(f"Queue {self._queue_name} Remaining Length: {len(self._queue)}")
+                sys.stdout.flush()
 
             # Wait for the next processing interval
             time_remaining = self._process_interval - (time.time() - start_process_time)
@@ -69,7 +76,17 @@ class Queue:
             self._thread = None
     # endregion
 
-    def add_to_queue(self, queue_object: any):
+    def add_to_queue(self, queue_object: tuple[str, any]):
+        # Check the queue
+        if self._enable_replacing_queue_objects:
+            # If an object with the same label already exists, replace it instead of adding a new one
+            for i, existing_object in enumerate(self._queue):
+                if i == 0: continue  # Skip the currently processing object
+                if existing_object[0] == queue_object[0]:  # Assuming the first element is a label or identifier
+                    self._queue[i] = queue_object  # Replace the existing object
+                    return
+
+        # Add to queue as normal
         self._queue.append(queue_object)
 
     def set_queue_active(self, active: bool):

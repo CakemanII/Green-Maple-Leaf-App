@@ -386,4 +386,4 @@ if __name__ == '__main__':
     telemetry_manager.set_active(True)
 
     # Now start the Flask/SocketIO server
-    socketio.run(app, debug=True, use_reloader=False)
+    socketio.run(app, debug=True, use_reloader=False, host='192.168.4.115', port=5000) # Port is temp
