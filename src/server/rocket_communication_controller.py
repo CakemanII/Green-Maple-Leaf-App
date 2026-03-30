@@ -75,24 +75,18 @@ class RocketCommunication:
         self._verify_rfm9x_device(True)
 
     def _verify_rfm9x_device(self, force_verify: bool = False):
-        """
-        Verify the RFM9x device is connected and wired connection.
-        """
         while self._is_active or force_verify:
+            CS = None
+            RESET = None
             try:
-                # Define pins connected to the RFM9x
                 CS = digitalio.DigitalInOut(board.CE0)
                 RESET = digitalio.DigitalInOut(board.D25)
-
-                # Initialize SPI bus
                 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
-
-                # Initialize RFM9x
                 rfm9x = adafruit_rfm9x.RFM9x(
-                    spi=spi, 
-                    cs=CS, 
+                    spi=spi,
+                    cs=CS,
                     agc=True,
-                    reset=RESET, 
+                    reset=RESET,
                     frequency=self._radio_freq_mhz
                 )
                 self._rfm9x = rfm9x
@@ -100,6 +94,8 @@ class RocketCommunication:
                 break
             except Exception as e:
                 print(f"❌ RFM9x not found, retrying... {e}")
+                if CS: CS.deinit()
+                if RESET: RESET.deinit()
                 time.sleep(RocketCommunication.SENSOR_VERIFY_ATTEMPT_DELAY)
 
     def _receive_listener_loop(self):
