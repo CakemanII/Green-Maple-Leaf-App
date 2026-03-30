@@ -27,7 +27,12 @@ class RocketCommunication:
     LATENCY_OUT_LABEL = "gcsp" # Ground station to Rocket
     LATENCY_IN_LABEL = "rokp" # Rocket to Ground station response
 
-    def __init__(self, radio_freq_mhz: float = 915.0, aes_key: bytes = None):
+    def __init__(
+        self,
+        radio_freq_mhz: float = 915.0,
+        aes_key: bytes = None,
+        on_receive_radio_data: callable | None = None,
+    ):
         # Initialize RocketCommunication with RocketController and radio frequency
         self._radio_freq_mhz = radio_freq_mhz
         self._rfm9x = None
@@ -41,6 +46,7 @@ class RocketCommunication:
         self._latency_test: tuple[float, float] = None
         self._start_time = None
         self._last_packet_timestamp = None
+        self._on_receive_radio_data = on_receive_radio_data
 
         # AES encryption key (32 bytes for AES-256)
         if aes_key is None:
@@ -61,7 +67,10 @@ class RocketCommunication:
         """
         Verify the RFM9x device is connected and wired connection.
         """
-        while self._is_active or force_verify:
+        # Always attempt at least once. If active/forced, keep retrying.
+        first_attempt = True
+        while first_attempt or self._is_active or force_verify:
+            first_attempt = False
             try:
                 # Define pins connected to the RFM9x
                 CS = digitalio.DigitalInOut(board.CE1)
@@ -75,8 +84,10 @@ class RocketCommunication:
                 self._rfm9x = rfm9x
                 print("✅ RFM9x found and initialized.")
                 break
-            except:
+            except Exception:
                 print("❌ RFM9x not found, retrying...")
+                if not (self._is_active or force_verify):
+                    break
                 time.sleep(RocketCommunication.SENSOR_VERIFY_ATTEMPT_DELAY)
 
     def _receive_listener_loop(self):
@@ -88,11 +99,15 @@ class RocketCommunication:
         while self._is_active:
             # Delay
             time.sleep(RocketCommunication.RECEIVE_LISTENER_INTERVAL)
+
+            if self._rfm9x is None:
+                self._verify_rfm9x_device()
+                continue
             
             # Check for incoming packet
             try:
                 packet = self._rfm9x.receive(timeout=0.5)
-            except:
+            except Exception:
                 print("❌ RFM9x connection lost, reinitializing...")
                 self._verify_rfm9x_device()
                 continue
@@ -184,7 +199,7 @@ class RocketCommunication:
         }
 
         # Convert to bytes
-        byte_data = str(data_packet).encode("utf-8")
+        byte_data = json.dumps(data_packet).encode("utf-8")
         
         # Encrypt with AES
         encrypted_data = self._encrypt_aes(byte_data)
@@ -204,7 +219,7 @@ class RocketCommunication:
     def _set_latency_from_data(self, data_obj):
         # Extract timestamp from received data
         sent_timestamp = data_obj.get('s')
-        if self._latency is not None:
+        if sent_timestamp is not None:
             latency = time.time() - sent_timestamp
             self._latency_test = (time.time(), latency)
             print(f"📶 Latency test response received! Latency: {latency:.3f} seconds")
@@ -245,6 +260,10 @@ class RocketCommunication:
             if label in self._listeners:
                 for callback in self._listeners[label]:
                     callback(data_obj)
+
+            # Backward-compatible callback path used by existing telemetry manager code.
+            if self._on_receive_radio_data is not None:
+                self._on_receive_radio_data(data_obj)
 
         except Exception as e:
             print(f"❌ Error decrypting/processing received data: {e}")

@@ -47,11 +47,10 @@ class TelemetryDataManager:
         Returns:
             int: 0 for No Connection, 1 for Poor Connection, 2 for Connected
         """
-        last_packet_time = self._communication_server.get_time_since_last_packet()
-        if last_packet_time is None:
+        time_since_last_packet = self._communication_server.get_time_since_last_packet()
+        if time_since_last_packet is None:
             return 0 # No Connection
 
-        time_since_last_packet = time.time() - last_packet_time
         if time_since_last_packet < 0.2: # If we received a packet in the last 5 seconds, consider it connected
             return 2 # Connected
         elif time_since_last_packet < 5: # If we received a packet in the last 15 seconds, consider it poor connection
@@ -63,7 +62,7 @@ class TelemetryDataManager:
         if not self._is_active: return
 
         # Convert radio data object to input telemetry ID and data point
-        self._processing_manager.process_new_input_data(radio_data[0], radio_data[1])
+        self._processing_manager.process_new_input_data(radio_data["l"], radio_data["d"])
 
     def _initialize_handlers(self):
         # Input handlers
