@@ -98,8 +98,8 @@ class RocketCommunication:
                 self._rfm9x = rfm9x
                 print("✅ RFM9x found and initialized.")
                 break
-            except:
-                print("❌ RFM9x not found, retrying...")
+            except Exception as e:
+                print(f"❌ RFM9x not found, retrying... {e}")
                 time.sleep(RocketCommunication.SENSOR_VERIFY_ATTEMPT_DELAY)
 
     def _receive_listener_loop(self):
