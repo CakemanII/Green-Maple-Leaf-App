@@ -79,7 +79,7 @@ class RocketCommunication:
             CS = None
             RESET = None
             try:
-                CS = digitalio.DigitalInOut(board.CE1)
+                CS = digitalio.DigitalInOut(board.CE0)
                 RESET = digitalio.DigitalInOut(board.D25)
                 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
                 rfm9x = adafruit_rfm9x.RFM9x(
