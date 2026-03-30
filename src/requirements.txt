@@ -3,5 +3,5 @@ Flask-SocketIO
 requests
 cryptography
 msgpack
-adafruit-circuitpython-rfm9x
-adafruit-blinka
+adafruit-blinka>=8.0.0
+adafruit-circuitpython-rfm9x>=2.0.0
