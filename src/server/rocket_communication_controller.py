@@ -37,8 +37,8 @@ class RocketCommunication:
     SENSOR_VERIFY_ATTEMPT_DELAY = 0.2
     LATENCY_TEST_SEND_INTERVAL = 0.25
 
-    LATENCY_IN_LABEL = "gcsp" # Ground station to Rocket
-    LATENCY_OUT_LABEL = "rokp" # Rocket to Ground station response
+    LATENCY_OUT_LABEL = "gcsp" # Ground station to Rocket
+    LATENCY_IN_LABEL = "rokp" # Rocket to Ground station response
 
     def __init__(self, radio_freq_mhz: float = 915.0, aes_key: bytes = None, telemetry_data_transfer_types: TelemetryDataTransferTypes = None):
         # Initialize RocketCommunication with RocketController and radio frequency
@@ -75,27 +75,31 @@ class RocketCommunication:
         self._verify_rfm9x_device(True)
 
     def _verify_rfm9x_device(self, force_verify: bool = False):
+        """
+        Verify the RFM9x device is connected and wired connection.
+        """
         while self._is_active or force_verify:
-            CS = None
-            RESET = None
             try:
+                # Define pins connected to the RFM9x
                 CS = digitalio.DigitalInOut(board.CE1)
                 RESET = digitalio.DigitalInOut(board.D25)
+
+                # Initialize SPI bus
                 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
+
+                # Initialize RFM9x
                 rfm9x = adafruit_rfm9x.RFM9x(
-                    spi=spi,
-                    cs=CS,
+                    spi=spi, 
+                    cs=CS, 
                     agc=True,
-                    reset=RESET,
+                    reset=RESET, 
                     frequency=self._radio_freq_mhz
                 )
                 self._rfm9x = rfm9x
                 print("✅ RFM9x found and initialized.")
                 break
-            except Exception as e:
-                print(f"❌ RFM9x not found, retrying... {e}")
-                if CS: CS.deinit()
-                if RESET: RESET.deinit()
+            except:
+                print("❌ RFM9x not found, retrying...")
                 time.sleep(RocketCommunication.SENSOR_VERIFY_ATTEMPT_DELAY)
 
     def _receive_listener_loop(self):
@@ -208,8 +212,16 @@ class RocketCommunication:
                 print(f"❌ Invalid telemetry object types: {data}. Skipping this object.")
                 return
             
+            if data["data"] is None:
+                print(f"⚠️  Telemetry object has None data: {data}. Skipping this object.")
+                return
+            if data["label"] is None:
+                print(f"⚠️  Telemetry object has None label: {data}. Skipping this object.")
+                return
+            
             # Ensure they're correct
-            correct: bool = self._telemetry_data_transfer_types.is_type_for_label_in_category_valid(data["label"], data["data"])
+            category, label = data["label"].split(".") if "." in data["label"] else (None, None)
+            correct: bool = self._telemetry_data_transfer_types.is_type_for_label_in_category_valid(category, label, data["data"])
             if not correct:
                 print(f"❌ Telemetry object has invalid data type for its label: {data}. Skipping this object.")
                 return
@@ -249,7 +261,6 @@ class RocketCommunication:
         Receive data via RFM9x.
         Send to appropriate listeners.
         """
-        return
         try:
             # Decrypt packet when encryption is enabled; fallback to raw packet otherwise.
             try:
@@ -257,20 +268,22 @@ class RocketCommunication:
             except Exception:
                 decrypted_bytes = packet
 
-            # Decompress payload if compressed
-            decoded_bytes = self._decompress_payload(decrypted_bytes)
-            
-            # Deserialize from binary (MessagePack) or JSON
-            data_obj: RadioDataObject = self._deserialize_data(decoded_bytes)
+            # Decompress data
+            datas, sent_timestamp = DataCompression.decompress_data(decrypted_bytes, self._telemetry_data_transfer_types)
 
+            # Ensure data is in expected format
+            if sent_timestamp is None:
+                raise ValueError("Received data does not contain a valid timestamp for latency calculation.")
+            
             # Set the latency
-            self._set_latency_from_data(data_obj)
+            self._set_latency_from_data(sent_timestamp)
 
             # Notify listeners
-            label = data_obj.get("l")
-            if label in self._listeners:
-                for callback in self._listeners[label]:
-                    callback(data_obj)
+            for data in datas:
+                label = data["label"]
+                if label in self._listeners:
+                    for callback in self._listeners[label]:
+                        callback(data["data"], data["timestamp"]) # Send data payload and timestamp to listener callbacks
 
         except Exception as e:
             print(f"❌ Error decrypting/processing received data: {e}")
@@ -285,9 +298,8 @@ class RocketCommunication:
 
         self._latency_thread = None
 
-    def _set_latency_from_data(self, data_obj):
+    def _set_latency_from_data(self, sent_timestamp: float):
         # Extract timestamp from received data
-        sent_timestamp = data_obj.get('s')
         if self._latency is not None:
             latency = time.time() - sent_timestamp
             self._latency_test = (time.time(), latency)
