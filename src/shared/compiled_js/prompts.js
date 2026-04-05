@@ -1330,6 +1330,64 @@ export class StatusCollectionFileListViewerPrompt extends FileListViewerPrompt {
         return super.getSortKey(metadata, columnLabel);
     }
 }
+export class InterfaceCollectionFileListViewerPrompt extends FileListViewerPrompt {
+    constructor(onConfirm, onCancel = () => { }) {
+        super('Interface Collections', 'Load', 'Cancel', onConfirm, onCancel, '/interface_collection/list_metadatas', {
+            'Name': FileSortType.ALPHA,
+            'Date Modified': FileSortType.DATE,
+            'Size': FileSortType.NUMBER,
+            'UUID': FileSortType.NONE,
+        }, 940, 580, false, // no upload for now
+        null, '.icollection', false, // no delete for now
+        null);
+        this.initializeAdditionalDOM();
+    }
+    initializeFileItemDOM(...metadata) {
+        const [name, lastModified, fileSize, UUID, fullMetadata] = metadata;
+        const tr = document.createElement('tr');
+        tr.style.cssText = `cursor: pointer; color: #ddd; border-bottom: 1px solid #2a2a2a;`;
+        tr.tabIndex = 0;
+        const cellStyle = `padding: 9px 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`;
+        const tdName = document.createElement('td');
+        tdName.style.cssText = cellStyle + ' font-weight: 500;';
+        tdName.textContent = name;
+        tdName.title = name;
+        const tdDate = document.createElement('td');
+        tdDate.style.cssText = cellStyle + ' color: #aaa;';
+        tdDate.textContent = new Date(lastModified).toLocaleString();
+        const tdSize = document.createElement('td');
+        tdSize.style.cssText = cellStyle + ' text-align: right; color: #aaa; font-variant-numeric: tabular-nums;';
+        tdSize.textContent = (fileSize / 1024).toFixed(1) + ' KB';
+        const tdUUID = document.createElement('td');
+        tdUUID.style.cssText = cellStyle + ' font-family: monospace; font-size: 11px; color: #666;';
+        tdUUID.textContent = UUID;
+        tdUUID.title = UUID;
+        tr.appendChild(tdName);
+        tr.appendChild(tdDate);
+        tr.appendChild(tdSize);
+        tr.appendChild(tdUUID);
+        tr.onmouseenter = () => { if (tr !== this.selectedRow)
+            tr.style.background = '#2c2c2c'; };
+        tr.onmouseleave = () => { if (tr !== this.selectedRow)
+            tr.style.background = ''; };
+        tr.onclick = () => {
+            if (this.selectedRow) {
+                this.selectedRow.style.background = '';
+                this.selectedRow.style.color = '#ddd';
+                this.selectedRow.querySelectorAll('td').forEach(td => td.style.color = '');
+            }
+            this.selectedRow = tr;
+            this.selectedFileMetadata = fullMetadata;
+            tr.style.background = '#1c3557';
+            tr.style.color = '#e8f1ff';
+            tdDate.style.color = '#b0c8f0';
+            tdSize.style.color = '#b0c8f0';
+            tdUUID.style.color = '#7a9cc8';
+            this.confirmButton.disabled = false;
+        };
+        this.tBody.appendChild(tr);
+    }
+}
 export class MediaFileListViewerPrompt extends FileListViewerPrompt {
     buildDeleteBody(metadata) {
         const m = metadata;

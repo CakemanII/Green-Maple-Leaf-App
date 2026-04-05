@@ -161,6 +161,10 @@ export declare class StatusCollectionFileListViewerPrompt extends FileListViewer
     protected initializeFileItemDOM(...metadata: any[]): void;
     protected getSortKey(metadata: FileMetadata, columnLabel: string): string | number;
 }
+export declare class InterfaceCollectionFileListViewerPrompt extends FileListViewerPrompt {
+    constructor(onConfirm: (fileMetadata: FileMetadata) => void, onCancel?: () => void);
+    protected initializeFileItemDOM(...metadata: any[]): void;
+}
 export declare class MediaFileListViewerPrompt extends FileListViewerPrompt {
     private mediaType;
     private activeAudio;

@@ -115,6 +115,41 @@ export class PropertiesPanel {
                 <label class="property-label">Background Color</label>
                 <input type="color" class="property-input" id="prop-bg-color" value="${obj.graphStyle.backgroundColor}">
             </div>
+            <div class="property-row">
+                <div class="property-group">
+                    <label class="property-label">Y Min</label>
+                    <input type="number" class="property-input" id="prop-y-min" value="${obj.graphStyle.yMin}" step="1">
+                </div>
+                <div class="property-group">
+                    <label class="property-label">Y Max</label>
+                    <input type="number" class="property-input" id="prop-y-max" value="${obj.graphStyle.yMax}" step="1">
+                </div>
+            </div>
+            <div class="property-group">
+                <label class="property-label">Time Window (s)</label>
+                <input type="number" class="property-input" id="prop-time-window" value="${obj.graphStyle.timeWindow}" min="1" max="300">
+            </div>
+            <div class="property-group">
+                <label class="property-label">Unit</label>
+                <input type="text" class="property-input" id="prop-unit" value="${obj.graphStyle.unit || ''}" placeholder="e.g., m/s, °C">
+            </div>
+            <div class="property-row">
+                <div class="property-group">
+                    <label class="property-label">X Overflow</label>
+                    <select class="property-input" id="prop-x-overflow">
+                        <option value="ShiftGraph" ${obj.graphStyle.xOverflowMode === 'ShiftGraph' ? 'selected' : ''}>Shift Graph</option>
+                        <option value="ScaleAxis" ${obj.graphStyle.xOverflowMode === 'ScaleAxis' ? 'selected' : ''}>Scale Axis</option>
+                        <option value="None" ${obj.graphStyle.xOverflowMode === 'None' ? 'selected' : ''}>None</option>
+                    </select>
+                </div>
+                <div class="property-group">
+                    <label class="property-label">Y Overflow</label>
+                    <select class="property-input" id="prop-y-overflow">
+                        <option value="ScaleAxis" ${obj.graphStyle.yOverflowMode === 'ScaleAxis' ? 'selected' : ''}>Scale Axis</option>
+                        <option value="None" ${obj.graphStyle.yOverflowMode === 'None' ? 'selected' : ''}>None</option>
+                    </select>
+                </div>
+            </div>
         `;
     }
 
@@ -250,6 +285,42 @@ export class PropertiesPanel {
         const bgColor = document.getElementById('prop-bg-color') as HTMLInputElement;
         bgColor?.addEventListener('input', () => {
             obj.graphStyle.backgroundColor = bgColor.value;
+            this.canvas!.updateSelectedObject();
+        });
+
+        const yMin = document.getElementById('prop-y-min') as HTMLInputElement;
+        yMin?.addEventListener('input', () => {
+            obj.graphStyle.yMin = parseFloat(yMin.value);
+            this.canvas!.updateSelectedObject();
+        });
+
+        const yMax = document.getElementById('prop-y-max') as HTMLInputElement;
+        yMax?.addEventListener('input', () => {
+            obj.graphStyle.yMax = parseFloat(yMax.value);
+            this.canvas!.updateSelectedObject();
+        });
+
+        const timeWindow = document.getElementById('prop-time-window') as HTMLInputElement;
+        timeWindow?.addEventListener('input', () => {
+            obj.graphStyle.timeWindow = parseInt(timeWindow.value);
+            this.canvas!.updateSelectedObject();
+        });
+
+        const unit = document.getElementById('prop-unit') as HTMLInputElement;
+        unit?.addEventListener('input', () => {
+            obj.graphStyle.unit = unit.value;
+            this.canvas!.updateSelectedObject();
+        });
+
+        const xOverflow = document.getElementById('prop-x-overflow') as HTMLSelectElement;
+        xOverflow?.addEventListener('change', () => {
+            obj.graphStyle.xOverflowMode = xOverflow.value;
+            this.canvas!.updateSelectedObject();
+        });
+
+        const yOverflow = document.getElementById('prop-y-overflow') as HTMLSelectElement;
+        yOverflow?.addEventListener('change', () => {
+            obj.graphStyle.yOverflowMode = yOverflow.value;
             this.canvas!.updateSelectedObject();
         });
     }

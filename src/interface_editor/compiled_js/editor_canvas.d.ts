@@ -6,9 +6,10 @@ import { EditorScreen } from './editor_screen.js';
 type EventCallback = (...args: any[]) => void;
 export declare class EditorCanvas {
     private canvasElement;
-    private currentScreen;
+    currentScreen: EditorScreen | null;
     private selectedObject;
     private objectElements;
+    private graphInstances;
     private eventListeners;
     private dragState;
     constructor(canvasElement: HTMLDivElement);
@@ -18,6 +19,7 @@ export declare class EditorCanvas {
     private renderObject;
     private updateObjectElement;
     private renderLineGraph;
+    private generateSampleData;
     private renderPanel;
     private addResizeHandles;
     private handleCanvasClick;

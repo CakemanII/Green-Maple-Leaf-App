@@ -4,7 +4,7 @@
 
 import type { InterfaceObject, LineGraphObject, PanelObject } from './types.js';
 import { EditorScreen } from './editor_screen.js';
-import { LineGraphRepresentation } from '../../live_data/compiled_js/graph_representations.js';
+import { LineGraphRepresentation, LineGraphXOverflowMode, LineGraphYOverflowMode } from '../../live_data/compiled_js/graph_representations.js';
 
 type EventCallback = (...args: any[]) => void;
 
@@ -59,8 +59,9 @@ export class EditorCanvas {
     }
 
     private renderScreen(): void {
-        // Clear canvas
+        // Clear canvas and old graph instances
         this.canvasElement.innerHTML = '';
+        this.graphInstances.clear();
         this.objectElements.clear();
 
         if (!this.currentScreen) return;
@@ -114,8 +115,90 @@ export class EditorCanvas {
 
     private renderLineGraph(element: HTMLDivElement, obj: LineGraphObject): void {
         element.style.backgroundColor = obj.graphStyle.backgroundColor;
-        element.innerHTML = `<div style="padding: 8px; font-size: 12px; color: #888;">Line Graph: ${obj.monitorDataKeys.length} labels</div>`;
-        // TODO: Integrate actual LineGraphRepresentation with sample data
+        
+        // Clear previous content
+        element.innerHTML = '';
+        
+        // Create container for the graph
+        const graphContainer = document.createElement('div');
+        graphContainer.id = `graph-${obj.uuid}`;
+        graphContainer.style.width = '100%';
+        graphContainer.style.height = '100%';
+        graphContainer.style.position = 'relative';
+        element.appendChild(graphContainer);
+
+        // Clean up old graph instance
+        if (this.graphInstances.has(obj.uuid)) {
+            this.graphInstances.delete(obj.uuid);
+        }
+
+        // Only create graph if there are monitor data keys
+        if (obj.monitorDataKeys.length === 0) {
+            graphContainer.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666; font-size: 14px;">No telemetry labels selected</div>`;
+            return;
+        }
+
+        // Create line collections with default colors
+        const lineCollections: { [key: string]: { color: string; width: number; opacity: number } } = {};
+        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE'];
+        obj.monitorDataKeys.forEach((key, index) => {
+            lineCollections[key] = {
+                color: obj.graphStyle.lineColors?.[key] || colors[index % colors.length],
+                width: 2,
+                opacity: 1
+            };
+        });
+
+        // Create graph instance
+        try {
+            const graph = new LineGraphRepresentation(
+                obj.name || 'Graph',
+                obj.graphStyle.unit || '',
+                obj.graphStyle.yMin,
+                obj.graphStyle.yMax,
+                obj.graphStyle.timeWindow,
+                lineCollections,
+                graphContainer.id
+            );
+
+            // Set overflow modes - convert string to enum
+            const xMode = obj.graphStyle.xOverflowMode === 'ShiftGraph' ? LineGraphXOverflowMode.ShiftGraph :
+                          obj.graphStyle.xOverflowMode === 'ScaleAxis' ? LineGraphXOverflowMode.ScaleAxis :
+                          LineGraphXOverflowMode.None;
+            const yMode = obj.graphStyle.yOverflowMode === 'ScaleAxis' ? LineGraphYOverflowMode.ScaleAxis :
+                          LineGraphYOverflowMode.None;
+            
+            graph.setOverflowX(xMode);
+            graph.setOverflowY(yMode);
+
+            // Generate sample data for preview
+            this.generateSampleData(graph, obj.monitorDataKeys);
+
+            this.graphInstances.set(obj.uuid, graph);
+        } catch (error) {
+            console.error('Failed to create graph:', error);
+            graphContainer.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ff6b6b; font-size: 12px;">Failed to create graph</div>`;
+        }
+    }
+
+    private generateSampleData(graph: LineGraphRepresentation, keys: string[]): void {
+        // Generate 30 seconds of sample data
+        const now = Date.now() / 1000;
+        const startTime = now - 30;
+        
+        for (let t = 0; t <= 30; t += 0.5) {
+            const timestamp = startTime + t;
+            keys.forEach((key, index) => {
+                // Create different wave patterns for each key
+                const frequency = 0.5 + index * 0.3;
+                const amplitude = 20 + index * 10;
+                const offset = 50 + index * 15;
+                const value = Math.sin(t * frequency) * amplitude + offset;
+                
+                // addDataPoint(x: number, y: number, collectionKey: string)
+                graph.addDataPoint(timestamp, value, key);
+            });
+        }
     }
 
     private renderPanel(element: HTMLDivElement, obj: PanelObject): void {
@@ -302,6 +385,10 @@ export class EditorCanvas {
                     lineColors: {},
                     axisLabels: true,
                     grid: true,
+                    yMin: 0,
+                    yMax: 100,
+                    timeWindow: 30,
+                    unit: '',
                     xAxisRange: { min: 0, max: 20 },
                     yAxisRange: { min: 0, max: 20 },
                     xAxisLabel: 'Time (s)',

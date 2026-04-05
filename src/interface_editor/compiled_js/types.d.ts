@@ -48,6 +48,10 @@ export type GraphStyle = {
     };
     axisLabels: boolean;
     grid: boolean;
+    yMin: number;
+    yMax: number;
+    timeWindow: number;
+    unit: string;
     xAxisRange: {
         min: number;
         max: number;

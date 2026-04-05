@@ -54,6 +54,10 @@ export type GraphStyle = {
     lineColors: { [key: string]: string };
     axisLabels: boolean;
     grid: boolean;
+    yMin: number;
+    yMax: number;
+    timeWindow: number;  // in seconds
+    unit: string;
     xAxisRange: { min: number; max: number };
     yAxisRange: { min: number; max: number };
     xAxisLabel: string;
@@ -88,6 +92,10 @@ export const DEFAULT_GRAPH_STYLE: GraphStyle = {
     lineColors: {},
     axisLabels: true,
     grid: true,
+    yMin: 0,
+    yMax: 100,
+    timeWindow: 30,
+    unit: '',
     xAxisRange: { min: 0, max: 20 },
     yAxisRange: { min: 0, max: 20 },
     xAxisLabel: 'Time (s)',

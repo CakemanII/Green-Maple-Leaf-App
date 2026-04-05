@@ -10,7 +10,7 @@ import { PropertiesPanel } from './properties_panel.js';
 import { ScreenTabBar } from './screen_tab_bar.js';
 import { ObjectPalette } from './object_palette.js';
 import { InterfaceCollectionFileListViewerPrompt } from '../../shared/compiled_js/prompts.js';
-import type { FileMetadata } from '../../shared/compiled_js/prompts.js';
+import type { FileMetadata } from '../../shared/compiled_js/types.js';
 
 export class InterfaceEditor {
     public static INSTANCE: InterfaceEditor | null = null;

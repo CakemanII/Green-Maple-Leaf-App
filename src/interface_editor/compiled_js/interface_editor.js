@@ -7,6 +7,7 @@ import { EditorCanvas } from './editor_canvas.js';
 import { PropertiesPanel } from './properties_panel.js';
 import { ScreenTabBar } from './screen_tab_bar.js';
 import { ObjectPalette } from './object_palette.js';
+import { InterfaceCollectionFileListViewerPrompt } from '../../shared/compiled_js/prompts.js';
 export class InterfaceEditor {
     constructor() {
         this.collection = null;
@@ -192,8 +193,27 @@ export class InterfaceEditor {
                 await this.handleSave();
             }
         }
-        // TODO: Implement file list prompt (similar to status editor)
-        console.log('Load not yet implemented - need file list prompt');
+        // Show file list viewer
+        new InterfaceCollectionFileListViewerPrompt(async (fileMetadata) => {
+            try {
+                const response = await fetch(`/interface_collection/fetch?uuid=${fileMetadata.UUID}`);
+                if (!response.ok) {
+                    throw new Error('Failed to load collection');
+                }
+                const data = await response.json();
+                this.collection = data;
+                this.currentFilePath = fileMetadata.UUID;
+                this.loadCollectionIntoEditor();
+                this.markClean();
+                console.log('Collection loaded successfully');
+            }
+            catch (error) {
+                console.error('Load error:', error);
+                alert('Failed to load collection');
+            }
+        }, () => {
+            // Cancel - do nothing
+        });
     }
     handleRevert() {
         if (!confirm('Revert all changes? Unsaved work will be lost.')) {
