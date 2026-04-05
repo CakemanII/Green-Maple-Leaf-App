@@ -1,0 +1,948 @@
+# Interface Editor - Comprehensive Implementation Plan
+
+**Date**: 2026-04-05  
+**Scope**: Complete interface editor for creating, editing, and managing screen collections  
+**Pattern**: Follows status editor architecture with file-based save/load/revert workflow
+
+---
+
+## 1. Executive Summary
+
+The interface editor enables users to visually create and edit screen collections for the live interface system. Users can create multiple screens, add interface objects (Line Graphs and Panels) to those screens, position and resize them with visual drag-and-drop, configure object properties, and save/load screen collections from the server filesystem.
+
+**Core Workflow**:
+1. Load existing screen collection or start fresh
+2. Add/remove screens using tab-based navigation
+3. Drag object types from palette onto canvas
+4. Position, resize, and configure objects visually
+5. Save changes back to server filesystem
+
+---
+
+## 2. Architecture & Design Decisions
+
+### 2.1 Overall Layout Structure
+- **Header**: Load/Save/Revert buttons (follows status editor pattern)
+- **Left Sidebar**: 
+  - Object Palette (top) - drag-to-create interface
+  - Properties Panel (bottom) - context-sensitive configuration
+- **Center Canvas**: WYSIWYG editing area (1920x1080 fixed dimensions)
+- **Bottom Tab Bar**: Screen navigation (same pattern as live interface)
+
+### 2.2 Screen Management
+- Tab-based navigation identical to live interface runtime
+- Plus (+) button at end of tab bar to add new screens
+- Right-click context menu on tabs for: Rename, Delete, Duplicate
+- Screens identified by auto-generated UUIDs
+- User provides screen name (editable via right-click rename)
+
+### 2.3 Object Types (v1)
+- **Line Graph**: Displays telemetry data in graph format
+- **Panel**: Container/visual element (no nesting in v1)
+
+### 2.4 Canvas & Coordinate System
+- Fixed 1920x1080 pixel canvas (represents 100% reference)
+- All object positions/sizes are percentages (0-100)
+- Percentage-based layout relative to immediate parent
+- Grid snapping at 1% increments (100 positions per axis)
+- No zoom controls in v1
+
+### 2.5 Object Interaction Model
+- **Selection**: Click object to select
+- **Deselection**: Click empty canvas area
+- **Moving**: Drag anywhere on selected object
+- **Resizing**: 8 handles (4 corners + 4 edges)
+- **Visual Feedback**: 
+  - Outline highlight on selected object
+  - Resize/drag handles visible when selected
+- Single selection only (no multi-select in v1)
+
+### 2.6 File Management
+- Same save/load pattern as status editor
+- JSON format (optimized from live interface structure)
+- Server filesystem storage
+- Dirty state tracking with save/revert prompts
+- File operations: Load, Save, Save As, Revert
+
+---
+
+## 3. Detailed Feature Specifications
+
+### 3.1 Object Palette (Left Sidebar Top)
+
+**Purpose**: Drag-to-create interface for adding objects to canvas
+
+**Object Types Available**:
+- Line Graph (icon/button)
+- Panel (icon/button)
+
+**Interaction**:
+1. User drags object type from palette
+2. Drops on canvas at desired position
+3. Object created with default size (e.g., 20% x 20%)
+4. Object auto-selected for immediate configuration
+
+**Default Properties**:
+- Line Graph: 
+  - Position: where dropped (snapped to grid)
+  - Size: 20% x 20%
+  - monitorDataKeys: [] (empty, shows validation error)
+  - Random sample data generated
+  - Default colors, axis ranges (x=20, y=20)
+- Panel:
+  - Position: where dropped
+  - Size: 20% x 20%
+  - Background: transparent or light gray
+  - Border: 1px solid
+
+### 3.2 Properties Panel (Left Sidebar Bottom)
+
+**Context-Sensitive Display**:
+
+**When NO object selected**:
+- Screen name and info (e.g., "Flight Dynamics - 3 objects")
+- Hint: "Drag object from palette above to add to screen"
+- Canvas dimensions reference: "Canvas: 1920x1080 (100% reference)"
+
+**When Line Graph selected**:
+
+**Common Properties** (all objects):
+- Object Name (optional text field)
+- Object Type (read-only label: "Line Graph")
+- UUID (read-only, small gray text)
+- Position X (0-100%, numeric input with real-time sync)
+- Position Y (0-100%, numeric input with real-time sync)
+- Width (0-100%, numeric input with real-time sync)
+- Height (0-100%, numeric input with real-time sync)
+- Z-Order Controls:
+  - "To Front" button
+  - "Bring Forward" button
+  - "Send Backward" button
+  - "To Back" button
+- Delete button (red, with confirmation)
+
+**Line Graph Specific**:
+- **Monitor Data Keys** (telemetry labels):
+  - Multiple cascading dropdowns (like flag conditions)
+  - Each label shown as removable chip/tag
+  - "Add Label" button to add more
+  - Validation: At least one required (error if empty)
+  
+- **Graph Style Settings**:
+  - Line Colors: Color picker per data key
+  - Background Color: Color picker
+  - Axis Labels On/Off: Toggle checkboxes
+  - Grid On/Off: Toggle
+  - X-Axis Range: Min/Max numeric inputs
+  - Y-Axis Range: Min/Max numeric inputs
+  - X-Axis Label: Text input
+  - Y-Axis Label: Text input
+  - Units: Text input
+  - Legend Position: Dropdown (Top Left, Top Right, Bottom Left, Bottom Right, None)
+  
+- **Axis Scaling Modes**:
+  - **X-Axis Overflow Mode**: Dropdown
+    - "Shift Graph" (default) - Scrolling window that moves with data
+    - "Scale Axis" - Expand axis to show all data from 0 to max
+    - "None" - Fixed time window, no overflow handling
+  - **Y-Axis Overflow Mode**: Dropdown
+    - "Auto-Scale" (default) - Automatically expand bounds to fit data with 10% padding
+    - "Fixed Bounds" - Keep Y-axis locked to min/max values
+
+**When Panel selected**:
+
+**Common Properties**: Same as above
+
+**Panel Specific**:
+- Background Color: Color picker
+- Border Width: Numeric input (px)
+- Border Color: Color picker
+- Border Style: Dropdown (Solid, Dashed, Dotted, None)
+- Opacity: Slider (0-100%)
+
+### 3.3 Canvas Area
+
+**Visual Rendering**:
+- 1920x1080 pixel canvas in center of screen
+- Objects render with full properties applied
+- Line graphs show randomly generated sample data
+- Sample data is static (generated once on object creation)
+- Grid overlay (optional, toggle with grid button?)
+
+**Selection Indicators**:
+- Selected object: Blue outline (2-3px)
+- 8 resize handles (red circles or squares):
+  - 4 corner handles (proportional resize when dragged)
+  - 4 edge handles (width/height independent resize)
+- Drag anywhere on object to move (cursor changes to move icon)
+
+**Grid Snapping**:
+- 1% grid (100 positions horizontally, 100 vertically)
+- Snap during drag and resize operations
+- Visual guide lines when near grid positions (optional enhancement)
+
+**Interaction Behaviors**:
+- Click object → Select (outline + handles appear)
+- Click empty canvas → Deselect
+- Drag object → Move (position snaps to grid)
+- Drag corner handle → Resize proportionally
+- Drag edge handle → Resize width or height only
+- Real-time property panel updates during drag/resize
+- Delete key → Delete selected object (with confirmation)
+
+**Object Rendering**:
+- Line Graph: Full chart.js or similar rendering with sample data
+- Panel: Rendered box with background/border styles applied
+- All objects show their visual appearance as they would in runtime
+
+### 3.4 Screen Tab Management
+
+**Tab Bar** (bottom of canvas):
+- Horizontal tab list (same as live interface)
+- Active screen highlighted
+- Click tab to switch screens
+- Right-click tab opens context menu:
+  - Rename Screen
+  - Duplicate Screen
+  - Delete Screen (with confirmation)
+- Plus (+) button at end to add new screen
+- New screen prompt: Enter screen name
+
+**Tab Operations**:
+
+**Add Screen**:
+1. Click (+) button
+2. Prompt: "Enter screen name"
+3. Generate UUID for screen
+4. Create empty screen
+5. Switch to new screen
+6. Mark collection as dirty
+
+**Rename Screen**:
+1. Right-click tab → Rename
+2. Prompt with current name
+3. Update screen name
+4. Mark collection as dirty
+
+**Delete Screen**:
+1. Right-click tab → Delete
+2. Confirmation: "Delete screen '{name}'? This cannot be undone."
+3. If confirmed, remove screen from collection
+4. Switch to previous or next screen
+5. Mark collection as dirty
+6. Minimum: At least 1 screen must exist
+
+**Duplicate Screen**:
+1. Right-click tab → Duplicate
+2. Copy entire screen (all objects, properties)
+3. New screen name: "{original name} (Copy)"
+4. Generate new UUIDs for screen and all objects
+5. Add to collection
+6. Switch to duplicated screen
+7. Mark collection as dirty
+
+### 3.5 Telemetry Label Selection
+
+**Pattern**: Cascading dropdowns (identical to flag conditions in status editor)
+
+**Interaction Flow**:
+1. User clicks "Add Label" button in properties panel
+2. First dropdown appears: Select telemetry category (e.g., "relative_linear_motion")
+3. Second dropdown appears: Select subcategory (e.g., "displacement")
+4. Third dropdown appears: Select field (e.g., "latitude")
+5. Fourth dropdown appears: Select qualifier (e.g., "current")
+6. Full label constructed: "relative_linear_motion.displacement.latitude.current"
+7. Label added to object's monitorDataKeys array
+8. Label displayed as removable chip/tag
+9. Sample data regenerated for graph
+
+**Label Management**:
+- Each label shown as chip with X button to remove
+- Can add multiple labels to single graph
+- Each label gets assigned a color (auto or user-selected)
+- Reorder labels by drag-and-drop (optional enhancement)
+
+### 3.6 Save/Load/Revert Operations
+
+**Dirty State Tracking**:
+- Track changes to: Screens added/removed/renamed, Objects added/removed/moved/resized/configured
+- Save/Revert buttons activate (highlighted) when dirty
+- Load button triggers save prompt if dirty: "You have unsaved changes. Save before loading?"
+
+**Save Operation**:
+1. Validate all objects (check required fields)
+2. If validation errors exist, block save and show error messages
+3. Serialize current state to JSON format
+4. POST to server endpoint
+5. Clear dirty flag
+6. Deactivate Save/Revert buttons
+7. Show success notification
+
+**Load Operation**:
+1. If dirty, prompt: "Save changes? (Save / Don't Save / Cancel)"
+2. Open file selector dialog (server filesystem)
+3. Fetch selected collection JSON
+4. Parse and validate JSON structure
+5. Clear current editor state
+6. Rebuild screens and objects from JSON
+7. Switch to first screen (or saved active screen)
+8. Clear dirty flag
+9. Show success notification
+
+**Revert Operation**:
+1. Confirmation: "Revert all changes? Unsaved work will be lost."
+2. If confirmed, reload from last saved state
+3. Rebuild editor from saved JSON
+4. Clear dirty flag
+5. Deactivate Save/Revert buttons
+
+**Save As Operation**:
+1. Same as Save but prompts for new filename
+2. Creates new collection file on server
+3. Editor switches to new file as active collection
+
+### 3.7 Validation System
+
+**Real-Time Validation**:
+- Properties panel shows inline errors as user edits
+- Example: "At least one telemetry label required" for empty Line Graph
+
+**On-Save Validation**:
+- Check all objects for required fields
+- Check for structural issues (duplicate UUIDs, invalid ranges, etc.)
+- Block save if errors found
+- Show error summary: "Cannot save: 2 objects have errors"
+
+**On-Load Validation**:
+- Validate JSON structure
+- Check schema version compatibility
+- Warn about missing/unknown object types
+- Allow partial load with warnings
+
+**Visual Error Indicators**:
+- Invalid objects show warning icon in canvas (red triangle with !)
+- Error message overlay on hover
+- Properties panel shows error text in red
+
+**Required Validations**:
+- Line Graph must have at least one monitorDataKey
+- Position values must be 0-100
+- Size values must be 0-100 (and > 0)
+- Color values must be valid hex/rgb
+- Axis ranges: min < max
+- Screen names must be non-empty and unique
+- UUIDs must be unique across collection
+
+### 3.8 Z-Order Management
+
+**System**:
+- Objects stored in z-order array (first = back, last = front)
+- Canvas renders objects in z-order
+
+**Controls** (in properties panel):
+- "To Front": Move to end of z-order array
+- "Bring Forward": Swap with next object in array
+- "Send Backward": Swap with previous object in array
+- "To Back": Move to start of z-order array
+
+**Visual Feedback**:
+- Immediate canvas re-render after z-order change
+- Mark collection as dirty
+
+### 3.9 Object Deletion
+
+**Trigger**: Delete key when object selected
+
+**Flow**:
+1. Detect Delete key press
+2. Confirmation prompt: "Delete {object name or type}? This cannot be undone."
+3. If confirmed:
+   - Remove object from screen's object array
+   - Remove from z-order array
+   - Deselect object
+   - Re-render canvas
+   - Update properties panel to "no selection" state
+   - Mark collection as dirty
+
+**Alternative**: Delete button in properties panel (same flow)
+
+---
+
+## 4. JSON Data Structure
+
+### 4.1 Screen Collection File Format
+
+```json
+{
+  "version": "1.0",
+  "collectionName": "My Flight Interface",
+  "screens": [
+    {
+      "uuid": "screen-uuid-1",
+      "name": "Flight Dynamics",
+      "objects": [
+        {
+          "uuid": "object-uuid-1",
+          "type": "LINE_GRAPH",
+          "name": "Velocity Graph",
+          "position": {
+            "x": 10.0,
+            "y": 10.0
+          },
+          "size": {
+            "width": 40.0,
+            "height": 30.0
+          },
+          "zIndex": 0,
+          "monitorDataKeys": [
+            "relative_linear_motion.velocity.x.current",
+            "relative_linear_motion.velocity.y.current"
+          ],
+          "graphStyle": {
+            "backgroundColor": "#1a1a1a",
+            "lineColors": {
+              "relative_linear_motion.velocity.x.current": "#ff6b6b",
+              "relative_linear_motion.velocity.y.current": "#4ecdc4"
+            },
+            "axisLabels": true,
+            "grid": true,
+            "xAxisRange": { "min": 0, "max": 20 },
+            "yAxisRange": { "min": 0, "max": 20 },
+            "xAxisLabel": "Time (s)",
+            "yAxisLabel": "Velocity (m/s)",
+            "units": "m/s",
+            "legendPosition": "topRight",
+            "xOverflowMode": "ShiftGraph",
+            "yOverflowMode": "ScaleAxis"
+          }
+        },
+        {
+          "uuid": "object-uuid-2",
+          "type": "PANEL",
+          "name": "Info Panel",
+          "position": {
+            "x": 60.0,
+            "y": 10.0
+          },
+          "size": {
+            "width": 30.0,
+            "height": 30.0
+          },
+          "zIndex": 1,
+          "style": {
+            "backgroundColor": "#2d2d2d",
+            "borderWidth": 2,
+            "borderColor": "#444444",
+            "borderStyle": "solid",
+            "opacity": 100
+          }
+        }
+      ]
+    },
+    {
+      "uuid": "screen-uuid-2",
+      "name": "Navigation",
+      "objects": []
+    }
+  ],
+  "metadata": {
+    "lastModified": "2026-04-05T12:00:00Z",
+    "activeScreen": "screen-uuid-1"
+  }
+}
+```
+
+### 4.2 Object Type Schemas
+
+**Common Fields** (all objects):
+- `uuid`: string (auto-generated)
+- `type`: string ("LINE_GRAPH" | "PANEL")
+- `name`: string (optional, user-friendly)
+- `position`: { x: number, y: number } (0-100)
+- `size`: { width: number, height: number } (0-100)
+- `zIndex`: number (array index)
+
+**LINE_GRAPH Specific**:
+- `monitorDataKeys`: string[] (required, min 1)
+- `graphStyle`: object (colors, ranges, labels, axis overflow modes, etc.)
+  - `xOverflowMode`: "ShiftGraph" | "ScaleAxis" | "None" (default: "ShiftGraph")
+  - `yOverflowMode`: "ScaleAxis" | "None" (default: "ScaleAxis")
+
+**PANEL Specific**:
+- `style`: object (background, border properties)
+
+---
+
+## 5. Technical Implementation Details
+
+### 5.1 Technology Stack
+- TypeScript for all logic
+- HTML5 Canvas or SVG for object rendering
+- Chart.js or D3.js for line graph visualization
+- Standard DOM for UI controls (properties panel, palette)
+- CSS for styling (following status editor patterns)
+
+### 5.2 Class Structure
+
+**InterfaceEditor** (main controller):
+- Manages overall editor state
+- Handles save/load/revert operations
+- Tracks dirty state
+- Coordinates between components
+
+**ScreenCollection**:
+- Represents loaded collection
+- Manages screen array
+- Provides CRUD operations for screens
+- Serializes to/from JSON
+
+**EditorScreen**:
+- Represents single screen
+- Manages object array for that screen
+- Handles object CRUD operations
+- Maintains z-order
+
+**EditorObject** (base class):
+- Common properties (position, size, uuid, etc.)
+- Serialize/deserialize methods
+- Validation methods
+
+**LineGraphObject** extends EditorObject:
+- monitorDataKeys property
+- graphStyle property
+- Sample data generation
+- Render method (creates Chart.js instance)
+
+**PanelObject** extends EditorObject:
+- style property
+- Render method (draws styled box)
+
+**EditorCanvas**:
+- Manages 1920x1080 canvas
+- Renders all objects
+- Handles mouse events (click, drag, resize)
+- Grid snapping logic
+- Selection management
+
+**PropertiesPanel**:
+- Context-sensitive rendering based on selection
+- Form controls for all properties
+- Real-time two-way binding with selected object
+- Validation error display
+
+**ObjectPalette**:
+- Renders draggable object type buttons
+- Handles drag-start events
+- Communicates with canvas for drop events
+
+**ScreenTabBar**:
+- Renders screen tabs
+- Handles tab click events
+- Context menu for tab operations
+- Plus button for adding screens
+
+### 5.3 Event Flow Examples
+
+**Drag Object from Palette to Canvas**:
+1. User mouse-down on "Line Graph" in palette
+2. ObjectPalette creates drag data: { type: "LINE_GRAPH" }
+3. User drags over canvas
+4. Canvas shows drop indicator (outline where object will be created)
+5. User releases mouse (drop)
+6. Canvas calculates drop position (pixel coords → percentage)
+7. Canvas snaps position to grid (round to nearest 1%)
+8. Canvas creates new LineGraphObject with default properties
+9. Canvas adds object to current screen's object array
+10. Canvas sets object as selected
+11. PropertiesPanel updates to show object properties
+12. EditorCanvas re-renders
+13. InterfaceEditor marks collection as dirty
+
+**Resize Object via Corner Handle**:
+1. User mouse-down on selected object's corner handle
+2. EditorCanvas enters "resize" mode
+3. User drags mouse
+4. Canvas calculates new size based on mouse position
+5. Canvas applies proportional resize (maintain aspect ratio for corner drag)
+6. Canvas snaps size to grid
+7. Canvas updates object's size property
+8. PropertiesPanel numeric inputs update in real-time
+9. Canvas re-renders object with new size
+10. User releases mouse
+11. Resize operation complete
+12. InterfaceEditor marks collection as dirty
+
+**Save Collection**:
+1. User clicks "Save" button
+2. InterfaceEditor runs validation on all screens/objects
+3. If errors found:
+   - Show error summary dialog
+   - Highlight invalid objects in canvas
+   - Abort save
+4. If validation passes:
+   - ScreenCollection.serialize() creates JSON
+   - POST JSON to server endpoint
+   - Wait for server response
+5. If save successful:
+   - Clear dirty flag
+   - Deactivate Save/Revert buttons
+   - Show success notification
+6. If save fails:
+   - Show error dialog with server message
+   - Keep dirty flag active
+
+### 5.4 Drag and Drop Implementation
+
+**Palette Drag**:
+```typescript
+// Object palette item
+paletteItem.addEventListener('dragstart', (e) => {
+  e.dataTransfer.setData('objectType', 'LINE_GRAPH');
+  e.dataTransfer.effectAllowed = 'copy';
+});
+
+// Canvas drop
+canvas.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const objectType = e.dataTransfer.getData('objectType');
+  const mousePos = { x: e.offsetX, y: e.offsetY };
+  const percentPos = this.pixelToPercent(mousePos);
+  const snappedPos = this.snapToGrid(percentPos);
+  this.createObject(objectType, snappedPos);
+});
+```
+
+**Object Drag (Move)**:
+```typescript
+// Mouse down on object
+objectElement.addEventListener('mousedown', (e) => {
+  if (this.isResizeHandle(e.target)) return; // Ignore if clicking handle
+  this.dragState = {
+    mode: 'move',
+    startPos: { x: e.clientX, y: e.clientY },
+    objectStartPos: { ...selectedObject.position }
+  };
+});
+
+// Mouse move (global)
+document.addEventListener('mousemove', (e) => {
+  if (this.dragState?.mode === 'move') {
+    const deltaPixels = {
+      x: e.clientX - this.dragState.startPos.x,
+      y: e.clientY - this.dragState.startPos.y
+    };
+    const deltaPercent = this.pixelDeltaToPercent(deltaPixels);
+    const newPos = {
+      x: this.dragState.objectStartPos.x + deltaPercent.x,
+      y: this.dragState.objectStartPos.y + deltaPercent.y
+    };
+    const snappedPos = this.snapToGrid(newPos);
+    this.updateObjectPosition(this.selectedObject, snappedPos);
+  }
+});
+
+// Mouse up (global)
+document.addEventListener('mouseup', () => {
+  if (this.dragState) {
+    this.dragState = null;
+    this.markDirty();
+  }
+});
+```
+
+### 5.5 Grid Snapping Logic
+
+```typescript
+snapToGrid(position: {x: number, y: number}): {x: number, y: number} {
+  const gridSize = 1.0; // 1% grid
+  return {
+    x: Math.round(position.x / gridSize) * gridSize,
+    y: Math.round(position.y / gridSize) * gridSize
+  };
+}
+```
+
+### 5.6 Sample Data Generation
+
+```typescript
+generateSampleData(dataKeyCount: number): number[][] {
+  const pointCount = 50;
+  const data: number[][] = [];
+  
+  for (let i = 0; i < dataKeyCount; i++) {
+    const series: number[] = [];
+    const baseline = Math.random() * 10;
+    const amplitude = Math.random() * 5 + 2;
+    
+    for (let j = 0; j < pointCount; j++) {
+      const noise = (Math.random() - 0.5) * amplitude;
+      series.push(baseline + noise);
+    }
+    
+    data.push(series);
+  }
+  
+  return data;
+}
+```
+
+---
+
+## 6. User Interface Mockup (Text Description)
+
+```
++----------------------------------------------------------+
+|  [Load] | [Save] [Revert]            Interface Editor     |
++----------------------------------------------------------+
+|                                                          |
+|  +---------+  +------------------------------------+     |
+|  | PALETTE |  |                                    |     |
+|  +---------+  |                                    |     |
+|  | [Graph] |  |                                    |     |
+|  | [Panel] |  |          CANVAS (1920x1080)       |     |
+|  |         |  |                                    |     |
+|  +---------+  |         [Objects rendered here]    |     |
+|  |         |  |                                    |     |
+|  | PROPS   |  |                                    |     |
+|  |         |  +------------------------------------+     |
+|  | Name: __|  |                                          |
+|  | X: ___  |  +------------------------------------------+
+|  | Y: ___  |  | [Screen 1] [Screen 2] [+]                |
+|  | W: ___  |  +------------------------------------------+
+|  | H: ___  |
+|  |         |
+|  | [Front] |
+|  | [Back]  |
+|  | [Delete]|
+|  +---------+
++------------+
+```
+
+---
+
+## 7. Error Handling & Edge Cases
+
+### 7.1 Validation Errors
+- Empty monitorDataKeys on Line Graph → Show error, block save
+- Invalid color format → Show error, use default
+- Negative or >100 position/size → Clamp to 0-100 range
+- Min >= Max on axis range → Show error, swap values or use defaults
+
+### 7.2 File Operations
+- Load fails (network error) → Show error dialog, keep current state
+- Save fails (server error) → Show error, keep dirty state
+- Corrupted JSON on load → Show error with details, don't clear current state
+- Missing fields in JSON → Use defaults, show warnings
+
+### 7.3 User Actions
+- Delete last screen → Prevent, show warning "At least one screen required"
+- Drag object outside canvas bounds → Clamp position to 0-100 range
+- Resize to negative size → Clamp to minimum (e.g., 1%)
+- Multiple objects at same position → Allow (z-order determines rendering)
+
+### 7.4 Browser/System
+- Window resize → Canvas remains fixed size (1920x1080), scrollbars if needed
+- Unsaved changes on page close → Browser confirmation dialog
+- Ctrl+S keyboard shortcut → Trigger save operation
+
+---
+
+## 8. Integration with Live Interface
+
+### 8.1 Data Flow
+1. User creates/edits screens in Interface Editor
+2. User saves collection to server filesystem
+3. User switches to Live Interface tab
+4. Live Interface loads collection via InterfaceManager
+5. InterfaceManager creates InterfaceScreen instances
+6. InterfaceScreen creates InterfaceObject instances
+7. Objects begin receiving telemetry and rendering
+
+### 8.2 Compatibility
+- JSON format from editor must be compatible with InterfaceManager
+- Object UUIDs generated in editor used at runtime
+- monitorDataKeys from editor used for telemetry subscription
+- Style properties from editor applied to runtime rendering
+
+### 8.3 Testing Workflow
+1. Edit screens in Interface Editor
+2. Save collection
+3. Switch to Live Interface tab
+4. Manually load same collection
+5. Verify screens render correctly
+6. Verify objects positioned correctly
+7. Verify telemetry data flows to objects
+
+---
+
+## 9. Future Enhancements (Post-V1)
+
+- Panel hierarchy (nested panels with children)
+- Multi-object selection and group operations
+- Copy/paste objects
+- Undo/redo support
+- Additional object types (Bar Graph, 3D Model, Text, Image, Gauge)
+- Canvas zoom controls
+- Grid overlay toggle
+- Alignment guides/smart guides when dragging
+- Keyboard shortcuts for common operations
+- Object locking (prevent accidental moves)
+- Layer panel showing all objects in hierarchical list
+- Duplicate object within screen
+- Import/export screens between collections
+- Template/preset system for common layouts
+- Responsive canvas (multiple size targets)
+- Real telemetry preview mode
+- Auto-layout features
+
+---
+
+## 10. Dependencies & Prerequisites
+
+### 10.1 Existing Systems to Integrate
+- Server filesystem API (same as status editor uses)
+- Telemetry label registry (for cascading dropdowns)
+- Live Interface runtime (InterfaceManager, InterfaceScreen)
+
+### 10.2 New Assets Needed
+- Object type icons for palette (Line Graph, Panel)
+- Resize handle graphics (or CSS-styled elements)
+- Sample/placeholder graphics
+
+### 10.3 Libraries/Frameworks
+- Chart.js (or D3.js) for graph rendering
+- UUID generation library (or built-in crypto.randomUUID)
+- Color picker component
+- Cascading dropdown component (reuse from flag editor)
+
+---
+
+## 11. Testing & Validation Strategy
+
+### 11.1 Unit Tests
+- Object creation with default properties
+- Position/size clamping and validation
+- Grid snapping calculations
+- Z-order management (move up/down/front/back)
+- JSON serialization/deserialization
+- Validation rules for each object type
+
+### 11.2 Integration Tests
+- Save → Load → Verify state matches
+- Create objects → Save → Load in live interface → Verify rendering
+- Multi-screen management (add/delete/rename/duplicate)
+- Dirty state tracking across operations
+
+### 11.3 User Acceptance Tests
+- Create complete screen collection from scratch
+- Edit existing collection (load, modify, save)
+- Move and resize objects smoothly
+- Configure graph with multiple telemetry labels
+- Switch between screens in editor
+- Verify saved collection works in live interface
+
+### 11.4 Edge Case Tests
+- Maximum number of objects per screen (performance test)
+- Very small object sizes (1% x 1%)
+- Objects at canvas boundaries (0% and 100% positions)
+- Empty screens (no objects)
+- Single screen with many objects
+- Many screens with few objects each
+
+---
+
+## 12. Implementation Phases
+
+### Phase 1: Foundation (Core Structure)
+- Create HTML layout (header, sidebar, canvas, tab bar)
+- CSS styling following status editor patterns
+- TypeScript class structure (InterfaceEditor, ScreenCollection, EditorScreen)
+- File operations (Load/Save/Revert) with server integration
+- Dirty state tracking
+
+### Phase 2: Screen Management
+- Tab bar rendering and interaction
+- Add/delete/rename screens
+- Screen switching
+- Right-click context menu on tabs
+- Active screen highlighting
+
+### Phase 3: Canvas & Object Basics
+- 1920x1080 canvas rendering
+- EditorObject base class
+- PanelObject implementation
+- Basic object rendering (boxes with borders)
+- Object creation and deletion
+
+### Phase 4: Selection & Manipulation
+- Click to select objects
+- Selection outline rendering
+- Drag to move objects
+- Grid snapping
+- Real-time position updates in properties panel
+
+### Phase 5: Resize Functionality
+- Resize handle rendering (8 handles)
+- Corner handle resize (proportional)
+- Edge handle resize (width/height independent)
+- Real-time size updates in properties panel
+
+### Phase 6: Properties Panel
+- Context-sensitive rendering
+- Numeric inputs for position/size
+- Two-way binding with selected object
+- Z-order buttons
+- Delete button
+
+### Phase 7: Object Palette
+- Palette UI rendering
+- Drag-from-palette implementation
+- Drop-on-canvas implementation
+- Object creation from palette
+
+### Phase 8: Line Graph Implementation
+- LineGraphObject class
+- Sample data generation
+- Chart.js integration
+- Graph rendering in canvas
+- Basic graph style properties
+
+### Phase 9: Telemetry Label Selection
+- Cascading dropdown component (reuse from flag editor)
+- Label chip/tag display
+- Add/remove labels
+- Integration with Line Graph properties
+
+### Phase 10: Advanced Graph Properties
+- Color pickers for line colors
+- Axis range inputs
+- Label inputs (axis labels, units)
+- Legend position dropdown
+- Grid/axis toggles
+- X-Axis and Y-Axis overflow mode dropdowns
+
+### Phase 11: Validation System
+- Real-time validation
+- On-save validation
+- Visual error indicators in canvas
+- Error messages in properties panel
+- Block save when errors present
+
+### Phase 12: Polish & Testing
+- Error handling for all operations
+- Confirmation dialogs
+- Success/error notifications
+- Browser compatibility testing
+- Integration testing with live interface
+- Documentation updates
+
+---
+
+## Notes
+
+- Keep code modular and maintainable
+- Follow TypeScript best practices (strong typing, interfaces)
+- Reuse patterns from status editor where applicable
+- Prioritize user experience (smooth interactions, clear feedback)
+- Plan for future extensibility (new object types, features)
+- Maintain compatibility with live interface runtime

@@ -42,13 +42,10 @@
         "angular_snap": { "pitch": "number", "roll": "number", "yaw": "number" }
     },
 
-    
-
     "internal_state": {
         "temperature": "number",
         "pressure": "number",
-        "vibration": "number",
-        "experimentally_derived_mass": "number"
+        "vibration": "number"
     },
 
     "rocket_computer": {
@@ -63,14 +60,6 @@
     },
 
     "rocket_computer_states": {
-        "launch_initiated": "boolean",
-        "motors_fired": "boolean",
-        "apogee_reached": "boolean",
         "parachute_deployed_state": "boolean"
-    },
-
-    "parachute_servos": {
-        "servo_1_position": "number",
-        "servo_2_position": "number"
     }
 }
