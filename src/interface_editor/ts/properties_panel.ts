@@ -188,13 +188,17 @@ export class PropertiesPanel {
 
         // Z-order buttons
         document.getElementById('prop-to-front')?.addEventListener('click', () => {
-            // TODO: Implement z-order change
-            console.log('To front');
+            if (this.selectedObject && this.canvas && this.canvas.currentScreen) {
+                this.canvas.currentScreen.moveObjectToFront(this.selectedObject.uuid);
+                this.canvas.updateSelectedObject();
+            }
         });
 
         document.getElementById('prop-to-back')?.addEventListener('click', () => {
-            // TODO: Implement z-order change
-            console.log('To back');
+            if (this.selectedObject && this.canvas && this.canvas.currentScreen) {
+                this.canvas.currentScreen.moveObjectToBack(this.selectedObject.uuid);
+                this.canvas.updateSelectedObject();
+            }
         });
 
         // Delete button

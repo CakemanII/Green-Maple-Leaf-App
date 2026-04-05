@@ -4,14 +4,16 @@
 
 import type { InterfaceObject, LineGraphObject, PanelObject } from './types.js';
 import { EditorScreen } from './editor_screen.js';
+import { LineGraphRepresentation } from '../../live_data/compiled_js/graph_representations.js';
 
 type EventCallback = (...args: any[]) => void;
 
 export class EditorCanvas {
     private canvasElement: HTMLDivElement;
-    private currentScreen: EditorScreen | null = null;
+    public currentScreen: EditorScreen | null = null;
     private selectedObject: InterfaceObject | null = null;
     private objectElements: Map<string, HTMLDivElement> = new Map();
+    private graphInstances: Map<string, LineGraphRepresentation> = new Map();
     private eventListeners: Map<string, EventCallback[]> = new Map();
 
     private dragState: {
