@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interface Editor</title>
+    <link rel="stylesheet" href="css/interface_editor.css">
+    <link rel="stylesheet" href="../shared/css/prompts.css">
+</head>
+<body>
+    <!-- Main Content Area -->
+    <div class="interface-editor-container">
+        <!-- Header with Load/Save/Revert buttons -->
+        <div class="interface-editor-header">
+            <h1 class="editor-title">Interface Editor</h1>
+            <div class="editor-actions">
+                <button id="main-load-btn" class="collection-action-btn load-btn" title="Load a screen collection from server">Load</button>
+                <div class="editor-actions-divider"></div>
+                <button id="main-revert-btn" class="collection-action-btn revert-btn deactivated" title="Revert all changes">Revert</button>
+                <button id="main-save-btn" class="collection-action-btn save-btn deactivated" title="Save all changes to server">Save</button>
+            </div>
+        </div>
+        
+        <!-- Main Editor Area -->
+        <div class="editor-main-area">
+            <!-- Left Sidebar -->
+            <div class="left-sidebar">
+                <!-- Object Palette -->
+                <div class="object-palette">
+                    <h3 class="palette-title">Object Palette</h3>
+                    <div class="palette-items">
+                        <div class="palette-item" draggable="true" data-object-type="LINE_GRAPH">
+                            <div class="palette-item-icon">📊</div>
+                            <div class="palette-item-label">Line Graph</div>
+                        </div>
+                        <div class="palette-item" draggable="true" data-object-type="PANEL">
+                            <div class="palette-item-icon">🔲</div>
+                            <div class="palette-item-label">Panel</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Properties Panel -->
+                <div class="properties-panel">
+                    <h3 class="properties-title">Properties</h3>
+                    <div id="properties-content" class="properties-content">
+                        <!-- Properties will be dynamically rendered here -->
+                        <div class="no-selection-state">
+                            <p class="hint-text">Select an object to edit its properties, or drag an object from the palette above to add to the screen.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Center Canvas Area -->
+            <div class="canvas-area">
+                <div class="canvas-wrapper">
+                    <div id="editor-canvas" class="editor-canvas">
+                        <!-- Objects will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bottom Screen Tab Bar -->
+        <div id="screen-tabs-container" class="screen-tabs-container">
+            <!-- Screen tabs will be dynamically added here -->
+            <button id="add-screen-btn" class="add-screen-btn" title="Add new screen">+</button>
+        </div>
+    </div>
+
+    <!-- Tab Menu (shared component) -->
+    <div class="tab-menu-overlay" id="tab-menu-overlay" style="display: none;">
+        <div class="tab-menu" id="tab-menu">
+            <!-- Tab menu items will be dynamically added here -->
+        </div>
+    </div>
+
+    <!-- Context Menu for Screen Tabs -->
+    <div class="context-menu" id="screen-tab-context-menu" style="display: none;">
+        <div class="context-menu-item" id="context-rename-screen">Rename</div>
+        <div class="context-menu-item" id="context-duplicate-screen">Duplicate</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item context-menu-item-danger" id="context-delete-screen">Delete</div>
+    </div>
+
+    <!-- Compiled JavaScript -->
+    <script type="module" src="./compiled_js/interface_editor.js"></script>
+</body>
+</html>

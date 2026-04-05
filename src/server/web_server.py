@@ -223,6 +223,12 @@ file_saving_dictionary = {
         "required_extension": '.iscreen',
         "is_media": False
     },
+    "interface_collection": {
+        "directory": os.path.join(SAVES_DIR, 'interface_collections'),
+        "validation_function": lambda data: isinstance(data, dict) and isinstance(data.get('screens'), list),
+        "required_extension": '.icollection',
+        "is_media": False
+    },
     "media/audio": {
         "directory": os.path.join(SAVES_DIR, 'media', 'audio'),
         "validation_function": lambda data: True,
