@@ -4,6 +4,7 @@
     --card: #242424;
     --muted: #9ca3af;
     --accent: #6ba3ff;
+    --accent-hover: #5d92e8;
     --graph-line: #f5a623;
     --border: #333333;
     --axis: #555555;
@@ -45,8 +46,9 @@ body {
 /* ===== MAIN CONTAINER ===== */
 .interface-editor-container {
     width: 100%;
-    height: 100vh;
-    padding: 24px;
+    height: 100%;
+    padding: 16px;
+    box-sizing: border-box;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -57,14 +59,14 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
     border-bottom: 2px solid var(--border);
     flex-shrink: 0;
 }
 
 .editor-title {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 600;
     color: #ffffff;
     margin: 0;
@@ -144,13 +146,13 @@ body {
 .editor-main-area {
     flex: 1;
     display: flex;
-    gap: 16px;
+    gap: 12px;
     overflow: hidden;
 }
 
 /* ===== LEFT SIDEBAR ===== */
 .left-sidebar {
-    width: 320px;
+    width: 240px;
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -162,32 +164,32 @@ body {
     background-color: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 16px;
+    padding: 12px;
     flex-shrink: 0;
 }
 
 .palette-title {
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
-    margin: 0 0 12px 0;
+    margin: 0 0 10px 0;
     color: #ffffff;
 }
 
 .palette-items {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
 }
 
 .palette-item {
     background-color: var(--card);
     border: 2px solid var(--border);
     border-radius: 6px;
-    padding: 16px 8px;
+    padding: 8px 4px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     cursor: grab;
     transition: all 0.2s ease;
     user-select: none;
@@ -204,14 +206,15 @@ body {
 }
 
 .palette-item-icon {
-    font-size: 2rem;
+    font-size: 1.25rem;
 }
 
 .palette-item-label {
-    font-size: 0.85rem;
+    font-size: 0.65rem;
     font-weight: 500;
     color: #ffffff;
     text-align: center;
+    line-height: 1.2;
 }
 
 /* Properties Panel */
@@ -219,7 +222,7 @@ body {
     background-color: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 16px;
+    padding: 12px;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -227,9 +230,9 @@ body {
 }
 
 .properties-title {
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
-    margin: 0 0 12px 0;
+    margin: 0 0 10px 0;
     color: #ffffff;
     flex-shrink: 0;
 }
@@ -270,25 +273,25 @@ body {
 
 /* Property Form Elements */
 .property-group {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
 .property-label {
     display: block;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #ffffff;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .property-input {
     width: 100%;
-    padding: 8px 12px;
+    padding: 6px 8px;
     background-color: var(--card);
     border: 1px solid var(--border);
     border-radius: 4px;
     color: #ffffff;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-family: inherit;
 }
 
@@ -300,17 +303,17 @@ body {
 .property-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 8px;
 }
 
 .property-button {
     width: 100%;
-    padding: 8px 12px;
+    padding: 6px 10px;
     background-color: var(--card);
     border: 1px solid var(--border);
     border-radius: 4px;
     color: #ffffff;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -337,18 +340,33 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
 }
 
 .canvas-wrapper {
-    flex: 1;
     background-color: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
-    overflow: auto;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 8px;
+    position: relative;
+    min-width: 0;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: 100%;
+}
+
+.canvas-scaler {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .editor-canvas {
@@ -359,6 +377,9 @@ body {
     border-radius: 4px;
     position: relative;
     overflow: hidden;
+    transform-origin: center center;
+    flex-shrink: 0;
+    aspect-ratio: 16 / 9;
 }
 
 /* Canvas Objects */
@@ -382,28 +403,35 @@ body {
 /* Resize Handles */
 .resize-handle {
     position: absolute;
-    width: 10px;
-    height: 10px;
-    background-color: var(--error);
-    border: 1px solid #ffffff;
-    border-radius: 50%;
+    width: 12px;
+    height: 12px;
+    background-color: var(--accent);
+    border: 2px solid #ffffff;
+    border-radius: 3px;
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity 0.2s ease, transform 0.1s ease;
     z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .canvas-object.selected .resize-handle {
     opacity: 1;
 }
 
-.resize-handle.nw { top: -5px; left: -5px; cursor: nwse-resize; }
-.resize-handle.n  { top: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
-.resize-handle.ne { top: -5px; right: -5px; cursor: nesw-resize; }
-.resize-handle.e  { top: 50%; right: -5px; transform: translateY(-50%); cursor: ew-resize; }
-.resize-handle.se { bottom: -5px; right: -5px; cursor: nwse-resize; }
-.resize-handle.s  { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
-.resize-handle.sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
-.resize-handle.w  { top: 50%; left: -5px; transform: translateY(-50%); cursor: ew-resize; }
+.resize-handle:hover {
+    transform: scale(1.2);
+    background-color: var(--accent-hover);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.resize-handle.nw { top: -6px; left: -6px; cursor: nwse-resize; }
+.resize-handle.n  { top: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+.resize-handle.ne { top: -6px; right: -6px; cursor: nesw-resize; }
+.resize-handle.e  { top: 50%; right: -6px; transform: translateY(-50%); cursor: ew-resize; }
+.resize-handle.se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+.resize-handle.s  { bottom: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+.resize-handle.sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+.resize-handle.w  { top: 50%; left: -6px; transform: translateY(-50%); cursor: ew-resize; }
 
 /* Panel Object */
 .canvas-object.panel {
@@ -429,8 +457,8 @@ body {
     background-color: var(--panel);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 8px;
-    margin-top: 16px;
+    padding: 6px;
+    margin-top: 10px;
     flex-shrink: 0;
     overflow-x: auto;
     overflow-y: hidden;
@@ -450,12 +478,12 @@ body {
 }
 
 .screen-tab {
-    padding: 8px 16px;
+    padding: 6px 12px;
     background-color: var(--card);
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--muted);
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -475,13 +503,13 @@ body {
 }
 
 .add-screen-btn {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     background-color: var(--card);
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--accent);
-    font-size: 1.2rem;
+    font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;

@@ -11,9 +11,11 @@ export declare class EditorCanvas {
     private objectElements;
     private graphInstances;
     private eventListeners;
+    private canvasScale;
     private dragState;
     constructor(canvasElement: HTMLDivElement);
     private initializeEventListeners;
+    private updateCanvasScale;
     loadScreen(screen: EditorScreen): void;
     private renderScreen;
     private renderObject;

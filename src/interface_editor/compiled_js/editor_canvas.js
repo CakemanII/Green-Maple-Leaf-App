@@ -9,6 +9,7 @@ export class EditorCanvas {
         this.objectElements = new Map();
         this.graphInstances = new Map();
         this.eventListeners = new Map();
+        this.canvasScale = 1; // Track the current canvas scale factor
         this.dragState = null;
         this.canvasElement = canvasElement;
         this.initializeEventListeners();
@@ -29,6 +30,10 @@ export class EditorCanvas {
                 this.deleteSelectedObject();
             }
         });
+    }
+    updateCanvasScale() {
+        const rect = this.canvasElement.getBoundingClientRect();
+        this.canvasScale = rect.width / 1920; // Calculate current scale factor
     }
     loadScreen(screen) {
         this.currentScreen = screen;
@@ -212,15 +217,17 @@ export class EditorCanvas {
         const obj = this.currentScreen.getObject(this.dragState.objectUuid);
         if (!obj)
             return;
+        this.updateCanvasScale(); // Update scale factor
         const deltaX = e.clientX - this.dragState.startX;
         const deltaY = e.clientY - this.dragState.startY;
         if (this.dragState.mode === 'move') {
-            const deltaPercentX = (deltaX / 1920) * 100;
-            const deltaPercentY = (deltaY / 1080) * 100;
+            const deltaPercentX = (deltaX / (1920 * this.canvasScale)) * 100;
+            const deltaPercentY = (deltaY / (1080 * this.canvasScale)) * 100;
             obj.position.x = this.snap(this.dragState.startPosition.x + deltaPercentX);
             obj.position.y = this.snap(this.dragState.startPosition.y + deltaPercentY);
-            obj.position.x = Math.max(0, Math.min(100, obj.position.x));
-            obj.position.y = Math.max(0, Math.min(100, obj.position.y));
+            // Constrain position considering object size to prevent going outside bounds
+            obj.position.x = Math.max(0, Math.min(100 - obj.size.width, obj.position.x));
+            obj.position.y = Math.max(0, Math.min(100 - obj.size.height, obj.position.y));
         }
         else if (this.dragState.mode === 'resize') {
             this.handleResize(obj, deltaX, deltaY);
@@ -233,8 +240,8 @@ export class EditorCanvas {
     }
     handleResize(obj, deltaX, deltaY) {
         const handle = this.dragState.resizeHandle;
-        const deltaPercentX = (deltaX / 1920) * 100;
-        const deltaPercentY = (deltaY / 1080) * 100;
+        const deltaPercentX = (deltaX / (1920 * this.canvasScale)) * 100;
+        const deltaPercentY = (deltaY / (1080 * this.canvasScale)) * 100;
         const start = this.dragState.startPosition;
         const startSize = this.dragState.startSize;
         if (handle.includes('e')) {
@@ -251,10 +258,12 @@ export class EditorCanvas {
             obj.size.height = this.snap(startSize.height - deltaPercentY);
             obj.position.y = this.snap(start.y + deltaPercentY);
         }
-        obj.size.width = Math.max(1, Math.min(100, obj.size.width));
-        obj.size.height = Math.max(1, Math.min(100, obj.size.height));
-        obj.position.x = Math.max(0, Math.min(100, obj.position.x));
-        obj.position.y = Math.max(0, Math.min(100, obj.position.y));
+        // Constrain size to minimum 1% and maximum available space
+        obj.size.width = Math.max(1, Math.min(100 - obj.position.x, obj.size.width));
+        obj.size.height = Math.max(1, Math.min(100 - obj.position.y, obj.size.height));
+        // Constrain position to bounds, accounting for object size
+        obj.position.x = Math.max(0, Math.min(100 - obj.size.width, obj.position.x));
+        obj.position.y = Math.max(0, Math.min(100 - obj.size.height, obj.position.y));
     }
     handleMouseUp() {
         this.dragState = null;
@@ -282,10 +291,14 @@ export class EditorCanvas {
         const objectType = (_a = e.dataTransfer) === null || _a === void 0 ? void 0 : _a.getData('objectType');
         if (!objectType || !this.currentScreen)
             return;
+        this.updateCanvasScale(); // Update scale factor
         const rect = this.canvasElement.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / 1920) * 100;
-        const y = ((e.clientY - rect.top) / 1080) * 100;
-        this.createObject(objectType, { x: this.snap(x), y: this.snap(y) });
+        const x = ((e.clientX - rect.left) / (1920 * this.canvasScale)) * 100;
+        const y = ((e.clientY - rect.top) / (1080 * this.canvasScale)) * 100;
+        // Constrain drop position to ensure object fits within bounds
+        const constrainedX = Math.max(0, Math.min(80, this.snap(x))); // 80% max to fit 20% width
+        const constrainedY = Math.max(0, Math.min(80, this.snap(y))); // 80% max to fit 20% height
+        this.createObject(objectType, { x: constrainedX, y: constrainedY });
     }
     createObject(type, position) {
         if (!this.currentScreen)

@@ -86,5 +86,37 @@
 
     <!-- Compiled JavaScript -->
     <script type="module" src="./compiled_js/interface_editor.js"></script>
+    
+    <!-- Canvas Auto-Scaling Script -->
+    <script>
+        function scaleCanvas() {
+            const wrapper = document.querySelector('.canvas-wrapper');
+            const canvas = document.getElementById('editor-canvas');
+            
+            if (!wrapper || !canvas) return;
+            
+            const wrapperRect = wrapper.getBoundingClientRect();
+            const availableWidth = wrapperRect.width - 16; // Account for padding
+            const availableHeight = wrapperRect.height - 16;
+            
+            const canvasWidth = 1920;
+            const canvasHeight = 1080;
+            
+            // Calculate scale to fit both dimensions
+            const scaleX = availableWidth / canvasWidth;
+            const scaleY = availableHeight / canvasHeight;
+            const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
+            
+            canvas.style.transform = `scale(${scale})`;
+        }
+        
+        // Scale on load and resize
+        window.addEventListener('load', scaleCanvas);
+        window.addEventListener('resize', scaleCanvas);
+        
+        // Also scale after a short delay to ensure layout is complete
+        setTimeout(scaleCanvas, 100);
+        setTimeout(scaleCanvas, 500);
+    </script>
 </body>
 </html>
