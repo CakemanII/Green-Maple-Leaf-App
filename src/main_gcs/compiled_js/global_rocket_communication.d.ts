@@ -7,6 +7,7 @@ export declare class GlobalTelemetryManager {
     private readonly telemetryIframesIDs;
     private telemetryIframes;
     private dataCache;
+    private static readonly DATA_CACHE_MAX_POINTS;
     private compute_derivatives_integrals;
     constructor();
     /**

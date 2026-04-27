@@ -79,6 +79,14 @@ export type StatusDisplayIObjectSettings = {
     emptyText: string;
 };
 
+export type MinimapIObjectSettings = {
+    defaultZoom: number;
+    followRocket: boolean;
+    showGeofences: boolean;
+    latKey: string;
+    lngKey: string;
+};
+
 export type InterfaceObjectRuntimeData = InterfaceObjectData & {
     UUID?: string;
     name?: string;
@@ -87,6 +95,7 @@ export type InterfaceObjectRuntimeData = InterfaceObjectData & {
     barGraphSettings?: Partial<BarGraphIObjectSettings>;
     threeDModelAbsRotationSettings?: Partial<ThreeDModelAbsRotationIObjectSettings>;
     statusDisplaySettings?: Partial<StatusDisplayIObjectSettings>;
+    minimapSettings?: Partial<MinimapIObjectSettings>;
 };
 
 export abstract class InterfaceObject {
@@ -976,6 +985,68 @@ export class StatusDisplayIObject extends InterfaceObject {
     }
 }
 
+export class MinimapIObject extends InterfaceObject {
+    private readonly settings: MinimapIObjectSettings;
+    private latestLat: number = 0;
+    private latestLng: number = 0;
+    private mapContainer!: HTMLDivElement;
+    private markerEl!: HTMLDivElement;
+    private labelEl!: HTMLDivElement;
+
+    constructor(
+        uuid: string,
+        posX: number,
+        posY: number,
+        width: number,
+        height: number,
+        settings?: Partial<MinimapIObjectSettings>
+    ) {
+        const resolvedSettings: MinimapIObjectSettings = {
+            defaultZoom: settings?.defaultZoom ?? 15,
+            followRocket: settings?.followRocket ?? true,
+            showGeofences: settings?.showGeofences ?? true,
+            latKey: settings?.latKey ?? '',
+            lngKey: settings?.lngKey ?? ''
+        };
+        const keys = [resolvedSettings.latKey, resolvedSettings.lngKey].filter(k => k.length > 0);
+        super(uuid, false, keys, posX, posY, width, height);
+        this.settings = resolvedSettings;
+    }
+
+    protected override initializeSecondaryDOM(): void {
+        this.secondaryDOMElement.classList.add("minimap-content");
+        this.secondaryDOMElement.style.cssText += 'background:#1a1a1a;position:relative;overflow:hidden;';
+
+        this.mapContainer = document.createElement('div');
+        this.mapContainer.style.cssText = 'width:100%;height:100%;position:relative;';
+
+        this.markerEl = document.createElement('div');
+        this.markerEl.style.cssText = 'position:absolute;width:10px;height:10px;border-radius:50%;background:#ff4444;transform:translate(-50%,-50%);top:50%;left:50%;z-index:2;';
+
+        this.labelEl = document.createElement('div');
+        this.labelEl.style.cssText = 'position:absolute;bottom:4px;left:4px;color:#aaa;font-size:11px;z-index:3;';
+        this.labelEl.textContent = 'Minimap (no GPS data)';
+
+        const bg = document.createElement('div');
+        bg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:repeating-linear-gradient(0deg,#222 0px,#222 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,#222 0px,#222 1px,transparent 1px,transparent 40px);';
+
+        this.mapContainer.appendChild(bg);
+        this.mapContainer.appendChild(this.markerEl);
+        this.mapContainer.appendChild(this.labelEl);
+        this.secondaryDOMElement.appendChild(this.mapContainer);
+    }
+
+    public override updateData(packet: TelemetryPacket): void {
+        if (typeof packet.value !== 'number') return;
+        if (packet.label === this.settings.latKey) this.latestLat = packet.value;
+        if (packet.label === this.settings.lngKey) this.latestLng = packet.value;
+    }
+
+    public override renderFrame(): void {
+        this.labelEl.textContent = `Lat: ${this.latestLat.toFixed(5)}  Lng: ${this.latestLng.toFixed(5)}`;
+    }
+}
+
 export function createInterfaceObjectFromData(
     data: InterfaceObjectRuntimeData,
     warnings: string[]
@@ -1079,6 +1150,10 @@ export function createInterfaceObjectFromData(
         }
 
         return new StatusDisplayIObject(uuid, posX, posY, width, height, data.statusDisplaySettings);
+    }
+
+    if (data.type === InterfaceObjectType.MINIMAP) {
+        return new MinimapIObject(uuid, posX, posY, width, height, data.minimapSettings);
     }
 
     warnings.push(`[${uuid}] Unsupported interface object type '${String(data.type)}'. Object was skipped.`);

@@ -1,0 +1,8 @@
+A geofence consists of serval objects.
+
+A geofence consists of different objects.
+Each object has it's own name and UUID.
+
+Each object will be put in a 2D dict based on x,y and will be under the following:
+
+EX:

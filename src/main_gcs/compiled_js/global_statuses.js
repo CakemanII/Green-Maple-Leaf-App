@@ -1,25 +1,6 @@
 import { IFrameCommunicationUitilies } from '../../shared/compiled_js/utilities.js';
 import { GlobalTelemetryManager } from './global_rocket_communication.js';
 // Types for statuses, flags, and etc.
-// Example: Should Parachute be Deployed?
-// Status: Should Parachute be Deployed?
-// Flag: No, Do Not Deploy Parachute
-// (This is the default flag if no other flags are true)
-// Flag: Yes, Deploy Parachute
-// PrimaryConditionalGroup (ALWAYS 'AND'):
-// Not: False
-// ConditionalGroup:
-// Not: False
-// Condition: Vertical Velocity LESS_THAN 1
-// ConditionalGroup:
-// Not: False
-// Condition: Acceleration is LESS_THAN 0
-// ConditionalGroup:
-// Not: False
-// Condition: Time Since Launch GREATER_THAN_OR_EQUAL 3 seconds
-// ConditionalGroup:
-// Not: True
-// Condition: Parachute is already Deployed
 export class GlobalStatusesManager {
     static get INSTANCE() { return GlobalStatusesManager.instance; }
     constructor() {
@@ -44,25 +25,65 @@ export class GlobalStatusesManager {
                 console.warn(`Iframe with ID ${iframeID} not found.`);
             }
         });
-        // Load all statuses
-        this.statuses = this.loadStatuses();
-        // Create evaluators for each status
+        this.initializeAsync();
+    }
+    async initializeAsync() {
+        await this.loadStatuses();
         this.statuses.forEach(status => {
             this.statusEvaluators[status.UUID] = new LiveStatus(status, (flagsTriggeredUUIDs) => {
-                // Callback to handle status update
                 const activeFlag = this.statusEvaluators[status.UUID].getActiveFlag();
                 this.sendStatusUpdateToIframes(status.UUID, activeFlag, flagsTriggeredUUIDs);
             });
         });
-        // Setup iframe communication
         this.initializeIFrameCommunication();
+        console.log(`[GlobalStatusesManager] Loaded ${this.statuses.length} status(es).`);
     }
     /**
-     * Load all statuses from some data source.
+     * Load all statuses from all saved status collections on the server.
      */
-    loadStatuses() {
-        // Implementation to retrieve all statuses
-        return [];
+    async loadStatuses() {
+        try {
+            const listResp = await fetch('/status_collection/list_metadatas');
+            if (!listResp.ok)
+                return;
+            const listData = await listResp.json();
+            const metadatas = listData.metadatas || [];
+            for (const meta of metadatas) {
+                const collResp = await fetch(`/status_collection/fetch?uuid=${meta.UUID}`);
+                if (!collResp.ok)
+                    continue;
+                const collection = JSON.parse(await collResp.text());
+                if (Array.isArray(collection.statuses)) {
+                    this.statuses.push(...collection.statuses);
+                }
+            }
+        }
+        catch (error) {
+            console.error('[GlobalStatusesManager] Failed to load statuses:', error);
+        }
+    }
+    /**
+     * Reload statuses from a specific set of collection UUIDs (called by operational mode).
+     */
+    async loadFromCollections(collectionUUIDs) {
+        this.statuses = [];
+        this.statusEvaluators = {};
+        for (const uuid of collectionUUIDs) {
+            const resp = await fetch(`/status_collection/fetch?uuid=${uuid}`);
+            if (!resp.ok)
+                continue;
+            const collection = JSON.parse(await resp.text());
+            if (Array.isArray(collection.statuses)) {
+                this.statuses.push(...collection.statuses);
+            }
+        }
+        this.statuses.forEach(status => {
+            this.statusEvaluators[status.UUID] = new LiveStatus(status, (flagsTriggeredUUIDs) => {
+                const activeFlag = this.statusEvaluators[status.UUID].getActiveFlag();
+                this.sendStatusUpdateToIframes(status.UUID, activeFlag, flagsTriggeredUUIDs);
+            });
+        });
+        console.log(`[GlobalStatusesManager] Reloaded ${this.statuses.length} status(es) from ${collectionUUIDs.length} collection(s).`);
     }
     /**
      * Retreive the active flag uuid for a specific status.

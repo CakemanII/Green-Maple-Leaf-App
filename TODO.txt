@@ -1,0 +1,60 @@
+1. Fix Geofence Editor
+2. Ensure all Geofence things are saving correctly.
+
+3. Fix the saving and reverting changes in the interface editor.
+
+4. Finish Global Geofence script
+5. Finish Global Status script
+
+6. Create a new tab that allows the user to select files for:
+- Geofences
+- Statuses
+- Interfaces
+(Only when the web app is in operational mode)
+
+7. When the application turns into operational mode, then that is when we will compile everything, (like in the geofence global script and statuses and also load all of the interfaces)
+
+8. Make it so the user cannot select labels that are not a number, in the interface editor stuff.
+
+9. In the interface editor, create new elements:
+- 3D Model viewer that shows the orientation of the rocket. (Demod before).
+     - Make it so this will use a 3D model which will be served statically.
+- Bar Graph showing various different values.
+- Minimap of the rocket's location. While displaying the geofences.
+- Status display (Also add a property for this specifically, to "play audio" or not.)
+
+
+- Status notification (Not an actual object)
+   - Create a new area to put these, displaying the current notifications and the button to make another, you can remove them as well.
+   - When a notification is being created or clicked, have a preview of the notification on the bottom right of the screen.
+   - (While editing the properties.)
+   - Properties:
+       - Color
+       - Flashing?
+       - Title
+       - Text / Description
+       - Display the status image?
+       - Play flag audio.
+       - Which Status Collection
+            - Which Status
+                 - Which flag
+        (The 3 i just mentiuoned should be populated lists, very similar to how I did it in the flag status conditional editor.)
+        - Status collections are gotten from the status editor tab.
+
+10. Create a brand new script for sending notifcations in the live_interface.
+These notifications will show up on the bottom right, almost like a windows notification, but its not because it is in the application.
+This script should have a class that will monitor or received updates from the global status stuff, 
+and then it will appear in the bottom left and blare the sfx if checked.
+
+The notifications should keep stacking, if there are multiple. So like a vertical list.
+The notifications should have the display settings the user picks.
+
+Notification only goes away if the user clicks no (therefore acknolwging it), or the notification hasn't been active for 20 seconds.
+
+11. Ensure the ROCKET & WEB communication servers are good.
+
+12. Polish everything
+13. Fix anything you see that is wrong.
+
+IMPORTANT NOTE: You may also implement things that just make sense and would benefit the application if you feel it would.
+Please focus on the tasks I have given to you at hand though, top priority.

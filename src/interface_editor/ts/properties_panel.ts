@@ -2,7 +2,7 @@
  * PropertiesPanel - Context-sensitive properties editor
  */
 
-import type { InterfaceObject } from './types.js';
+import type { InterfaceObject, BarGraphBarDef } from './types.js';
 import { EditorCanvas } from './editor_canvas.js';
 import { TelemetryLabelSelectorPrompt, ColorPickerPrompt } from '../../shared/compiled_js/prompts.js';
 
@@ -53,6 +53,14 @@ export class PropertiesPanel {
             html += this.renderLineGraphProperties();
         } else if (this.selectedObject.type === 'PANEL') {
             html += this.renderPanelProperties();
+        } else if (this.selectedObject.type === 'BAR_GRAPH') {
+            html += this.renderBarGraphProperties();
+        } else if (this.selectedObject.type === 'MODEL_3D') {
+            html += this.renderModel3DProperties();
+        } else if (this.selectedObject.type === 'MINIMAP') {
+            html += this.renderMinimapProperties();
+        } else if (this.selectedObject.type === 'STATUS_DISPLAY') {
+            html += this.renderStatusDisplayProperties();
         }
 
         html += '</div>';
@@ -102,7 +110,7 @@ export class PropertiesPanel {
             </div>
             <div class="property-group">
                 <label class="property-label">Scale (%)</label>
-                <input type="number" class="property-input" id="prop-scale" value="${(this.selectedObject.scale ?? 100).toFixed(0)}" step="5" min="0" max="300">
+                <input type="number" class="property-input" id="prop-scale" value="${(this.selectedObject.scale ?? 100).toFixed(0)}" step="5" min="25" max="300">
             </div>
             <div class="property-group">
                 <label class="property-label">Z-Order</label>
@@ -206,7 +214,6 @@ export class PropertiesPanel {
             }
             const color: string = obj.graphStyle.lineColors[key];
             const displayName: string = obj.graphStyle.labelDisplayNames?.[key] ?? '';
-            const unit: string = obj.graphStyle.labelUnits?.[key] ?? '';
 
             const row = document.createElement('div');
             row.className = 'prop-label-row';
@@ -276,26 +283,14 @@ export class PropertiesPanel {
             nameInput.className = 'prop-label-input';
             nameInput.type = 'text';
             nameInput.value = displayName;
-            nameInput.placeholder = 'Label name…';
+            nameInput.placeholder = key;
             nameInput.addEventListener('input', () => {
                 if (!obj.graphStyle.labelDisplayNames) obj.graphStyle.labelDisplayNames = {};
                 obj.graphStyle.labelDisplayNames[key] = nameInput.value;
                 this.canvas!.updateSelectedObject();
             });
 
-            const unitInput = document.createElement('input');
-            unitInput.className = 'prop-label-input prop-label-unit-input';
-            unitInput.type = 'text';
-            unitInput.value = unit;
-            unitInput.placeholder = 'Unit…';
-            unitInput.addEventListener('input', () => {
-                if (!obj.graphStyle.labelUnits) obj.graphStyle.labelUnits = {};
-                obj.graphStyle.labelUnits[key] = unitInput.value;
-                this.canvas!.updateSelectedObject();
-            });
-
             inputs.appendChild(nameInput);
-            inputs.appendChild(unitInput);
 
             row.appendChild(header);
             row.appendChild(inputs);
@@ -442,6 +437,14 @@ export class PropertiesPanel {
             this.attachPanelEventListeners();
         } else if (this.selectedObject.type === 'LINE_GRAPH') {
             this.attachLineGraphEventListeners();
+        } else if (this.selectedObject.type === 'BAR_GRAPH') {
+            this.attachBarGraphEventListeners();
+        } else if (this.selectedObject.type === 'MODEL_3D') {
+            this.attachModel3DEventListeners();
+        } else if (this.selectedObject.type === 'MINIMAP') {
+            this.attachMinimapEventListeners();
+        } else if (this.selectedObject.type === 'STATUS_DISPLAY') {
+            this.attachStatusDisplayEventListeners();
         }
     }
 
@@ -509,6 +512,331 @@ export class PropertiesPanel {
         });
     }
 
+    // ===== BAR GRAPH =====
+
+    private renderBarGraphProperties(): string {
+        const obj = this.selectedObject as any;
+        return `
+            <div class="property-group">
+                <label class="property-label">Bars</label>
+                <div id="prop-bar-rows"></div>
+                <button class="prop-add-label-btn" id="prop-add-bar-btn">+ Add Bar</button>
+            </div>
+            <div class="property-row">
+                <div class="property-group">
+                    <label class="property-label">Y Min</label>
+                    <input type="number" class="property-input" id="prop-bar-y-min" value="${obj.graphStyle.yMin}" step="1">
+                </div>
+                <div class="property-group">
+                    <label class="property-label">Y Max</label>
+                    <input type="number" class="property-input" id="prop-bar-y-max" value="${obj.graphStyle.yMax}" step="1">
+                </div>
+            </div>
+            <div class="property-group">
+                <label class="property-label">Title</label>
+                <input type="text" class="property-input" id="prop-bar-title" value="${obj.graphStyle.title || ''}" placeholder="Bar Graph">
+            </div>
+            <div class="property-group">
+                <label class="property-label">Background Color</label>
+                <div class="prop-color-row" id="prop-bar-bg-color-row">
+                    <div class="prop-color-swatch-large" id="prop-bar-bg-swatch" style="background-color:${obj.graphStyle.backgroundColor}"></div>
+                    <span class="prop-color-hex" id="prop-bar-bg-hex">${obj.graphStyle.backgroundColor}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    private buildBarRows(obj: any): void {
+        const container = document.getElementById('prop-bar-rows');
+        if (!container) return;
+        container.innerHTML = '';
+        const bars: BarGraphBarDef[] = obj.bars ?? [];
+        if (bars.length === 0) {
+            const empty = document.createElement('span');
+            empty.className = 'prop-label-empty';
+            empty.textContent = 'No bars added';
+            container.appendChild(empty);
+            return;
+        }
+        bars.forEach((bar, index) => {
+            const row = document.createElement('div');
+            row.className = 'prop-label-row';
+
+            const header = document.createElement('div');
+            header.className = 'prop-label-row-header';
+
+            const swatch = document.createElement('div');
+            swatch.className = 'prop-label-color-swatch';
+            swatch.style.backgroundColor = bar.color;
+            swatch.title = 'Click to change color';
+            swatch.addEventListener('click', (e: MouseEvent) => {
+                new ColorPickerPrompt(bar.color, e,
+                    (c: string) => { bar.color = c; this.canvas!.updateSelectedObject(); this.buildBarRows(obj); },
+                    (c: string) => { bar.color = c; swatch.style.backgroundColor = c; },
+                    () => {}
+                );
+            });
+
+            const keyText = document.createElement('span');
+            keyText.className = 'prop-label-key-text';
+            keyText.textContent = bar.label || bar.monitorKey;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'prop-label-remove-btn';
+            removeBtn.textContent = '×';
+            removeBtn.addEventListener('click', () => {
+                obj.bars = bars.filter((_: BarGraphBarDef, i: number) => i !== index);
+                this.canvas!.updateSelectedObject();
+                this.buildBarRows(obj);
+            });
+
+            header.appendChild(swatch);
+            header.appendChild(keyText);
+            header.appendChild(removeBtn);
+
+            const inputs = document.createElement('div');
+            inputs.className = 'prop-label-row-inputs';
+
+            const labelInput = document.createElement('input');
+            labelInput.className = 'prop-label-input';
+            labelInput.type = 'text';
+            labelInput.value = bar.label;
+            labelInput.placeholder = 'Label';
+            labelInput.addEventListener('input', () => { bar.label = labelInput.value; this.canvas!.updateSelectedObject(); });
+
+            inputs.appendChild(labelInput);
+            row.appendChild(header);
+            row.appendChild(inputs);
+            container.appendChild(row);
+        });
+    }
+
+    private attachBarGraphEventListeners(): void {
+        const obj = this.selectedObject as any;
+        this.buildBarRows(obj);
+
+        document.getElementById('prop-add-bar-btn')?.addEventListener('click', (e: MouseEvent) => {
+            new TelemetryLabelSelectorPrompt(e,
+                (key: string) => {
+                    if (!obj.bars) obj.bars = [];
+                    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F'];
+                    obj.bars.push({ id: crypto.randomUUID(), label: key, monitorKey: key, color: colors[obj.bars.length % colors.length] });
+                    this.canvas!.updateSelectedObject();
+                    this.buildBarRows(obj);
+                },
+                () => {},
+                true
+            );
+        });
+
+        const yMin = document.getElementById('prop-bar-y-min') as HTMLInputElement;
+        yMin?.addEventListener('input', () => { obj.graphStyle.yMin = parseFloat(yMin.value); this.canvas!.updateSelectedObject(); });
+
+        const yMax = document.getElementById('prop-bar-y-max') as HTMLInputElement;
+        yMax?.addEventListener('input', () => { obj.graphStyle.yMax = parseFloat(yMax.value); this.canvas!.updateSelectedObject(); });
+
+        const title = document.getElementById('prop-bar-title') as HTMLInputElement;
+        title?.addEventListener('input', () => { obj.graphStyle.title = title.value; this.canvas!.updateSelectedObject(); });
+
+        const bgRow = document.getElementById('prop-bar-bg-color-row');
+        const bgSwatch = document.getElementById('prop-bar-bg-swatch');
+        const bgHex = document.getElementById('prop-bar-bg-hex');
+        bgRow?.addEventListener('click', (e: MouseEvent) => {
+            new ColorPickerPrompt(obj.graphStyle.backgroundColor, e,
+                (c: string) => { obj.graphStyle.backgroundColor = c; if (bgSwatch) bgSwatch.style.backgroundColor = c; if (bgHex) bgHex.textContent = c; this.canvas!.updateSelectedObject(); },
+                (c: string) => { obj.graphStyle.backgroundColor = c; if (bgSwatch) bgSwatch.style.backgroundColor = c; if (bgHex) bgHex.textContent = c; },
+                () => {}
+            );
+        });
+    }
+
+    // ===== 3D MODEL =====
+
+    private renderModel3DProperties(): string {
+        const obj = this.selectedObject as any;
+        return `
+            <div class="property-group">
+                <label class="property-label">Roll Telemetry Key</label>
+                <input type="text" class="property-input" id="prop-roll-key" value="${obj.rollKey || ''}" placeholder="e.g., ang_pos.x">
+            </div>
+            <div class="property-group">
+                <label class="property-label">Pitch Telemetry Key</label>
+                <input type="text" class="property-input" id="prop-pitch-key" value="${obj.pitchKey || ''}" placeholder="e.g., ang_pos.y">
+            </div>
+            <div class="property-group">
+                <label class="property-label">Yaw Telemetry Key</label>
+                <input type="text" class="property-input" id="prop-yaw-key" value="${obj.yawKey || ''}" placeholder="e.g., ang_pos.z">
+            </div>
+            <div class="property-group">
+                <label class="property-label">Angle Unit</label>
+                <select class="property-input" id="prop-angle-unit">
+                    <option value="deg" ${obj.angleUnit === 'deg' ? 'selected' : ''}>Degrees</option>
+                    <option value="rad" ${obj.angleUnit === 'rad' ? 'selected' : ''}>Radians</option>
+                </select>
+            </div>
+            <div class="property-group">
+                <label class="property-label">Model Color</label>
+                <div class="prop-color-row" id="prop-model-color-row">
+                    <div class="prop-color-swatch-large" id="prop-model-color-swatch" style="background-color:${obj.modelColor}"></div>
+                    <span class="prop-color-hex" id="prop-model-color-hex">${obj.modelColor}</span>
+                </div>
+            </div>
+            <div class="property-group">
+                <label class="property-label">Background Color</label>
+                <div class="prop-color-row" id="prop-model-bg-color-row">
+                    <div class="prop-color-swatch-large" id="prop-model-bg-swatch" style="background-color:${obj.backgroundColor}"></div>
+                    <span class="prop-color-hex" id="prop-model-bg-hex">${obj.backgroundColor}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    private attachModel3DEventListeners(): void {
+        const obj = this.selectedObject as any;
+
+        const bind = (id: string, field: string) => {
+            const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
+            el?.addEventListener('input', () => { (obj as any)[field] = el.value; this.canvas!.updateSelectedObject(); });
+            el?.addEventListener('change', () => { (obj as any)[field] = el.value; this.canvas!.updateSelectedObject(); });
+        };
+        bind('prop-roll-key', 'rollKey');
+        bind('prop-pitch-key', 'pitchKey');
+        bind('prop-yaw-key', 'yawKey');
+        bind('prop-angle-unit', 'angleUnit');
+
+        const colorBind = (rowId: string, swatchId: string, hexId: string, field: string) => {
+            const row = document.getElementById(rowId);
+            const swatch = document.getElementById(swatchId);
+            const hex = document.getElementById(hexId);
+            row?.addEventListener('click', (e: MouseEvent) => {
+                new ColorPickerPrompt(obj[field], e,
+                    (c: string) => { obj[field] = c; if (swatch) swatch.style.backgroundColor = c; if (hex) hex.textContent = c; this.canvas!.updateSelectedObject(); },
+                    (c: string) => { obj[field] = c; if (swatch) swatch.style.backgroundColor = c; if (hex) hex.textContent = c; },
+                    () => {}
+                );
+            });
+        };
+        colorBind('prop-model-color-row', 'prop-model-color-swatch', 'prop-model-color-hex', 'modelColor');
+        colorBind('prop-model-bg-color-row', 'prop-model-bg-swatch', 'prop-model-bg-hex', 'backgroundColor');
+    }
+
+    // ===== MINIMAP =====
+
+    private renderMinimapProperties(): string {
+        const obj = this.selectedObject as any;
+        return `
+            <div class="property-group">
+                <label class="property-label">Latitude Key</label>
+                <input type="text" class="property-input" id="prop-lat-key" value="${obj.latKey || ''}" placeholder="e.g., gps.lat">
+            </div>
+            <div class="property-group">
+                <label class="property-label">Longitude Key</label>
+                <input type="text" class="property-input" id="prop-lng-key" value="${obj.lngKey || ''}" placeholder="e.g., gps.lng">
+            </div>
+            <div class="property-group">
+                <label class="property-label">Default Zoom</label>
+                <input type="number" class="property-input" id="prop-default-zoom" value="${obj.defaultZoom ?? 15}" min="1" max="20" step="1">
+            </div>
+            <div class="property-group property-checkbox-group">
+                <label class="property-label">Follow Rocket</label>
+                <input type="checkbox" id="prop-follow-rocket" ${obj.followRocket ? 'checked' : ''}>
+            </div>
+            <div class="property-group property-checkbox-group">
+                <label class="property-label">Show Geofences</label>
+                <input type="checkbox" id="prop-show-geofences" ${obj.showGeofences ? 'checked' : ''}>
+            </div>
+        `;
+    }
+
+    private attachMinimapEventListeners(): void {
+        const obj = this.selectedObject as any;
+
+        const bindText = (id: string, field: string) => {
+            const el = document.getElementById(id) as HTMLInputElement | null;
+            el?.addEventListener('input', () => { obj[field] = el.value; this.canvas!.updateSelectedObject(); });
+        };
+        bindText('prop-lat-key', 'latKey');
+        bindText('prop-lng-key', 'lngKey');
+
+        const zoom = document.getElementById('prop-default-zoom') as HTMLInputElement;
+        zoom?.addEventListener('input', () => { obj.defaultZoom = parseInt(zoom.value); this.canvas!.updateSelectedObject(); });
+
+        const followRocket = document.getElementById('prop-follow-rocket') as HTMLInputElement;
+        followRocket?.addEventListener('change', () => { obj.followRocket = followRocket.checked; this.canvas!.updateSelectedObject(); });
+
+        const showGeofences = document.getElementById('prop-show-geofences') as HTMLInputElement;
+        showGeofences?.addEventListener('change', () => { obj.showGeofences = showGeofences.checked; this.canvas!.updateSelectedObject(); });
+    }
+
+    // ===== STATUS DISPLAY =====
+
+    private renderStatusDisplayProperties(): string {
+        const obj = this.selectedObject as any;
+        return `
+            <div class="property-group">
+                <label class="property-label">Status Collection UUID</label>
+                <input type="text" class="property-input" id="prop-status-collection-uuid" value="${obj.statusCollectionUUID || ''}" placeholder="Collection UUID">
+            </div>
+            <div class="property-group">
+                <label class="property-label">Status UUID</label>
+                <input type="text" class="property-input" id="prop-status-uuid" value="${obj.statusUUID || ''}" placeholder="Status UUID">
+            </div>
+            <div class="property-group">
+                <label class="property-label">Background Color</label>
+                <div class="prop-color-row" id="prop-sd-bg-color-row">
+                    <div class="prop-color-swatch-large" id="prop-sd-bg-swatch" style="background-color:${obj.style.backgroundColor}"></div>
+                    <span class="prop-color-hex" id="prop-sd-bg-hex">${obj.style.backgroundColor}</span>
+                </div>
+            </div>
+            <div class="property-group">
+                <label class="property-label">Border Color</label>
+                <div class="prop-color-row" id="prop-sd-border-color-row">
+                    <div class="prop-color-swatch-large" id="prop-sd-border-swatch" style="background-color:${obj.style.borderColor}"></div>
+                    <span class="prop-color-hex" id="prop-sd-border-hex">${obj.style.borderColor}</span>
+                </div>
+            </div>
+            <div class="property-group property-checkbox-group">
+                <label class="property-label">Show Title</label>
+                <input type="checkbox" id="prop-sd-show-title" ${obj.style.showTitle ? 'checked' : ''}>
+            </div>
+            <div class="property-group property-checkbox-group">
+                <label class="property-label">Play Audio</label>
+                <input type="checkbox" id="prop-sd-play-audio" ${obj.style.playAudio ? 'checked' : ''}>
+            </div>
+        `;
+    }
+
+    private attachStatusDisplayEventListeners(): void {
+        const obj = this.selectedObject as any;
+
+        const collectionUUID = document.getElementById('prop-status-collection-uuid') as HTMLInputElement;
+        collectionUUID?.addEventListener('input', () => { obj.statusCollectionUUID = collectionUUID.value; this.canvas!.updateSelectedObject(); });
+
+        const statusUUID = document.getElementById('prop-status-uuid') as HTMLInputElement;
+        statusUUID?.addEventListener('input', () => { obj.statusUUID = statusUUID.value; this.canvas!.updateSelectedObject(); });
+
+        const colorBind = (rowId: string, swatchId: string, hexId: string, field: string) => {
+            const row = document.getElementById(rowId);
+            const swatch = document.getElementById(swatchId);
+            const hex = document.getElementById(hexId);
+            row?.addEventListener('click', (e: MouseEvent) => {
+                new ColorPickerPrompt(obj.style[field], e,
+                    (c: string) => { obj.style[field] = c; if (swatch) swatch.style.backgroundColor = c; if (hex) hex.textContent = c; this.canvas!.updateSelectedObject(); },
+                    (c: string) => { obj.style[field] = c; if (swatch) swatch.style.backgroundColor = c; if (hex) hex.textContent = c; },
+                    () => {}
+                );
+            });
+        };
+        colorBind('prop-sd-bg-color-row', 'prop-sd-bg-swatch', 'prop-sd-bg-hex', 'backgroundColor');
+        colorBind('prop-sd-border-color-row', 'prop-sd-border-swatch', 'prop-sd-border-hex', 'borderColor');
+
+        const showTitle = document.getElementById('prop-sd-show-title') as HTMLInputElement;
+        showTitle?.addEventListener('change', () => { obj.style.showTitle = showTitle.checked; this.canvas!.updateSelectedObject(); });
+
+        const playAudio = document.getElementById('prop-sd-play-audio') as HTMLInputElement;
+        playAudio?.addEventListener('change', () => { obj.style.playAudio = playAudio.checked; this.canvas!.updateSelectedObject(); });
+    }
+
     private attachLineGraphEventListeners(): void {
         const obj = this.selectedObject as any;
 
@@ -527,7 +855,8 @@ export class PropertiesPanel {
                         this.buildLabelRows(obj);
                     }
                 },
-                () => {}
+                () => {},
+                true  // numericalOnly — labels must resolve to numeric data
             );
         });
 

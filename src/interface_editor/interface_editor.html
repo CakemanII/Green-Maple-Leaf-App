@@ -31,8 +31,24 @@
                     <h3 class="palette-title">Object Palette</h3>
                     <div class="palette-items">
                         <div class="palette-item" draggable="true" data-object-type="LINE_GRAPH">
-                            <div class="palette-item-icon">📊</div>
+                            <div class="palette-item-icon">📈</div>
                             <div class="palette-item-label">Line Graph</div>
+                        </div>
+                        <div class="palette-item" draggable="true" data-object-type="BAR_GRAPH">
+                            <div class="palette-item-icon">📊</div>
+                            <div class="palette-item-label">Bar Graph</div>
+                        </div>
+                        <div class="palette-item" draggable="true" data-object-type="MODEL_3D">
+                            <div class="palette-item-icon">🚀</div>
+                            <div class="palette-item-label">3D Model</div>
+                        </div>
+                        <div class="palette-item" draggable="true" data-object-type="MINIMAP">
+                            <div class="palette-item-icon">🗺️</div>
+                            <div class="palette-item-label">Minimap</div>
+                        </div>
+                        <div class="palette-item" draggable="true" data-object-type="STATUS_DISPLAY">
+                            <div class="palette-item-icon">🚦</div>
+                            <div class="palette-item-label">Status Display</div>
                         </div>
                         <div class="palette-item" draggable="true" data-object-type="PANEL">
                             <div class="palette-item-icon">🔲</div>
@@ -43,7 +59,9 @@
                 
                 <!-- Properties Panel -->
                 <div class="properties-panel">
-                    <h3 class="properties-title">Properties</h3>
+                    <h3 class="properties-title" id="props-panel-toggle" style="cursor:pointer;user-select:none;" title="Toggle Properties Panel">
+                        Properties <span id="props-panel-arrow" style="font-size:10px;">▼</span>
+                    </h3>
                     <div id="properties-content" class="properties-content">
                         <!-- Properties will be dynamically rendered here -->
                         <div class="no-selection-state">
@@ -51,8 +69,21 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Notifications Panel -->
+                <div class="properties-panel" style="margin-top:8px;">
+                    <h3 class="properties-title" id="notif-panel-toggle" style="cursor:pointer;user-select:none;" title="Toggle Notifications Panel">
+                        Notifications <span id="notif-panel-arrow" style="font-size:10px;">▶</span>
+                    </h3>
+                    <div id="notifications-content" class="properties-content" style="display:none;">
+                        <p class="hint-text">Load a collection to manage notifications.</p>
+                    </div>
+                </div>
             </div>
-            
+
+            <!-- Sidebar Collapse Toggle -->
+            <button id="sidebar-toggle-btn" class="sidebar-toggle-btn" title="Collapse sidebar">&#8249;</button>
+
             <!-- Center Canvas Area -->
             <div class="canvas-area">
                 <div class="canvas-wrapper">
@@ -87,6 +118,42 @@
 
     <!-- Compiled JavaScript -->
     <script type="module" src="./compiled_js/interface_editor.js"></script>
+    <script>
+        function showPanel(which) {
+            const propsContent = document.getElementById('properties-content');
+            const propsArrow   = document.getElementById('props-panel-arrow');
+            const notifContent = document.getElementById('notifications-content');
+            const notifArrow   = document.getElementById('notif-panel-arrow');
+            if (!propsContent || !propsArrow || !notifContent || !notifArrow) return;
+
+            const showProps = which === 'props';
+            propsContent.style.display = showProps ? '' : 'none';
+            propsArrow.textContent     = showProps ? '▼' : '▶';
+            notifContent.style.display = showProps ? 'none' : '';
+            notifArrow.textContent     = showProps ? '▶' : '▼';
+        }
+
+        document.getElementById('props-panel-toggle')?.addEventListener('click', () => {
+            const isOpen = document.getElementById('properties-content')?.style.display !== 'none';
+            if (!isOpen) showPanel('props');
+        });
+
+        document.getElementById('notif-panel-toggle')?.addEventListener('click', () => {
+            const isOpen = document.getElementById('notifications-content')?.style.display !== 'none';
+            if (!isOpen) showPanel('notif');
+        });
+
+        document.getElementById('sidebar-toggle-btn')?.addEventListener('click', () => {
+            const sidebar = document.querySelector('.left-sidebar');
+            const btn = document.getElementById('sidebar-toggle-btn');
+            if (!sidebar || !btn) return;
+            const willCollapse = !sidebar.classList.contains('collapsed');
+            sidebar.classList.toggle('collapsed', willCollapse);
+            btn.innerHTML = willCollapse ? '&#8250;' : '&#8249;';
+            btn.title = willCollapse ? 'Expand sidebar' : 'Collapse sidebar';
+            setTimeout(scaleCanvas, 220);
+        });
+    </script>
     
     <!-- Canvas Auto-Scaling Script -->
     <script>

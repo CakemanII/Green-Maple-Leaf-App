@@ -86,6 +86,7 @@ export declare class LineGraphRepresentation extends GraphicalRepresentation {
     private yMin;
     private yMax;
     private timeWindow;
+    private displayNames;
     private collectionBeingInspected;
     private collectionVisibility;
     private collectionVisibilityBeforeInspection;
@@ -95,7 +96,9 @@ export declare class LineGraphRepresentation extends GraphicalRepresentation {
     private static DEFAULT_LINE_STYLE;
     constructor(title: string, unit: string, yMin: number, yMax: number, timeWindow?: number, collections?: {
         [key: string]: LineStyle;
-    }, graphsContainerId?: string);
+    }, graphsContainerId?: string, displayNames?: {
+        [key: string]: string;
+    });
     private initializeLineGraph;
     private initializeCollectionPolyline;
     private createCollectionButton;

@@ -1,12 +1,13 @@
 import { TabHandler } from "../../shared/compiled_js/main/tab_handler.js";
 
 const TAB_IDS: Record<string, { tabId: string; buttonId: string }> = {
-    liveInterface:   { tabId: 'live_interface_tab',   buttonId: 'live_interface_tab_button' },
-    preferences:     { tabId: 'preferences_tab',      buttonId: 'preferences_tab_button' },
+    liveInterface:  { tabId: 'live_interface_tab',   buttonId: 'live_interface_tab_button' },
+    fileSelection:  { tabId: 'file_selection_tab',   buttonId: 'file_selection_tab_button' },
+    preferences:    { tabId: 'preferences_tab',      buttonId: 'preferences_tab_button' },
 };
-
 
 new TabHandler(TAB_IDS);
 
 TabHandler.INSTANCE!.setTabEnabled('liveInterface', true);
+TabHandler.INSTANCE!.setTabEnabled('fileSelection', false);
 TabHandler.INSTANCE!.setTabEnabled('preferences', true);

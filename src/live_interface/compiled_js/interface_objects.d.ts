@@ -61,6 +61,13 @@ export type StatusDisplayIObjectSettings = {
     title: string;
     emptyText: string;
 };
+export type MinimapIObjectSettings = {
+    defaultZoom: number;
+    followRocket: boolean;
+    showGeofences: boolean;
+    latKey: string;
+    lngKey: string;
+};
 export type InterfaceObjectRuntimeData = InterfaceObjectData & {
     UUID?: string;
     name?: string;
@@ -69,6 +76,7 @@ export type InterfaceObjectRuntimeData = InterfaceObjectData & {
     barGraphSettings?: Partial<BarGraphIObjectSettings>;
     threeDModelAbsRotationSettings?: Partial<ThreeDModelAbsRotationIObjectSettings>;
     statusDisplaySettings?: Partial<StatusDisplayIObjectSettings>;
+    minimapSettings?: Partial<MinimapIObjectSettings>;
 };
 export declare abstract class InterfaceObject {
     protected readonly uuid: string;
@@ -186,5 +194,17 @@ export declare class StatusDisplayIObject extends InterfaceObject {
     private static ensureStatusBridgeInitialized;
     private static loadInitialStatuses;
     private static applyCachedValueIfPresent;
+}
+export declare class MinimapIObject extends InterfaceObject {
+    private readonly settings;
+    private latestLat;
+    private latestLng;
+    private mapContainer;
+    private markerEl;
+    private labelEl;
+    constructor(uuid: string, posX: number, posY: number, width: number, height: number, settings?: Partial<MinimapIObjectSettings>);
+    protected initializeSecondaryDOM(): void;
+    updateData(packet: TelemetryPacket): void;
+    renderFrame(): void;
 }
 export declare function createInterfaceObjectFromData(data: InterfaceObjectRuntimeData, warnings: string[]): InterfaceObject | null;

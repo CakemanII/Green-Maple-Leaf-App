@@ -20,5 +20,14 @@ export declare class PropertiesPanel {
     private renderPanelProperties;
     private attachEventListeners;
     private attachPanelEventListeners;
+    private renderBarGraphProperties;
+    private buildBarRows;
+    private attachBarGraphEventListeners;
+    private renderModel3DProperties;
+    private attachModel3DEventListeners;
+    private renderMinimapProperties;
+    private attachMinimapEventListeners;
+    private renderStatusDisplayProperties;
+    private attachStatusDisplayEventListeners;
     private attachLineGraphEventListeners;
 }

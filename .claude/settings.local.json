@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(pip install *)",
+      "Bash(node_modules/.bin/tsc -p shared/tsconfig.json)",
+      "Bash(node_modules/.bin/tsc -p interface_editor/tsconfig.json)",
+      "Bash(node_modules/.bin/tsc -p live_data/tsconfig.json)",
+      "Bash(node_modules/.bin/tsc --build)"
     ]
   }
 }

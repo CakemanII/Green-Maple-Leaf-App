@@ -21,6 +21,7 @@ class InterfaceManager {
         this.screenTabsContainer = document.getElementById(InterfaceManager.SCREEN_TABS_CONTAINER_ID);
         this.initializeTelemetryReceiving();
         this.initializeOperationalModeWatcher();
+        this.initializeCollectionMessageHandler();
     }
     initializeTelemetryReceiving() {
         new TelemetryReceiver((label, timestamp, value) => {
@@ -299,6 +300,116 @@ class InterfaceManager {
             && typeof value.x === "number"
             && typeof value.y === "number"
             && typeof value.z === "number";
+    }
+    initializeCollectionMessageHandler() {
+        window.addEventListener('message', async (e) => {
+            var _a, _b, _c, _d;
+            if (((_a = e.data) === null || _a === void 0 ? void 0 : _a.type) !== 'loadCollection')
+                return;
+            const uuid = e.data.uuid;
+            if (!uuid)
+                return;
+            try {
+                const response = await fetch(`/interface_collection/fetch?uuid=${encodeURIComponent(uuid)}`);
+                const text = await response.text();
+                const collection = JSON.parse(text);
+                const screenDefs = this.convertCollectionToScreenDefs(collection);
+                if (screenDefs.length === 0)
+                    return;
+                (_c = (_b = window.parent) === null || _b === void 0 ? void 0 : _b.postMessage) === null || _c === void 0 ? void 0 : _c.call(_b, { type: 'updateSessionRequest', key: InterfaceManager.SESSION_SCREENS_KEY, value: screenDefs }, '*');
+                // Broadcast notifications to sub-components
+                window.dispatchEvent(new MessageEvent('message', { data: { type: 'loadCollection', notifications: (_d = collection.notifications) !== null && _d !== void 0 ? _d : [] } }));
+                this.clearAllScreens();
+                this.setScreenUUIDS(screenDefs.map((s) => s.UUID));
+                screenDefs.forEach((def) => this.instantiateScreenIntoDOM(def));
+                if (screenDefs.length > 0)
+                    this.selectScreen(screenDefs[0].UUID);
+            }
+            catch (err) {
+                console.error('[InterfaceManager] Failed to load collection:', err);
+            }
+        });
+    }
+    convertCollectionToScreenDefs(collection) {
+        if (!Array.isArray(collection === null || collection === void 0 ? void 0 : collection.screens))
+            return [];
+        return collection.screens.map((screen) => {
+            var _a;
+            return ({
+                UUID: screen.uuid,
+                name: screen.name,
+                interfaceObjects: ((_a = screen.objects) !== null && _a !== void 0 ? _a : []).map((obj) => this.convertEditorObject(obj)).filter(Boolean)
+            });
+        });
+    }
+    convertEditorObject(obj) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7;
+        const base = {
+            UUID: obj.uuid,
+            posX: (_b = (_a = obj.position) === null || _a === void 0 ? void 0 : _a.x) !== null && _b !== void 0 ? _b : 0,
+            posY: (_d = (_c = obj.position) === null || _c === void 0 ? void 0 : _c.y) !== null && _d !== void 0 ? _d : 0,
+            width: (_f = (_e = obj.size) === null || _e === void 0 ? void 0 : _e.width) !== null && _f !== void 0 ? _f : 20,
+            height: (_h = (_g = obj.size) === null || _g === void 0 ? void 0 : _g.height) !== null && _h !== void 0 ? _h : 20,
+        };
+        switch (obj.type) {
+            case 'PANEL':
+                return Object.assign(Object.assign({}, base), { type: InterfaceObjectType.PANEL, childrenInterfaceObjects: [] });
+            case 'LINE_GRAPH':
+                return Object.assign(Object.assign({}, base), { type: InterfaceObjectType.LINE_GRAPH, monitorDataKeys: (_j = obj.monitorDataKeys) !== null && _j !== void 0 ? _j : [], lineGraphSettings: {
+                        title: obj.name || 'Line Graph',
+                        unit: (_l = (_k = obj.graphStyle) === null || _k === void 0 ? void 0 : _k.unit) !== null && _l !== void 0 ? _l : '',
+                        yMin: (_o = (_m = obj.graphStyle) === null || _m === void 0 ? void 0 : _m.yMin) !== null && _o !== void 0 ? _o : 0,
+                        yMax: (_q = (_p = obj.graphStyle) === null || _p === void 0 ? void 0 : _p.yMax) !== null && _q !== void 0 ? _q : 100,
+                        maxPoints: 180,
+                        vectorComponents: ['x', 'y', 'z'],
+                        lineColors: (_s = (_r = obj.graphStyle) === null || _r === void 0 ? void 0 : _r.lineColors) !== null && _s !== void 0 ? _s : {}
+                    } });
+            case 'BAR_GRAPH': {
+                const bars = (_t = obj.bars) !== null && _t !== void 0 ? _t : [];
+                const groups = bars.map((bar) => ({
+                    id: bar.id,
+                    label: bar.label,
+                    series: [{ id: bar.id, label: bar.label, key: bar.monitorKey }]
+                }));
+                const barColors = {};
+                bars.forEach((bar) => { barColors[bar.id] = bar.color; });
+                return Object.assign(Object.assign({}, base), { type: InterfaceObjectType.BAR_GRAPH, monitorDataKeys: bars.map((b) => b.monitorKey).filter(Boolean), barGraphSettings: {
+                        title: (_v = (_u = obj.graphStyle) === null || _u === void 0 ? void 0 : _u.title) !== null && _v !== void 0 ? _v : 'Bar Graph',
+                        unit: '',
+                        yMin: (_x = (_w = obj.graphStyle) === null || _w === void 0 ? void 0 : _w.yMin) !== null && _x !== void 0 ? _x : 0,
+                        yMax: (_z = (_y = obj.graphStyle) === null || _y === void 0 ? void 0 : _y.yMax) !== null && _z !== void 0 ? _z : 100,
+                        decimals: 2,
+                        groups,
+                        barColors
+                    } });
+            }
+            case 'MODEL_3D':
+                return Object.assign(Object.assign({}, base), { type: InterfaceObjectType.THREE_D_MODEL_ABS_ROTATION, monitorDataKeys: [obj.rollKey, obj.pitchKey, obj.yawKey].filter(Boolean), threeDModelAbsRotationSettings: {
+                        title: obj.name || '3D Model',
+                        eulerOrder: 'ZYX',
+                        angleUnit: (_0 = obj.angleUnit) !== null && _0 !== void 0 ? _0 : 'deg',
+                        rollKey: obj.rollKey,
+                        pitchKey: obj.pitchKey,
+                        yawKey: obj.yawKey,
+                        modelColor: (_1 = obj.modelColor) !== null && _1 !== void 0 ? _1 : '#7fb8ff'
+                    } });
+            case 'MINIMAP':
+                return Object.assign(Object.assign({}, base), { type: InterfaceObjectType.MINIMAP, monitorDataKeys: [obj.latKey, obj.lngKey].filter(Boolean), minimapSettings: {
+                        defaultZoom: (_2 = obj.defaultZoom) !== null && _2 !== void 0 ? _2 : 15,
+                        followRocket: (_3 = obj.followRocket) !== null && _3 !== void 0 ? _3 : true,
+                        showGeofences: (_4 = obj.showGeofences) !== null && _4 !== void 0 ? _4 : true,
+                        latKey: (_5 = obj.latKey) !== null && _5 !== void 0 ? _5 : '',
+                        lngKey: (_6 = obj.lngKey) !== null && _6 !== void 0 ? _6 : ''
+                    } });
+            case 'STATUS_DISPLAY':
+                return Object.assign(Object.assign({}, base), { type: InterfaceObjectType.STATUS_DISPLAY, statusDisplaySettings: {
+                        statusUUID: (_7 = obj.statusUUID) !== null && _7 !== void 0 ? _7 : '',
+                        title: obj.name || 'Status',
+                        emptyText: 'No active flag'
+                    } });
+            default:
+                return null;
+        }
     }
 }
 InterfaceManager.SCREENS_CONTAINER_ID = "screens-container";

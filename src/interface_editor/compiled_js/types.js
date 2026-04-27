@@ -31,5 +31,17 @@ export const DEFAULT_PANEL_STYLE = {
     borderStyle: 'solid',
     opacity: 100
 };
+export const DEFAULT_BAR_GRAPH_STYLE = {
+    backgroundColor: '#1a1a1a',
+    yMin: 0,
+    yMax: 100,
+    title: 'Bar Graph',
+};
+export const DEFAULT_STATUS_DISPLAY_STYLE = {
+    backgroundColor: '#1a1a1a',
+    borderColor: '#333333',
+    showTitle: true,
+    playAudio: false,
+};
 export const DEFAULT_OBJECT_SIZE = { width: 20, height: 20 };
 //# sourceMappingURL=types.js.map

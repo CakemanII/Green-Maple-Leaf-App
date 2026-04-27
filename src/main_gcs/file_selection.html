@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Selection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: #0d0d0d;
+            color: #e0e0e0;
+            -webkit-font-smoothing: antialiased;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page-header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid #262626;
+            background: #1a1a1a;
+            flex-shrink: 0;
+        }
+
+        .page-header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .sections-container {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 0;
+        }
+
+        .section {
+            border-bottom: 1px solid #1e1e1e;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            background: #151515;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .section-header:hover {
+            background: #1c1c1c;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #888;
+        }
+
+        .section-meta {
+            font-size: 12px;
+            color: #555;
+        }
+
+        .section-body {
+            padding: 0;
+        }
+
+        .file-list {
+            list-style: none;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 24px;
+            border-bottom: 1px solid #1a1a1a;
+            cursor: pointer;
+            transition: background 0.12s;
+        }
+
+        .file-item:last-child { border-bottom: none; }
+
+        .file-item:hover { background: #181818; }
+
+        .file-item input[type="checkbox"],
+        .file-item input[type="radio"] {
+            width: 15px;
+            height: 15px;
+            accent-color: #6ba3ff;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .file-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .file-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: #ddd;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-date {
+            font-size: 11px;
+            color: #555;
+            margin-top: 2px;
+        }
+
+        .empty-state {
+            padding: 20px 24px;
+            font-size: 13px;
+            color: #444;
+            font-style: italic;
+        }
+
+        .loading-state {
+            padding: 20px 24px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .footer-bar {
+            padding: 12px 24px;
+            background: #1a1a1a;
+            border-top: 1px solid #262626;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .footer-status {
+            font-size: 12px;
+            color: #555;
+        }
+
+        .apply-btn {
+            padding: 8px 20px;
+            background: #6ba3ff;
+            color: #181a1b;
+            border: none;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .apply-btn:hover { background: #5a92ee; }
+        .apply-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1>File Selection</h1>
+        <p>Choose which files to load when entering Operational Mode.</p>
+    </div>
+
+    <div class="sections-container">
+        <!-- Geofences -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-title">Geofences</span>
+                <span class="section-meta" id="geofence-meta">Loading...</span>
+            </div>
+            <div class="section-body">
+                <ul class="file-list" id="geofence-list">
+                    <li class="loading-state">Loading files...</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Status Collections -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-title">Status Collections</span>
+                <span class="section-meta" id="status-meta">Loading...</span>
+            </div>
+            <div class="section-body">
+                <ul class="file-list" id="status-list">
+                    <li class="loading-state">Loading files...</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Interface Collections -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-title">Interface Collection</span>
+                <span class="section-meta" id="interface-meta">Loading...</span>
+            </div>
+            <div class="section-body">
+                <ul class="file-list" id="interface-list">
+                    <li class="loading-state">Loading files...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-bar">
+        <span class="footer-status" id="footer-status">Select files above to load in operational mode.</span>
+        <button class="apply-btn" id="apply-btn">Apply Selections</button>
+    </div>
+
+    <script type="module" src="./compiled_js/file_selection_tab.js"></script>
+</body>
+</html>

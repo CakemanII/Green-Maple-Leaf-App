@@ -292,18 +292,20 @@ class RocketCommunication:
     # region Latency Test
     def latency_test_loop(self):
         while self._is_active:
-            # Create the Radio Data Object
-            self.send_data(RocketCommunication.LATENCY_OUT_LABEL, None)
+            ping: TelemetryObject = {
+                "label": RocketCommunication.LATENCY_OUT_LABEL,
+                "timestamp": time.time(),
+                "data": 1.0
+            }
+            self.send_data([ping])
             time.sleep(RocketCommunication.LATENCY_TEST_SEND_INTERVAL)
 
         self._latency_thread = None
 
     def _set_latency_from_data(self, sent_timestamp: float):
-        # Extract timestamp from received data
-        if self._latency is not None:
-            latency = time.time() - sent_timestamp
-            self._latency_test = (time.time(), latency)
-            print(f"📶 Latency test response received! Latency: {latency:.3f} seconds")
+        latency = time.time() - sent_timestamp
+        self._latency_test = (time.time(), latency)
+        print(f"📶 Latency test response received! Latency: {latency:.3f} seconds")
     # endregion
 
     def set_active(self):

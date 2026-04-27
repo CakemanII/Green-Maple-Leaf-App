@@ -13,6 +13,7 @@ export class GlobalTelemetryManager {
     private telemetryIframes: HTMLIFrameElement[] = [];
 
     private dataCache: { [key: string]: { x: number, y: any }[] } = {};
+    private static readonly DATA_CACHE_MAX_POINTS = 1000;
 
     // List of integrals and derivatives to compute
     private compute_derivatives_integrals: { input: string, output: string, is_derivative: boolean }[] = [
@@ -57,9 +58,12 @@ export class GlobalTelemetryManager {
             const timestamp = data.timestamp; // Time value for x-axis
             const content = data.content;     // Data value for y-axis
 
-            // Cache data
+            // Cache data (cap to avoid unbounded growth)
             if (!this.dataCache[label]) { this.dataCache[label] = []; }
             this.dataCache[label].push({ x: timestamp, y: content });
+            if (this.dataCache[label].length > GlobalTelemetryManager.DATA_CACHE_MAX_POINTS) {
+                this.dataCache[label].shift();
+            }
 
             // Send data to all telemetry iframes
             this.sendMessageToTelemetryIframes(label, timestamp, content);
@@ -73,7 +77,7 @@ export class GlobalTelemetryManager {
         });
 
         socket.on('disconnect', () => {
-            // Disconnected
+            this.dataCache = {};
         });
     }
 

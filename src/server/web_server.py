@@ -53,6 +53,7 @@ REFERRER_TO_DIR: dict[str, str] = {
     '/status_editor.html': STATUS_EDITOR_DIR,
     '/live_data.html': LIVE_DATA_DIR,
     '/preferences.html': PREFERENCES_DIR,
+    '/file_selection.html': MAIN_GCS_DIR,
 }
 
 app = Flask(__name__, static_folder=None)
@@ -120,6 +121,10 @@ def serve_live_data_assets(path):
 @app.route('/preferences.html')
 def serve_preferences():
     return send_from_directory(PREFERENCES_DIR, 'preferences.html')
+
+@app.route('/file_selection.html')
+def serve_file_selection():
+    return send_from_directory(MAIN_GCS_DIR, 'file_selection.html')
 
 @app.route('/shared/<path:path>')
 def serve_shared(path):

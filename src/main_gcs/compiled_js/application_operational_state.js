@@ -1,4 +1,6 @@
 import { TabHandler } from "../../shared/compiled_js/main/tab_handler.js";
+import { GlobalGeofence } from "./global_geofence.js";
+import { GlobalStatusesManager } from "./global_statuses.js";
 class OperationalStateHandler {
     static get INSTANCE() { return OperationalStateHandler.instance; }
     constructor() {
@@ -21,6 +23,13 @@ class OperationalStateHandler {
         this.stateToggleButton.addEventListener('click', () => {
             this.operationalStatePrompt.updatePromptText(this.operationalState);
             this.operationalStatePrompt.show();
+        });
+        // Listen for manual apply from file selection iframe
+        window.addEventListener('message', (e) => {
+            var _a;
+            if (((_a = e.data) === null || _a === void 0 ? void 0 : _a.type) === 'fileSelectionApplied' && this.operationalState === 'active') {
+                this.compileSelectedFiles();
+            }
         });
     }
     /**
@@ -94,13 +103,43 @@ class OperationalStateHandler {
         }
     }
     /**
-     * Update the active / inactive tabs.
+     * Update the active / inactive tabs based on operational state.
      */
     updateActiveInactiveTabs() {
-        var _a, _b;
-        // main_gcs only has liveInterface + preferences tabs.
-        (_a = TabHandler.INSTANCE) === null || _a === void 0 ? void 0 : _a.setTabEnabled("liveInterface", this.operationalState === "active" || this.DEBUGGING_MODE);
-        (_b = TabHandler.INSTANCE) === null || _b === void 0 ? void 0 : _b.setTabEnabled("preferences", true);
+        var _a, _b, _c;
+        const isOperational = this.operationalState === "active" || this.DEBUGGING_MODE;
+        (_a = TabHandler.INSTANCE) === null || _a === void 0 ? void 0 : _a.setTabEnabled("liveInterface", isOperational);
+        (_b = TabHandler.INSTANCE) === null || _b === void 0 ? void 0 : _b.setTabEnabled("fileSelection", isOperational);
+        (_c = TabHandler.INSTANCE) === null || _c === void 0 ? void 0 : _c.setTabEnabled("preferences", true);
+        // When transitioning into operational mode, compile selected files
+        if (this.operationalState === "active" && this.previousOperationalState === "edit") {
+            this.compileSelectedFiles();
+        }
+    }
+    /**
+     * Read saved file selections and broadcast to global managers.
+     */
+    compileSelectedFiles() {
+        var _a, _b, _c, _d;
+        try {
+            const geofenceUUIDs = JSON.parse(localStorage.getItem('fileSelection_geofenceUUIDs') || '[]');
+            const statusCollectionUUIDs = JSON.parse(localStorage.getItem('fileSelection_statusCollectionUUIDs') || '[]');
+            const interfaceUUID = (_a = JSON.parse(localStorage.getItem('fileSelection_interfaceCollectionUUID') || '[]')[0]) !== null && _a !== void 0 ? _a : null;
+            if (geofenceUUIDs.length > 0) {
+                (_b = GlobalGeofence.INSTANCE) === null || _b === void 0 ? void 0 : _b.loadFromUUIDs(geofenceUUIDs);
+            }
+            if (statusCollectionUUIDs.length > 0) {
+                (_c = GlobalStatusesManager.INSTANCE) === null || _c === void 0 ? void 0 : _c.loadFromCollections(statusCollectionUUIDs);
+            }
+            if (interfaceUUID) {
+                const liveIframe = document.getElementById('live_interface_tab');
+                (_d = liveIframe === null || liveIframe === void 0 ? void 0 : liveIframe.contentWindow) === null || _d === void 0 ? void 0 : _d.postMessage({ type: 'loadCollection', uuid: interfaceUUID }, '*');
+            }
+            console.log('[OperationalState] Compiled: geofences=%o statuses=%o interface=%s', geofenceUUIDs, statusCollectionUUIDs, interfaceUUID);
+        }
+        catch (error) {
+            console.error('[OperationalState] Failed to compile selected files:', error);
+        }
     }
     toggleOperationalState() {
         // Toggle the operational state
