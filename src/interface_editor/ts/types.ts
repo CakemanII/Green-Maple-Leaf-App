@@ -33,6 +33,7 @@ export type BaseObject = {
     name: string;
     position: { x: number; y: number };  // 0-100 percentage
     size: { width: number; height: number };  // 0-100 percentage
+    scale: number;  // 0-300, relative scale (100 = normal)
     zIndex: number;
 };
 
@@ -52,6 +53,8 @@ export type PanelObject = BaseObject & {
 export type GraphStyle = {
     backgroundColor: string;
     lineColors: { [key: string]: string };
+    labelDisplayNames: { [key: string]: string };
+    labelUnits: { [key: string]: string };
     axisLabels: boolean;
     grid: boolean;
     yMin: number;
@@ -66,6 +69,7 @@ export type GraphStyle = {
     legendPosition: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight' | 'none';
     xOverflowMode: 'ShiftGraph' | 'ScaleAxis' | 'None';
     yOverflowMode: 'ScaleAxis' | 'None';
+    showInfo: boolean;
 };
 
 export type PanelStyle = {
@@ -90,6 +94,8 @@ export type LineStyle = {
 export const DEFAULT_GRAPH_STYLE: GraphStyle = {
     backgroundColor: '#1a1a1a',
     lineColors: {},
+    labelDisplayNames: {},
+    labelUnits: {},
     axisLabels: true,
     grid: true,
     yMin: 0,
@@ -103,7 +109,8 @@ export const DEFAULT_GRAPH_STYLE: GraphStyle = {
     units: '',
     legendPosition: 'topRight',
     xOverflowMode: 'ShiftGraph',
-    yOverflowMode: 'ScaleAxis'
+    yOverflowMode: 'ScaleAxis',
+    showInfo: true
 };
 
 export const DEFAULT_PANEL_STYLE: PanelStyle = {

@@ -38,6 +38,9 @@ export declare class EditorCanvas {
     private deleteSelectedObject;
     updateSelectedObject(): void;
     getSelectedObject(): InterfaceObject | null;
+    getObjectElement(uuid: string): HTMLDivElement | undefined;
+    setGraphBackgroundColor(uuid: string, color: string): void;
+    setGraphShowInfo(uuid: string, visible: boolean): void;
     on(event: string, callback: EventCallback): void;
     private emit;
 }

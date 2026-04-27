@@ -9,13 +9,14 @@ import { EditorCanvas } from './editor_canvas.js';
 import { PropertiesPanel } from './properties_panel.js';
 import { ScreenTabBar } from './screen_tab_bar.js';
 import { ObjectPalette } from './object_palette.js';
-import { InterfaceCollectionFileListViewerPrompt } from '../../shared/compiled_js/prompts.js';
+import { InterfaceCollectionFileListViewerPrompt, ConfirmationPrompt } from '../../shared/compiled_js/prompts.js';
 import type { FileMetadata } from '../../shared/compiled_js/types.js';
 
 export class InterfaceEditor {
     public static INSTANCE: InterfaceEditor | null = null;
 
     private collection: ScreenCollection | null = null;
+    private originalCollection: ScreenCollection | null = null;
     private screens: Map<string, EditorScreen> = new Map();
     private activeScreenUuid: string | null = null;
     private isDirty: boolean = false;
@@ -63,6 +64,9 @@ export class InterfaceEditor {
         this.canvas.on('objectChanged', () => this.markDirty());
         this.canvas.on('selectionChanged', (obj: InterfaceObject | null) => {
             this.propertiesPanel.setSelectedObject(obj, this.canvas);
+        });
+        this.canvas.on('positionChanged', (obj: InterfaceObject) => {
+            this.propertiesPanel.updateLivePosition(obj);
         });
 
         this.screenTabBar.on('screenChanged', (uuid: string) => this.switchToScreen(uuid));
@@ -145,7 +149,7 @@ export class InterfaceEditor {
     public deleteScreen(uuid: string): void {
         if (!this.collection) return;
         if (this.collection.screens.length <= 1) {
-            alert('Cannot delete the last screen');
+            new ConfirmationPrompt('Cannot Delete', 'Cannot delete the last screen.', 'OK', '', () => {});
             return;
         }
 
@@ -207,7 +211,8 @@ export class InterfaceEditor {
         // Validate collection
         const errors = this.validateCollection();
         if (errors.length > 0) {
-            alert(`Cannot save: ${errors.length} validation errors found.\n\n${errors.map(e => e.message).join('\n')}`);
+            const errorList = errors.map(e => `• ${e.message}`).join('<br>');
+            new ConfirmationPrompt('Validation Errors', `Cannot save: ${errors.length} error(s) found.<br><br>${errorList}`, 'OK', '', () => {});
             return;
         }
 
@@ -231,19 +236,25 @@ export class InterfaceEditor {
             console.log('Collection saved successfully');
         } catch (error) {
             console.error('Save error:', error);
-            alert('Failed to save collection');
+            new ConfirmationPrompt('Save Failed', 'Failed to save collection.', 'OK', '', () => {});
         }
     }
 
-    private async handleLoad(): Promise<void> {
+    private handleLoad(): void {
         if (this.isDirty) {
-            const save = confirm('You have unsaved changes. Save before loading?');
-            if (save) {
-                await this.handleSave();
-            }
+            new ConfirmationPrompt(
+                'Unsaved Changes',
+                'You have unsaved changes. Save before loading?',
+                'Save', 'Discard',
+                () => { this.handleSave().then(() => this.openLoadDialog()); },
+                () => { this.openLoadDialog(); }
+            );
+        } else {
+            this.openLoadDialog();
         }
+    }
 
-        // Show file list viewer
+    private openLoadDialog(): void {
         new InterfaceCollectionFileListViewerPrompt(
             async (fileMetadata: FileMetadata) => {
                 try {
@@ -254,28 +265,36 @@ export class InterfaceEditor {
 
                     const data = await response.json();
                     this.collection = data as ScreenCollection;
+                    // Store a deep copy of the original collection for revert functionality
+                    this.originalCollection = JSON.parse(JSON.stringify(data)) as ScreenCollection;
                     this.currentFilePath = fileMetadata.UUID;
                     this.loadCollectionIntoEditor();
                     this.markClean();
                     console.log('Collection loaded successfully');
                 } catch (error) {
                     console.error('Load error:', error);
-                    alert('Failed to load collection');
+                    new ConfirmationPrompt('Load Failed', 'Failed to load collection.', 'OK', '', () => {});
                 }
             },
-            () => {
-                // Cancel - do nothing
-            }
+            () => {}
         );
     }
 
     private handleRevert(): void {
-        if (!confirm('Revert all changes? Unsaved work will be lost.')) {
-            return;
-        }
-
-        // Reload from last saved state
-        this.loadCollectionIntoEditor();
+        new ConfirmationPrompt(
+            'Revert Changes',
+            'Revert all changes? Unsaved work will be lost.',
+            'Revert', 'Cancel',
+            () => {
+                if (!this.originalCollection) return;
+                
+                // Restore from the stored original collection
+                this.collection = JSON.parse(JSON.stringify(this.originalCollection)) as ScreenCollection;
+                this.loadCollectionIntoEditor();
+                this.markClean();
+                console.log('Collection reverted successfully');
+            }
+        );
     }
 
     private validateCollection(): ValidationError[] {

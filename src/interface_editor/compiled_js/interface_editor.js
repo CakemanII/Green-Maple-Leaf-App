@@ -7,7 +7,7 @@ import { EditorCanvas } from './editor_canvas.js';
 import { PropertiesPanel } from './properties_panel.js';
 import { ScreenTabBar } from './screen_tab_bar.js';
 import { ObjectPalette } from './object_palette.js';
-import { InterfaceCollectionFileListViewerPrompt } from '../../shared/compiled_js/prompts.js';
+import { InterfaceCollectionFileListViewerPrompt, ConfirmationPrompt } from '../../shared/compiled_js/prompts.js';
 export class InterfaceEditor {
     constructor() {
         this.collection = null;
@@ -40,6 +40,9 @@ export class InterfaceEditor {
         this.canvas.on('objectChanged', () => this.markDirty());
         this.canvas.on('selectionChanged', (obj) => {
             this.propertiesPanel.setSelectedObject(obj, this.canvas);
+        });
+        this.canvas.on('positionChanged', (obj) => {
+            this.propertiesPanel.updateLivePosition(obj);
         });
         this.screenTabBar.on('screenChanged', (uuid) => this.switchToScreen(uuid));
         this.screenTabBar.on('screenAdded', (name) => this.addScreen(name));
@@ -111,7 +114,7 @@ export class InterfaceEditor {
         if (!this.collection)
             return;
         if (this.collection.screens.length <= 1) {
-            alert('Cannot delete the last screen');
+            new ConfirmationPrompt('Cannot Delete', 'Cannot delete the last screen.', 'OK', '', () => { });
             return;
         }
         // Remove from collection
@@ -162,7 +165,8 @@ export class InterfaceEditor {
         // Validate collection
         const errors = this.validateCollection();
         if (errors.length > 0) {
-            alert(`Cannot save: ${errors.length} validation errors found.\n\n${errors.map(e => e.message).join('\n')}`);
+            const errorList = errors.map(e => `• ${e.message}`).join('<br>');
+            new ConfirmationPrompt('Validation Errors', `Cannot save: ${errors.length} error(s) found.<br><br>${errorList}`, 'OK', '', () => { });
             return;
         }
         try {
@@ -183,17 +187,18 @@ export class InterfaceEditor {
         }
         catch (error) {
             console.error('Save error:', error);
-            alert('Failed to save collection');
+            new ConfirmationPrompt('Save Failed', 'Failed to save collection.', 'OK', '', () => { });
         }
     }
-    async handleLoad() {
+    handleLoad() {
         if (this.isDirty) {
-            const save = confirm('You have unsaved changes. Save before loading?');
-            if (save) {
-                await this.handleSave();
-            }
+            new ConfirmationPrompt('Unsaved Changes', 'You have unsaved changes. Save before loading?', 'Save', 'Discard', () => { this.handleSave().then(() => this.openLoadDialog()); }, () => { this.openLoadDialog(); });
         }
-        // Show file list viewer
+        else {
+            this.openLoadDialog();
+        }
+    }
+    openLoadDialog() {
         new InterfaceCollectionFileListViewerPrompt(async (fileMetadata) => {
             try {
                 const response = await fetch(`/interface_collection/fetch?uuid=${fileMetadata.UUID}`);
@@ -209,18 +214,17 @@ export class InterfaceEditor {
             }
             catch (error) {
                 console.error('Load error:', error);
-                alert('Failed to load collection');
+                new ConfirmationPrompt('Load Failed', 'Failed to load collection.', 'OK', '', () => { });
             }
-        }, () => {
-            // Cancel - do nothing
-        });
+        }, () => { });
     }
     handleRevert() {
-        if (!confirm('Revert all changes? Unsaved work will be lost.')) {
-            return;
-        }
-        // Reload from last saved state
-        this.loadCollectionIntoEditor();
+        new ConfirmationPrompt('Revert Changes', 'Revert all changes? Unsaved work will be lost.', 'Revert', 'Cancel', () => {
+            if (!this.originalCollection) return;
+            this.collection = JSON.parse(JSON.stringify(this.originalCollection));
+            this.loadCollectionIntoEditor();
+            this.markClean();
+        });
     }
     validateCollection() {
         const errors = [];

@@ -2,6 +2,7 @@
  * EditorCanvas - Manages the 1920x1080 canvas rendering and interaction
  */
 import { LineGraphRepresentation, LineGraphXOverflowMode, LineGraphYOverflowMode } from '../../live_data/compiled_js/graph_representations.js';
+import { ConfirmationPrompt } from '../../shared/compiled_js/prompts.js';
 export class EditorCanvas {
     constructor(canvasElement) {
         this.currentScreen = null;
@@ -56,6 +57,7 @@ export class EditorCanvas {
         const element = document.createElement('div');
         element.className = `canvas-object ${obj.type === 'LINE_GRAPH' ? 'line-graph' : 'panel'}`;
         element.dataset.uuid = obj.uuid;
+        element.draggable = false;
         // Set position and size (convert percentage to pixels)
         this.updateObjectElement(element, obj);
         // Add resize handles
@@ -86,16 +88,26 @@ export class EditorCanvas {
         element.style.zIndex = obj.zIndex.toString();
     }
     renderLineGraph(element, obj) {
-        element.style.backgroundColor = obj.graphStyle.backgroundColor;
-        // Clear previous content
-        element.innerHTML = '';
+        var _a;
+        element.style.backgroundColor = 'transparent';
+        // Only clear the content layer — preserve resize handles
+        let content = element.querySelector('.object-content');
+        if (!content) {
+            content = document.createElement('div');
+            content.className = 'object-content';
+            content.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;';
+            element.insertBefore(content, element.firstChild);
+        }
+        content.innerHTML = '';
         // Create container for the graph
         const graphContainer = document.createElement('div');
         graphContainer.id = `graph-${obj.uuid}`;
         graphContainer.style.width = '100%';
         graphContainer.style.height = '100%';
         graphContainer.style.position = 'relative';
-        element.appendChild(graphContainer);
+        graphContainer.style.overflow = 'hidden';
+        graphContainer.style.backgroundColor = obj.graphStyle.backgroundColor;
+        content.appendChild(graphContainer);
         // Clean up old graph instance
         if (this.graphInstances.has(obj.uuid)) {
             this.graphInstances.delete(obj.uuid);
@@ -127,8 +139,11 @@ export class EditorCanvas {
                 LineGraphYOverflowMode.None;
             graph.setOverflowX(xMode);
             graph.setOverflowY(yMode);
+            graph.setBackgroundColor(obj.graphStyle.backgroundColor);
+            graph.setShowInfo((_a = obj.graphStyle.showInfo) !== null && _a !== void 0 ? _a : true);
+            graph.setFillHeight();
             // Generate sample data for preview
-            this.generateSampleData(graph, obj.monitorDataKeys);
+            this.generateSampleData(graph, obj.monitorDataKeys, obj.graphStyle.timeWindow);
             this.graphInstances.set(obj.uuid, graph);
         }
         catch (error) {
@@ -136,20 +151,14 @@ export class EditorCanvas {
             graphContainer.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ff6b6b; font-size: 12px;">Failed to create graph</div>`;
         }
     }
-    generateSampleData(graph, keys) {
-        // Generate 30 seconds of sample data
-        const now = Date.now() / 1000;
-        const startTime = now - 30;
-        for (let t = 0; t <= 30; t += 0.5) {
-            const timestamp = startTime + t;
+    generateSampleData(graph, keys, timeWindow = 30) {
+        for (let t = 0; t <= timeWindow; t += timeWindow / 60) {
             keys.forEach((key, index) => {
-                // Create different wave patterns for each key
                 const frequency = 0.5 + index * 0.3;
                 const amplitude = 20 + index * 10;
                 const offset = 50 + index * 15;
                 const value = Math.sin(t * frequency) * amplitude + offset;
-                // addDataPoint(x: number, y: number, collectionKey: string)
-                graph.addDataPoint(timestamp, value, key);
+                graph.addDataPoint(t, value, key);
             });
         }
     }
@@ -159,15 +168,24 @@ export class EditorCanvas {
         element.style.borderColor = obj.style.borderColor;
         element.style.borderStyle = obj.style.borderStyle;
         element.style.opacity = (obj.style.opacity / 100).toString();
-        element.innerHTML = '<div style="text-align: center; line-height: 1.5;">Panel</div>';
+        // Only clear the content layer — preserve resize handles
+        let content = element.querySelector('.object-content');
+        if (!content) {
+            content = document.createElement('div');
+            content.className = 'object-content';
+            content.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;';
+            element.insertBefore(content, element.firstChild);
+        }
+        content.innerHTML = '<div style="color:#555;font-size:14px;">Panel</div>';
     }
     addResizeHandles(element) {
-        const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
-        handles.forEach(handle => {
+        const corners = ['nw', 'ne', 'se', 'sw'];
+        corners.forEach(handle => {
             const handleEl = document.createElement('div');
             handleEl.className = `resize-handle ${handle}`;
             handleEl.dataset.handle = handle;
             handleEl.addEventListener('mousedown', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 this.startResize(element.dataset.uuid, handle, e);
             });
@@ -183,6 +201,7 @@ export class EditorCanvas {
         if (e.target.classList.contains('resize-handle')) {
             return; // Handled by resize handle
         }
+        e.preventDefault();
         e.stopPropagation();
         this.selectObject(obj);
         this.startMove(obj, e);
@@ -195,6 +214,7 @@ export class EditorCanvas {
             startY: e.clientY,
             startPosition: Object.assign({}, obj.position)
         };
+        this.canvasElement.classList.add('dragging');
     }
     startResize(uuid, handle, e) {
         var _a;
@@ -210,6 +230,7 @@ export class EditorCanvas {
             startSize: Object.assign({}, obj.size),
             resizeHandle: handle
         };
+        this.canvasElement.classList.add('dragging');
     }
     handleMouseMove(e) {
         if (!this.dragState || !this.currentScreen)
@@ -237,6 +258,7 @@ export class EditorCanvas {
             this.updateObjectElement(element, obj);
         }
         this.emit('objectChanged');
+        this.emit('positionChanged', obj);
     }
     handleResize(obj, deltaX, deltaY) {
         const handle = this.dragState.resizeHandle;
@@ -267,6 +289,7 @@ export class EditorCanvas {
     }
     handleMouseUp() {
         this.dragState = null;
+        this.canvasElement.classList.remove('dragging');
     }
     snap(value) {
         return Math.round(value); // 1% grid
@@ -316,6 +339,8 @@ export class EditorCanvas {
             obj = Object.assign(Object.assign({}, baseObj), { type: 'LINE_GRAPH', monitorDataKeys: [], graphStyle: {
                     backgroundColor: '#1a1a1a',
                     lineColors: {},
+                    labelDisplayNames: {},
+                    labelUnits: {},
                     axisLabels: true,
                     grid: true,
                     yMin: 0,
@@ -329,7 +354,8 @@ export class EditorCanvas {
                     units: '',
                     legendPosition: 'topRight',
                     xOverflowMode: 'ShiftGraph',
-                    yOverflowMode: 'ScaleAxis'
+                    yOverflowMode: 'ScaleAxis',
+                    showInfo: true
                 } });
         }
         else {
@@ -349,15 +375,16 @@ export class EditorCanvas {
     deleteSelectedObject() {
         if (!this.selectedObject || !this.currentScreen)
             return;
-        if (confirm(`Delete ${this.selectedObject.name || 'this object'}?`)) {
-            const uuid = this.selectedObject.uuid;
+        const uuid = this.selectedObject.uuid;
+        const name = this.selectedObject.name || 'this object';
+        new ConfirmationPrompt('Delete Object', `Delete <strong>${name}</strong>?`, 'Delete', 'Cancel', () => {
             this.currentScreen.removeObject(uuid);
             const element = this.objectElements.get(uuid);
             element === null || element === void 0 ? void 0 : element.remove();
             this.objectElements.delete(uuid);
             this.selectObject(null);
             this.emit('objectChanged');
-        }
+        });
     }
     updateSelectedObject() {
         if (!this.selectedObject)
@@ -377,6 +404,19 @@ export class EditorCanvas {
     }
     getSelectedObject() {
         return this.selectedObject;
+    }
+    getObjectElement(uuid) {
+        return this.objectElements.get(uuid);
+    }
+    setGraphBackgroundColor(uuid, color) {
+        const graph = this.graphInstances.get(uuid);
+        if (graph)
+            graph.setBackgroundColor(color);
+    }
+    setGraphShowInfo(uuid, visible) {
+        const graph = this.graphInstances.get(uuid);
+        if (graph)
+            graph.setShowInfo(visible);
     }
     on(event, callback) {
         if (!this.eventListeners.has(event)) {

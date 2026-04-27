@@ -6,6 +6,8 @@
 export const DEFAULT_GRAPH_STYLE = {
     backgroundColor: '#1a1a1a',
     lineColors: {},
+    labelDisplayNames: {},
+    labelUnits: {},
     axisLabels: true,
     grid: true,
     yMin: 0,
@@ -19,7 +21,8 @@ export const DEFAULT_GRAPH_STYLE = {
     units: '',
     legendPosition: 'topRight',
     xOverflowMode: 'ShiftGraph',
-    yOverflowMode: 'ScaleAxis'
+    yOverflowMode: 'ScaleAxis',
+    showInfo: true
 };
 export const DEFAULT_PANEL_STYLE = {
     backgroundColor: '#242424',

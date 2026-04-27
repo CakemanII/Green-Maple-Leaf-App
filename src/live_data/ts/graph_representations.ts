@@ -133,6 +133,15 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
     private infoStats!: HTMLDivElement;
     private collectionButtonsContainer!: HTMLDivElement;
     private collectionButtons!: { [collectionKey: string]: HTMLButtonElement };
+
+    // Extra references for editor-side configuration
+    private graphMainEl!: HTMLDivElement;
+    private graphContentEl!: HTMLDivElement;
+    private yAxisSectionEl!: HTMLDivElement;
+    private yAxisTitleEl!: HTMLDivElement;
+    private graphCanvasEl!: HTMLDivElement;
+    private xAxisInfoEl!: HTMLDivElement;
+    private graphInfoEl!: HTMLDivElement;
     
     // Graph configuration
     private title: string;
@@ -222,10 +231,11 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
         // Create the graph row structure
         this.graphRow = document.createElement('div');
         this.graphRow.className = 'graph-row';
-        
+
         // Create graph main section
         const graphMain = document.createElement('div');
         graphMain.className = 'graph-main';
+        this.graphMainEl = graphMain;
         
         // Create header
         const graphHeader = document.createElement('div');
@@ -239,14 +249,17 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
         // Create graph content
         const graphContent = document.createElement('div');
         graphContent.className = 'graph-content';
-        
+        this.graphContentEl = graphContent;
+
         // Y-axis section
         const yAxisSection = document.createElement('div');
         yAxisSection.className = 'y-axis-section';
-        
+        this.yAxisSectionEl = yAxisSection;
+
         const yAxisTitle = document.createElement('div');
         yAxisTitle.className = 'y-axis-title';
         yAxisTitle.textContent = this.unit;
+        this.yAxisTitleEl = yAxisTitle;
         
         this.yAxisLabels = document.createElement('div');
         this.yAxisLabels.className = 'y-axis-labels';
@@ -255,12 +268,9 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
         yAxisSection.appendChild(yAxisTitle);
         yAxisSection.appendChild(this.yAxisLabels);
         
-        // Graph canvas wrapper
-        const canvasWrapper = document.createElement('div');
-        canvasWrapper.className = 'graph-canvas-wrapper';
-        
         const graphCanvas = document.createElement('div');
         graphCanvas.className = 'graph-canvas';
+        this.graphCanvasEl = graphCanvas;
         
         // Create SVG
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -303,30 +313,30 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
         // X-axis info
         const xAxisInfo = document.createElement('div');
         xAxisInfo.className = 'x-axis-info';
-        
+        this.xAxisInfoEl = xAxisInfo;
+
         // Min time label (left side)
         this.xAxisMinLabel = document.createElement('span');
         this.xAxisMinLabel.className = 'x-axis-label-min';
         this.xAxisMinLabel.textContent = '0';
-        
+
         const xAxisTitle = document.createElement('span');
         xAxisTitle.className = 'x-axis-title';
         xAxisTitle.textContent = 'Time (s)';
-        
+
         // Max time label (right side)
         this.xAxisLabel = document.createElement('span');
         this.xAxisLabel.className = 'x-axis-label';
         this.xAxisLabel.textContent = this.timeWindow.toString();
-        
+
         xAxisInfo.appendChild(this.xAxisMinLabel);
         xAxisInfo.appendChild(xAxisTitle);
         xAxisInfo.appendChild(this.xAxisLabel);
-        
-        canvasWrapper.appendChild(graphCanvas);
-        canvasWrapper.appendChild(xAxisInfo);
-        
+
+        // graphCanvas and xAxisInfo are direct children of graphContent (no canvasWrapper)
         graphContent.appendChild(yAxisSection);
-        graphContent.appendChild(canvasWrapper);
+        graphContent.appendChild(graphCanvas);
+        graphContent.appendChild(xAxisInfo);
         
         graphMain.appendChild(graphHeader);
         graphMain.appendChild(graphContent);
@@ -334,6 +344,7 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
         // Create info section
         const graphInfo = document.createElement('div');
         graphInfo.className = 'graph-info';
+        this.graphInfoEl = graphInfo;
         
         const infoTitle = document.createElement('h3');
         infoTitle.textContent = 'Information';
@@ -856,6 +867,45 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
 
     public setOverflowX(overflowMode: LineGraphXOverflowMode): void {
         this.styleSettings.xOverflowMode = overflowMode;
+    }
+
+    public setBackgroundColor(color: string): void {
+        this.graphRow.style.backgroundColor = color;
+        this.graphCanvasEl.style.backgroundColor = color;
+    }
+
+    public setShowInfo(visible: boolean): void {
+        this.graphInfoEl.style.display = visible ? '' : 'none';
+    }
+
+    public setFillHeight(): void {
+        this.graphRow.style.height = '100%';
+        this.graphRow.style.marginBottom = '0';
+        this.graphRow.style.boxSizing = 'border-box';
+        this.graphRow.style.alignItems = 'stretch';
+
+        this.graphMainEl.style.height = '100%';
+
+        // CSS grid aligns yAxisSection exactly with graphCanvas, with xAxisInfo below
+        this.graphContentEl.style.display = 'grid';
+        this.graphContentEl.style.gridTemplateColumns = 'auto 1fr';
+        this.graphContentEl.style.gridTemplateRows = '1fr auto';
+        this.graphContentEl.style.height = '0';
+        this.graphContentEl.style.flex = '1';
+        this.graphContentEl.style.gap = '0 8px';
+
+        this.yAxisSectionEl.style.gridArea = '1 / 1 / 2 / 2';
+        this.yAxisSectionEl.style.height = 'auto';
+        this.yAxisTitleEl.style.height = '100%';
+        this.yAxisLabels.style.height = '100%';
+
+        this.graphCanvasEl.style.gridArea = '1 / 2 / 2 / 3';
+        this.graphCanvasEl.style.height = 'auto';
+
+        this.xAxisInfoEl.style.gridArea = '2 / 2 / 3 / 3';
+
+        this.graphInfoEl.style.height = '100%';
+        this.graphInfoEl.style.boxSizing = 'border-box';
     }
 }
 

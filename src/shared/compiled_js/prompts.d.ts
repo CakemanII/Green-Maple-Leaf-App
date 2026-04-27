@@ -80,6 +80,24 @@ export declare class ColorPickerPrompt extends PopoutMenuPrompt {
     private drawSelector;
     private updateColorFromCanvas;
 }
+export declare class TelemetryLabelSelectorPrompt extends PopoutMenuPrompt {
+    private telemetryDict;
+    private categorySelect;
+    private typeSelect;
+    private unitSelect;
+    private observerSelect;
+    private cascadeRow;
+    private addBtn;
+    private loadingEl;
+    constructor(clickEvent: MouseEvent, onConfirm: (key: string) => void, onCancel: () => void);
+    private initializePrimaryDOM;
+    private fetchTelemetryTypes;
+    private populateCategorySelect;
+    private repopulateTypes;
+    private populateObserver;
+    private repopulateUnits;
+    private attachCascadeListeners;
+}
 /**
  * Input prompt with customizable text, confirm/cancel callbacks, and input validation
  */

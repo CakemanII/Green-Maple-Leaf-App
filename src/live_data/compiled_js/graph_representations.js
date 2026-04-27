@@ -138,6 +138,7 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
         // Create graph main section
         const graphMain = document.createElement('div');
         graphMain.className = 'graph-main';
+        this.graphMainEl = graphMain;
         // Create header
         const graphHeader = document.createElement('div');
         graphHeader.className = 'graph-header';
@@ -148,22 +149,23 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
         // Create graph content
         const graphContent = document.createElement('div');
         graphContent.className = 'graph-content';
+        this.graphContentEl = graphContent;
         // Y-axis section
         const yAxisSection = document.createElement('div');
         yAxisSection.className = 'y-axis-section';
+        this.yAxisSectionEl = yAxisSection;
         const yAxisTitle = document.createElement('div');
         yAxisTitle.className = 'y-axis-title';
         yAxisTitle.textContent = this.unit;
+        this.yAxisTitleEl = yAxisTitle;
         this.yAxisLabels = document.createElement('div');
         this.yAxisLabels.className = 'y-axis-labels';
         this.updateYAxisLabels();
         yAxisSection.appendChild(yAxisTitle);
         yAxisSection.appendChild(this.yAxisLabels);
-        // Graph canvas wrapper
-        const canvasWrapper = document.createElement('div');
-        canvasWrapper.className = 'graph-canvas-wrapper';
         const graphCanvas = document.createElement('div');
         graphCanvas.className = 'graph-canvas';
+        this.graphCanvasEl = graphCanvas;
         // Create SVG
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('class', 'graph-svg');
@@ -199,6 +201,7 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
         // X-axis info
         const xAxisInfo = document.createElement('div');
         xAxisInfo.className = 'x-axis-info';
+        this.xAxisInfoEl = xAxisInfo;
         // Min time label (left side)
         this.xAxisMinLabel = document.createElement('span');
         this.xAxisMinLabel.className = 'x-axis-label-min';
@@ -213,15 +216,16 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
         xAxisInfo.appendChild(this.xAxisMinLabel);
         xAxisInfo.appendChild(xAxisTitle);
         xAxisInfo.appendChild(this.xAxisLabel);
-        canvasWrapper.appendChild(graphCanvas);
-        canvasWrapper.appendChild(xAxisInfo);
+        // graphCanvas and xAxisInfo are direct children of graphContent (no canvasWrapper)
         graphContent.appendChild(yAxisSection);
-        graphContent.appendChild(canvasWrapper);
+        graphContent.appendChild(graphCanvas);
+        graphContent.appendChild(xAxisInfo);
         graphMain.appendChild(graphHeader);
         graphMain.appendChild(graphContent);
         // Create info section
         const graphInfo = document.createElement('div');
         graphInfo.className = 'graph-info';
+        this.graphInfoEl = graphInfo;
         const infoTitle = document.createElement('h3');
         infoTitle.textContent = 'Information';
         // Create collection buttons container
@@ -668,6 +672,36 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
     }
     setOverflowX(overflowMode) {
         this.styleSettings.xOverflowMode = overflowMode;
+    }
+    setBackgroundColor(color) {
+        this.graphRow.style.backgroundColor = color;
+        this.graphCanvasEl.style.backgroundColor = color;
+    }
+    setShowInfo(visible) {
+        this.graphInfoEl.style.display = visible ? '' : 'none';
+    }
+    setFillHeight() {
+        this.graphRow.style.height = '100%';
+        this.graphRow.style.marginBottom = '0';
+        this.graphRow.style.boxSizing = 'border-box';
+        this.graphRow.style.alignItems = 'stretch';
+        this.graphMainEl.style.height = '100%';
+        // CSS grid aligns yAxisSection exactly with graphCanvas, with xAxisInfo below
+        this.graphContentEl.style.display = 'grid';
+        this.graphContentEl.style.gridTemplateColumns = 'auto 1fr';
+        this.graphContentEl.style.gridTemplateRows = '1fr auto';
+        this.graphContentEl.style.height = '0';
+        this.graphContentEl.style.flex = '1';
+        this.graphContentEl.style.gap = '0 8px';
+        this.yAxisSectionEl.style.gridArea = '1 / 1 / 2 / 2';
+        this.yAxisSectionEl.style.height = 'auto';
+        this.yAxisTitleEl.style.height = '100%';
+        this.yAxisLabels.style.height = '100%';
+        this.graphCanvasEl.style.gridArea = '1 / 2 / 2 / 3';
+        this.graphCanvasEl.style.height = 'auto';
+        this.xAxisInfoEl.style.gridArea = '2 / 2 / 3 / 3';
+        this.graphInfoEl.style.height = '100%';
+        this.graphInfoEl.style.boxSizing = 'border-box';
     }
 }
 // Default line style

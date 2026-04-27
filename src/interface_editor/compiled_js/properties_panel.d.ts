@@ -10,10 +10,13 @@ export declare class PropertiesPanel {
     constructor(container: HTMLDivElement);
     setSelectedObject(obj: InterfaceObject | null, canvas: EditorCanvas): void;
     clearSelection(): void;
+    updateLivePosition(obj: InterfaceObject): void;
     private render;
     private renderNoSelection;
     private renderCommonProperties;
     private renderLineGraphProperties;
+    private readonly LABEL_COLORS;
+    private buildLabelRows;
     private renderPanelProperties;
     private attachEventListeners;
     private attachPanelEventListeners;

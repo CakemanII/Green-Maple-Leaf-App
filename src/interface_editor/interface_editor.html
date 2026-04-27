@@ -6,6 +6,7 @@
     <title>Interface Editor</title>
     <link rel="stylesheet" href="css/interface_editor.css">
     <link rel="stylesheet" href="../shared/css/prompts.css">
+    <link rel="stylesheet" href="../live_data/css/live_data.css">
 </head>
 <body>
     <!-- Main Content Area -->
@@ -90,31 +91,26 @@
     <!-- Canvas Auto-Scaling Script -->
     <script>
         function scaleCanvas() {
+            const area = document.querySelector('.canvas-area');
             const wrapper = document.querySelector('.canvas-wrapper');
             const canvas = document.getElementById('editor-canvas');
-            
-            if (!wrapper || !canvas) return;
-            
-            const wrapperRect = wrapper.getBoundingClientRect();
-            const availableWidth = wrapperRect.width - 16; // Account for padding
-            const availableHeight = wrapperRect.height - 16;
-            
-            const canvasWidth = 1920;
-            const canvasHeight = 1080;
-            
-            // Calculate scale to fit both dimensions
-            const scaleX = availableWidth / canvasWidth;
-            const scaleY = availableHeight / canvasHeight;
-            const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
-            
+            if (!area || !wrapper || !canvas) return;
+
+            const availW = area.clientWidth;
+            const availH = area.clientHeight;
+            const scale = Math.min(availW / 1920, availH / 1080);
+
+            // Set wrapper to exactly the visual size of the scaled canvas
+            wrapper.style.width  = Math.round(1920 * scale) + 'px';
+            wrapper.style.height = Math.round(1080 * scale) + 'px';
+
+            // Scale canvas from top-left so it fills wrapper exactly
+            canvas.style.transformOrigin = 'top left';
             canvas.style.transform = `scale(${scale})`;
         }
-        
-        // Scale on load and resize
+
         window.addEventListener('load', scaleCanvas);
         window.addEventListener('resize', scaleCanvas);
-        
-        // Also scale after a short delay to ensure layout is complete
         setTimeout(scaleCanvas, 100);
         setTimeout(scaleCanvas, 500);
     </script>

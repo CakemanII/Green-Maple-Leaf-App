@@ -46,6 +46,12 @@ export type GraphStyle = {
     lineColors: {
         [key: string]: string;
     };
+    labelDisplayNames: {
+        [key: string]: string;
+    };
+    labelUnits: {
+        [key: string]: string;
+    };
     axisLabels: boolean;
     grid: boolean;
     yMin: number;
@@ -66,6 +72,7 @@ export type GraphStyle = {
     legendPosition: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight' | 'none';
     xOverflowMode: 'ShiftGraph' | 'ScaleAxis' | 'None';
     yOverflowMode: 'ScaleAxis' | 'None';
+    showInfo: boolean;
 };
 export type PanelStyle = {
     backgroundColor: string;

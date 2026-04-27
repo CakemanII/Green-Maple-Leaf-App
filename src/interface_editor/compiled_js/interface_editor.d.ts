@@ -29,6 +29,7 @@ export declare class InterfaceEditor {
     duplicateScreen(uuid: string): void;
     private handleSave;
     private handleLoad;
+    private openLoadDialog;
     private handleRevert;
     private validateCollection;
     markDirty(): void;

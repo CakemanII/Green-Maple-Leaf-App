@@ -165,3 +165,171 @@
 .color-picker-confirm-btn:active {
     background-color: #497acc;
 }
+
+/* ---- Telemetry Label Selector ---- */
+
+.telemetry-label-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 300px;
+    padding: 12px;
+    box-sizing: border-box;
+}
+
+.telemetry-label-section-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0;
+}
+
+.telemetry-label-cascade-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.telemetry-label-select {
+    width: 100%;
+    padding: 5px 8px;
+    background-color: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #ffffff;
+    font-size: 0.78rem;
+    font-family: inherit;
+    cursor: pointer;
+    appearance: none;
+    box-sizing: border-box;
+}
+
+.telemetry-label-select:focus {
+    outline: none;
+    border-color: #6ba3ff;
+}
+
+.telemetry-label-select:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.telemetry-label-add-btn {
+    width: 100%;
+    padding: 6px 10px;
+    background-color: #6ba3ff;
+    color: #181a1b;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    box-sizing: border-box;
+}
+
+.telemetry-label-add-btn:hover:not(:disabled) {
+    background-color: #5a92ee;
+}
+
+.telemetry-label-add-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.telemetry-label-loading {
+    font-size: 0.78rem;
+    color: #888;
+    text-align: center;
+    padding: 6px 0;
+    margin: 0;
+}
+
+.telemetry-label-divider {
+    height: 1px;
+    background-color: #333;
+    border: none;
+    margin: 0;
+}
+
+.telemetry-label-chips-area {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 150px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.telemetry-label-chips-area::-webkit-scrollbar {
+    width: 5px;
+}
+
+.telemetry-label-chips-area::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+.telemetry-label-chips-area::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 3px;
+}
+
+.telemetry-label-empty {
+    font-size: 0.78rem;
+    color: #666;
+    font-style: italic;
+}
+
+.telemetry-label-chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    background-color: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+
+.telemetry-label-chip-text {
+    font-size: 0.74rem;
+    font-family: 'Courier New', Courier, monospace;
+    color: #6ba3ff;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.telemetry-label-chip-remove {
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+
+.telemetry-label-chip-remove:hover {
+    color: #ef4444;
+}
+
+.telemetry-label-confirm-btn {
+    width: 100%;
+    padding: 7px 10px;
+    background-color: #6ba3ff;
+    color: #181a1b;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    box-sizing: border-box;
+}
+
+.telemetry-label-confirm-btn:hover {
+    background-color: #5a92ee;
+}

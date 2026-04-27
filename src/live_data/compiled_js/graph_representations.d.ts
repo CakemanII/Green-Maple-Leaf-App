@@ -74,6 +74,13 @@ export declare class LineGraphRepresentation extends GraphicalRepresentation {
     private infoStats;
     private collectionButtonsContainer;
     private collectionButtons;
+    private graphMainEl;
+    private graphContentEl;
+    private yAxisSectionEl;
+    private yAxisTitleEl;
+    private graphCanvasEl;
+    private xAxisInfoEl;
+    private graphInfoEl;
     private title;
     private unit;
     private yMin;
@@ -111,6 +118,9 @@ export declare class LineGraphRepresentation extends GraphicalRepresentation {
     private updateVisualStyleForCollection;
     setOverflowY(overflowMode: LineGraphYOverflowMode): void;
     setOverflowX(overflowMode: LineGraphXOverflowMode): void;
+    setBackgroundColor(color: string): void;
+    setShowInfo(visible: boolean): void;
+    setFillHeight(): void;
 }
 export type BarStyle = {
     color: string;

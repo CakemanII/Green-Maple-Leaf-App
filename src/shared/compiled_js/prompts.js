@@ -632,6 +632,170 @@ export class ColorPickerPrompt extends PopoutMenuPrompt {
         this.drawSelector();
     }
 }
+export class TelemetryLabelSelectorPrompt extends PopoutMenuPrompt {
+    constructor(clickEvent, onConfirm, onCancel) {
+        super(onConfirm, onCancel);
+        this.telemetryDict = null;
+        this.initializePrimaryDOM();
+        this.fetchTelemetryTypes();
+        requestAnimationFrame(() => this.positionPrompt(clickEvent));
+    }
+    initializePrimaryDOM() {
+        this.promptContentContainer.style.flexDirection = 'column';
+        this.promptContentContainer.style.padding = '0';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'telemetry-label-selector';
+        const title = document.createElement('p');
+        title.className = 'telemetry-label-section-title';
+        title.textContent = 'Add Telemetry Label';
+        this.loadingEl = document.createElement('p');
+        this.loadingEl.className = 'telemetry-label-loading';
+        this.loadingEl.textContent = 'Loading telemetry types…';
+        this.cascadeRow = document.createElement('div');
+        this.cascadeRow.className = 'telemetry-label-cascade-row';
+        this.cascadeRow.style.display = 'none';
+        this.categorySelect = document.createElement('select');
+        this.categorySelect.className = 'telemetry-label-select';
+        this.categorySelect.innerHTML = '<option value="" disabled selected>Category…</option>';
+        this.typeSelect = document.createElement('select');
+        this.typeSelect.className = 'telemetry-label-select';
+        this.typeSelect.innerHTML = '<option value="" disabled selected>Type…</option>';
+        this.typeSelect.disabled = true;
+        this.unitSelect = document.createElement('select');
+        this.unitSelect.className = 'telemetry-label-select';
+        this.unitSelect.innerHTML = '<option value="" disabled selected>Subfield…</option>';
+        this.unitSelect.style.display = 'none';
+        this.observerSelect = document.createElement('select');
+        this.observerSelect.className = 'telemetry-label-select';
+        this.observerSelect.innerHTML = '<option value="" disabled selected>Observer…</option>';
+        this.observerSelect.style.display = 'none';
+        this.addBtn = document.createElement('button');
+        this.addBtn.className = 'telemetry-label-add-btn';
+        this.addBtn.textContent = 'Add Label';
+        this.addBtn.disabled = true;
+        this.cascadeRow.appendChild(this.categorySelect);
+        this.cascadeRow.appendChild(this.typeSelect);
+        this.cascadeRow.appendChild(this.unitSelect);
+        this.cascadeRow.appendChild(this.observerSelect);
+        this.cascadeRow.appendChild(this.addBtn);
+        wrapper.appendChild(title);
+        wrapper.appendChild(this.loadingEl);
+        wrapper.appendChild(this.cascadeRow);
+        this.promptContentContainer.appendChild(wrapper);
+        this.attachCascadeListeners();
+    }
+    async fetchTelemetryTypes() {
+        try {
+            const response = await fetch('/telemetry/get_types', { method: 'GET' });
+            if (!response.ok)
+                throw new Error(`HTTP ${response.status}`);
+            const result = await response.json();
+            this.telemetryDict = typeof result === 'string' ? JSON.parse(result) : result;
+            this.populateCategorySelect();
+            this.loadingEl.style.display = 'none';
+            this.cascadeRow.style.display = '';
+        }
+        catch (e) {
+            this.loadingEl.textContent = 'Failed to load telemetry types.';
+        }
+    }
+    populateCategorySelect() {
+        this.categorySelect.innerHTML = '<option value="" disabled selected>Category…</option>';
+        for (const cat of Object.keys(this.telemetryDict)) {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat;
+            this.categorySelect.appendChild(opt);
+        }
+    }
+    repopulateTypes(category) {
+        this.typeSelect.innerHTML = '<option value="" disabled selected>Type…</option>';
+        this.typeSelect.disabled = false;
+        this.unitSelect.innerHTML = '<option value="" disabled selected>Subfield…</option>';
+        this.unitSelect.style.display = 'none';
+        this.observerSelect.value = '';
+        this.observerSelect.style.display = 'none';
+        this.addBtn.disabled = true;
+        const types = this.telemetryDict[category];
+        if (!types)
+            return;
+        for (const typeName of Object.keys(types)) {
+            const opt = document.createElement('option');
+            opt.value = typeName;
+            opt.textContent = typeName;
+            this.typeSelect.appendChild(opt);
+        }
+    }
+    populateObserver(valueType) {
+        this.observerSelect.innerHTML = '<option value="" disabled selected>Observer…</option>';
+        if (valueType === 'number') {
+            for (const [val, label] of [['current', 'Current'], ['mean', 'Mean'], ['min', 'Min'], ['max', 'Max'], ['all', 'All']]) {
+                const opt = document.createElement('option');
+                opt.value = val;
+                opt.textContent = label;
+                this.observerSelect.appendChild(opt);
+            }
+        }
+        else {
+            const opt = document.createElement('option');
+            opt.value = 'current';
+            opt.textContent = 'Current';
+            this.observerSelect.appendChild(opt);
+        }
+        this.observerSelect.style.display = '';
+        this.addBtn.disabled = true;
+    }
+    repopulateUnits(category, type) {
+        var _a, _b;
+        this.unitSelect.innerHTML = '<option value="" disabled selected>Subfield…</option>';
+        this.observerSelect.innerHTML = '<option value="" disabled selected>Observer…</option>';
+        this.observerSelect.style.display = 'none';
+        this.addBtn.disabled = true;
+        const typeData = (_b = (_a = this.telemetryDict) === null || _a === void 0 ? void 0 : _a[category]) === null || _b === void 0 ? void 0 : _b[type];
+        if (typeData !== null && typeof typeData === 'object' && !Array.isArray(typeData)) {
+            // Vector type — show subfield first; observer populates after subfield chosen
+            for (const sub of Object.keys(typeData)) {
+                const opt = document.createElement('option');
+                opt.value = sub;
+                opt.textContent = sub;
+                this.unitSelect.appendChild(opt);
+            }
+            this.unitSelect.style.display = '';
+        }
+        else {
+            // Scalar — populate observer based on value type
+            this.unitSelect.style.display = 'none';
+            this.populateObserver(typeof typeData === 'string' ? typeData : 'unknown');
+        }
+    }
+    attachCascadeListeners() {
+        this.categorySelect.addEventListener('change', () => {
+            this.repopulateTypes(this.categorySelect.value);
+        });
+        this.typeSelect.addEventListener('change', () => {
+            this.repopulateUnits(this.categorySelect.value, this.typeSelect.value);
+        });
+        this.unitSelect.addEventListener('change', () => {
+            var _a, _b;
+            // Subfield chosen — look up its type and populate observer accordingly
+            const typeData = (_b = (_a = this.telemetryDict) === null || _a === void 0 ? void 0 : _a[this.categorySelect.value]) === null || _b === void 0 ? void 0 : _b[this.typeSelect.value];
+            const subType = (typeData && typeof typeData === 'object') ? typeData[this.unitSelect.value] : 'unknown';
+            this.populateObserver(typeof subType === 'string' ? subType : 'unknown');
+        });
+        this.observerSelect.addEventListener('change', () => {
+            this.addBtn.disabled = this.observerSelect.value === '';
+        });
+        this.addBtn.addEventListener('click', () => {
+            const cat = this.categorySelect.value;
+            const type = this.typeSelect.value;
+            const unitVisible = this.unitSelect.style.display !== 'none';
+            const unitPart = (unitVisible && this.unitSelect.value) ? this.unitSelect.value : 'single';
+            const observer = this.observerSelect.value;
+            this.onConfirm(`${cat}.${type}.${unitPart}.${observer}`);
+            this.closePrompt();
+        });
+    }
+}
 // #endregion
 /**
  * Input prompt with customizable text, confirm/cancel callbacks, and input validation

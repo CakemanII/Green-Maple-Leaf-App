@@ -4,6 +4,7 @@
 
 import type { InterfaceObject } from './types.js';
 import { EditorCanvas } from './editor_canvas.js';
+import { TelemetryLabelSelectorPrompt, ColorPickerPrompt } from '../../shared/compiled_js/prompts.js';
 
 export class PropertiesPanel {
     private container: HTMLDivElement;
@@ -23,6 +24,17 @@ export class PropertiesPanel {
     public clearSelection(): void {
         this.selectedObject = null;
         this.render();
+    }
+
+    public updateLivePosition(obj: InterfaceObject): void {
+        const xEl = document.getElementById('prop-x') as HTMLInputElement | null;
+        const yEl = document.getElementById('prop-y') as HTMLInputElement | null;
+        const wEl = document.getElementById('prop-width') as HTMLInputElement | null;
+        const hEl = document.getElementById('prop-height') as HTMLInputElement | null;
+        if (xEl) xEl.value = obj.position.x.toFixed(1);
+        if (yEl) yEl.value = obj.position.y.toFixed(1);
+        if (wEl) wEl.value = obj.size.width.toFixed(1);
+        if (hEl) hEl.value = obj.size.height.toFixed(1);
     }
 
     private render(): void {
@@ -66,7 +78,7 @@ export class PropertiesPanel {
             </div>
             <div class="property-group">
                 <label class="property-label">Type</label>
-                <input type="text" class="property-input" value="${this.selectedObject.type}" readonly>
+                <div class="property-input property-readonly">${this.selectedObject.type}</div>
             </div>
             <div class="property-row">
                 <div class="property-group">
@@ -89,6 +101,10 @@ export class PropertiesPanel {
                 </div>
             </div>
             <div class="property-group">
+                <label class="property-label">Scale (%)</label>
+                <input type="number" class="property-input" id="prop-scale" value="${(this.selectedObject.scale ?? 100).toFixed(0)}" step="5" min="0" max="300">
+            </div>
+            <div class="property-group">
                 <label class="property-label">Z-Order</label>
                 <div class="property-row">
                     <button class="property-button" id="prop-to-front">To Front</button>
@@ -105,15 +121,16 @@ export class PropertiesPanel {
         const obj = this.selectedObject as any;
         return `
             <div class="property-group">
-                <label class="property-label">Monitor Data Keys</label>
-                <div style="padding: 8px; background: #242424; border: 1px solid #333; border-radius: 4px; font-size: 0.85rem; color: #888;">
-                    ${obj.monitorDataKeys.length} labels selected<br>
-                    <small>(Telemetry label selector coming soon)</small>
-                </div>
+                <label class="property-label">Data Labels</label>
+                <div class="prop-label-rows" id="prop-label-rows"></div>
+                <button class="prop-add-label-btn" id="prop-add-label-btn">+ Add Label</button>
             </div>
             <div class="property-group">
                 <label class="property-label">Background Color</label>
-                <input type="color" class="property-input" id="prop-bg-color" value="${obj.graphStyle.backgroundColor}">
+                <div class="prop-color-row" id="prop-bg-color-row">
+                    <div class="prop-color-swatch-large" id="prop-bg-color-swatch" style="background-color:${obj.graphStyle.backgroundColor}"></div>
+                    <span class="prop-color-hex" id="prop-bg-color-hex">${obj.graphStyle.backgroundColor}</span>
+                </div>
             </div>
             <div class="property-row">
                 <div class="property-group">
@@ -132,6 +149,10 @@ export class PropertiesPanel {
             <div class="property-group">
                 <label class="property-label">Unit</label>
                 <input type="text" class="property-input" id="prop-unit" value="${obj.graphStyle.unit || ''}" placeholder="e.g., m/s, °C">
+            </div>
+            <div class="property-group">
+                <label class="property-label">Show Info Panel</label>
+                <input type="checkbox" id="prop-show-info" ${obj.graphStyle.showInfo !== false ? 'checked' : ''}>
             </div>
             <div class="property-row">
                 <div class="property-group">
@@ -153,16 +174,181 @@ export class PropertiesPanel {
         `;
     }
 
+    private readonly LABEL_COLORS = [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
+        '#98D8C8', '#F7DC6F', '#BB8FCE', '#6ba3ff'
+    ];
+
+    private buildLabelRows(obj: any): void {
+        const container = document.getElementById('prop-label-rows');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const keys: string[] = obj.monitorDataKeys ?? [];
+
+        if (keys.length === 0) {
+            const empty = document.createElement('span');
+            empty.className = 'prop-label-empty';
+            empty.textContent = 'No labels added';
+            container.appendChild(empty);
+            return;
+        }
+
+        let draggedIndex: number | null = null;
+
+        keys.forEach((key: string, index: number) => {
+            // Ensure color is persisted: if not in lineColors, assign and store it
+            if (!obj.graphStyle.lineColors) {
+                obj.graphStyle.lineColors = {};
+            }
+            if (!obj.graphStyle.lineColors[key]) {
+                obj.graphStyle.lineColors[key] = this.LABEL_COLORS[index % this.LABEL_COLORS.length];
+            }
+            const color: string = obj.graphStyle.lineColors[key];
+            const displayName: string = obj.graphStyle.labelDisplayNames?.[key] ?? '';
+            const unit: string = obj.graphStyle.labelUnits?.[key] ?? '';
+
+            const row = document.createElement('div');
+            row.className = 'prop-label-row';
+            row.draggable = true;
+
+            // — Header row: drag | swatch | key text | remove —
+            const header = document.createElement('div');
+            header.className = 'prop-label-row-header';
+
+            const handle = document.createElement('span');
+            handle.className = 'prop-label-drag-handle';
+            handle.textContent = '⠿';
+            handle.title = 'Drag to reorder';
+
+            const swatch = document.createElement('div');
+            swatch.className = 'prop-label-color-swatch';
+            swatch.style.backgroundColor = color;
+            swatch.title = 'Click to change color';
+            swatch.addEventListener('click', (e: MouseEvent) => {
+                new ColorPickerPrompt(
+                    obj.graphStyle.lineColors?.[key] || color,
+                    e,
+                    (newColor: string) => {
+                        if (!obj.graphStyle.lineColors) obj.graphStyle.lineColors = {};
+                        obj.graphStyle.lineColors[key] = newColor;
+                        this.canvas!.updateSelectedObject();
+                        this.buildLabelRows(obj);
+                    },
+                    (liveColor: string) => {
+                        swatch.style.backgroundColor = liveColor;
+                        if (!obj.graphStyle.lineColors) obj.graphStyle.lineColors = {};
+                        obj.graphStyle.lineColors[key] = liveColor;
+                        this.canvas!.updateSelectedObject();
+                    },
+                    () => {}
+                );
+            });
+
+            const keyText = document.createElement('span');
+            keyText.className = 'prop-label-key-text';
+            keyText.textContent = key;
+            keyText.title = key;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'prop-label-remove-btn';
+            removeBtn.textContent = '×';
+            removeBtn.title = 'Remove';
+            removeBtn.addEventListener('click', () => {
+                obj.monitorDataKeys = keys.filter((_: string, i: number) => i !== index);
+                if (obj.graphStyle.lineColors) delete obj.graphStyle.lineColors[key];
+                if (obj.graphStyle.labelDisplayNames) delete obj.graphStyle.labelDisplayNames[key];
+                if (obj.graphStyle.labelUnits) delete obj.graphStyle.labelUnits[key];
+                this.canvas!.updateSelectedObject();
+                this.buildLabelRows(obj);
+            });
+
+            header.appendChild(handle);
+            header.appendChild(swatch);
+            header.appendChild(keyText);
+            header.appendChild(removeBtn);
+
+            // — Inputs row: display name | unit —
+            const inputs = document.createElement('div');
+            inputs.className = 'prop-label-row-inputs';
+
+            const nameInput = document.createElement('input');
+            nameInput.className = 'prop-label-input';
+            nameInput.type = 'text';
+            nameInput.value = displayName;
+            nameInput.placeholder = 'Label name…';
+            nameInput.addEventListener('input', () => {
+                if (!obj.graphStyle.labelDisplayNames) obj.graphStyle.labelDisplayNames = {};
+                obj.graphStyle.labelDisplayNames[key] = nameInput.value;
+                this.canvas!.updateSelectedObject();
+            });
+
+            const unitInput = document.createElement('input');
+            unitInput.className = 'prop-label-input prop-label-unit-input';
+            unitInput.type = 'text';
+            unitInput.value = unit;
+            unitInput.placeholder = 'Unit…';
+            unitInput.addEventListener('input', () => {
+                if (!obj.graphStyle.labelUnits) obj.graphStyle.labelUnits = {};
+                obj.graphStyle.labelUnits[key] = unitInput.value;
+                this.canvas!.updateSelectedObject();
+            });
+
+            inputs.appendChild(nameInput);
+            inputs.appendChild(unitInput);
+
+            row.appendChild(header);
+            row.appendChild(inputs);
+            container.appendChild(row);
+
+            // — Drag-and-drop reordering —
+            row.addEventListener('dragstart', (e: DragEvent) => {
+                draggedIndex = index;
+                row.classList.add('dragging');
+                e.dataTransfer!.effectAllowed = 'move';
+            });
+            row.addEventListener('dragend', () => {
+                row.classList.remove('dragging');
+                draggedIndex = null;
+            });
+            row.addEventListener('dragover', (e: DragEvent) => {
+                e.preventDefault();
+                e.dataTransfer!.dropEffect = 'move';
+                row.classList.add('drag-over');
+            });
+            row.addEventListener('dragleave', () => {
+                row.classList.remove('drag-over');
+            });
+            row.addEventListener('drop', (e: DragEvent) => {
+                e.preventDefault();
+                row.classList.remove('drag-over');
+                if (draggedIndex === null || draggedIndex === index) return;
+                const arr: string[] = obj.monitorDataKeys;
+                const item = arr.splice(draggedIndex, 1)[0];
+                const insertAt = draggedIndex < index ? index - 1 : index;
+                arr.splice(insertAt, 0, item);
+                this.canvas!.updateSelectedObject();
+                this.buildLabelRows(obj);
+            });
+        });
+    }
+
     private renderPanelProperties(): string {
         const obj = this.selectedObject as any;
         return `
             <div class="property-group">
                 <label class="property-label">Background Color</label>
-                <input type="color" class="property-input" id="prop-bg-color" value="${obj.style.backgroundColor}">
+                <div class="prop-color-row" id="prop-bg-color-row">
+                    <div class="prop-color-swatch-large" id="prop-bg-color-swatch" style="background-color:${obj.style.backgroundColor}"></div>
+                    <span class="prop-color-hex" id="prop-bg-color-hex">${obj.style.backgroundColor}</span>
+                </div>
             </div>
             <div class="property-group">
                 <label class="property-label">Border Color</label>
-                <input type="color" class="property-input" id="prop-border-color" value="${obj.style.borderColor}">
+                <div class="prop-color-row" id="prop-border-color-row">
+                    <div class="prop-color-swatch-large" id="prop-border-color-swatch" style="background-color:${obj.style.borderColor}"></div>
+                    <span class="prop-color-hex" id="prop-border-color-hex">${obj.style.borderColor}</span>
+                </div>
             </div>
             <div class="property-row">
                 <div class="property-group">
@@ -221,6 +407,14 @@ export class PropertiesPanel {
             }
         });
 
+        const scaleInput = document.getElementById('prop-scale') as HTMLInputElement;
+        scaleInput?.addEventListener('input', () => {
+            if (this.selectedObject) {
+                this.selectedObject.scale = parseFloat(scaleInput.value);
+                this.canvas!.updateSelectedObject();
+            }
+        });
+
         // Z-order buttons
         document.getElementById('prop-to-front')?.addEventListener('click', () => {
             if (this.selectedObject && this.canvas && this.canvas.currentScreen) {
@@ -253,17 +447,53 @@ export class PropertiesPanel {
 
     private attachPanelEventListeners(): void {
         const obj = this.selectedObject as any;
-        
-        const bgColor = document.getElementById('prop-bg-color') as HTMLInputElement;
-        bgColor?.addEventListener('input', () => {
-            obj.style.backgroundColor = bgColor.value;
-            this.canvas!.updateSelectedObject();
+
+        const bgRow = document.getElementById('prop-bg-color-row');
+        const bgSwatch = document.getElementById('prop-bg-color-swatch');
+        const bgHex = document.getElementById('prop-bg-color-hex');
+        bgRow?.addEventListener('click', (e: MouseEvent) => {
+            new ColorPickerPrompt(
+                obj.style.backgroundColor,
+                e,
+                (newColor: string) => {
+                    obj.style.backgroundColor = newColor;
+                    if (bgSwatch) bgSwatch.style.backgroundColor = newColor;
+                    if (bgHex) bgHex.textContent = newColor;
+                    this.canvas!.updateSelectedObject();
+                },
+                (liveColor: string) => {
+                    obj.style.backgroundColor = liveColor;
+                    if (bgSwatch) bgSwatch.style.backgroundColor = liveColor;
+                    if (bgHex) bgHex.textContent = liveColor;
+                    const el = this.canvas!.getObjectElement(obj.uuid);
+                    if (el) el.style.backgroundColor = liveColor;
+                },
+                () => {}
+            );
         });
 
-        const borderColor = document.getElementById('prop-border-color') as HTMLInputElement;
-        borderColor?.addEventListener('input', () => {
-            obj.style.borderColor = borderColor.value;
-            this.canvas!.updateSelectedObject();
+        const borderRow = document.getElementById('prop-border-color-row');
+        const borderSwatch = document.getElementById('prop-border-color-swatch');
+        const borderHex = document.getElementById('prop-border-color-hex');
+        borderRow?.addEventListener('click', (e: MouseEvent) => {
+            new ColorPickerPrompt(
+                obj.style.borderColor,
+                e,
+                (newColor: string) => {
+                    obj.style.borderColor = newColor;
+                    if (borderSwatch) borderSwatch.style.backgroundColor = newColor;
+                    if (borderHex) borderHex.textContent = newColor;
+                    this.canvas!.updateSelectedObject();
+                },
+                (liveColor: string) => {
+                    obj.style.borderColor = liveColor;
+                    if (borderSwatch) borderSwatch.style.backgroundColor = liveColor;
+                    if (borderHex) borderHex.textContent = liveColor;
+                    const el = this.canvas!.getObjectElement(obj.uuid);
+                    if (el) el.style.borderColor = liveColor;
+                },
+                () => {}
+            );
         });
 
         const borderWidth = document.getElementById('prop-border-width') as HTMLInputElement;
@@ -281,11 +511,48 @@ export class PropertiesPanel {
 
     private attachLineGraphEventListeners(): void {
         const obj = this.selectedObject as any;
-        
-        const bgColor = document.getElementById('prop-bg-color') as HTMLInputElement;
-        bgColor?.addEventListener('input', () => {
-            obj.graphStyle.backgroundColor = bgColor.value;
-            this.canvas!.updateSelectedObject();
+
+        // Build the label rows immediately (DOM-based, not HTML string)
+        this.buildLabelRows(obj);
+
+        // Add Label button — opens the telemetry selector prompt
+        document.getElementById('prop-add-label-btn')?.addEventListener('click', (e: MouseEvent) => {
+            new TelemetryLabelSelectorPrompt(
+                e,
+                (key: string) => {
+                    if (!obj.monitorDataKeys) obj.monitorDataKeys = [];
+                    if (!obj.monitorDataKeys.includes(key)) {
+                        obj.monitorDataKeys.push(key);
+                        this.canvas!.updateSelectedObject();
+                        this.buildLabelRows(obj);
+                    }
+                },
+                () => {}
+            );
+        });
+
+        // Graph style properties
+        const bgRow = document.getElementById('prop-bg-color-row');
+        const bgSwatch = document.getElementById('prop-bg-color-swatch');
+        const bgHex = document.getElementById('prop-bg-color-hex');
+        bgRow?.addEventListener('click', (e: MouseEvent) => {
+            new ColorPickerPrompt(
+                obj.graphStyle.backgroundColor,
+                e,
+                (newColor: string) => {
+                    obj.graphStyle.backgroundColor = newColor;
+                    if (bgSwatch) bgSwatch.style.backgroundColor = newColor;
+                    if (bgHex) bgHex.textContent = newColor;
+                    this.canvas!.updateSelectedObject();
+                },
+                (liveColor: string) => {
+                    obj.graphStyle.backgroundColor = liveColor;
+                    if (bgSwatch) bgSwatch.style.backgroundColor = liveColor;
+                    if (bgHex) bgHex.textContent = liveColor;
+                    this.canvas!.setGraphBackgroundColor(obj.uuid, liveColor);
+                },
+                () => {}
+            );
         });
 
         const yMin = document.getElementById('prop-y-min') as HTMLInputElement;
@@ -302,14 +569,35 @@ export class PropertiesPanel {
 
         const timeWindow = document.getElementById('prop-time-window') as HTMLInputElement;
         timeWindow?.addEventListener('input', () => {
-            obj.graphStyle.timeWindow = parseInt(timeWindow.value);
+            let value = parseInt(timeWindow.value);
+            if (value <= 0) {
+                value = 1;
+                timeWindow.value = '1';
+            }
+            obj.graphStyle.timeWindow = value;
             this.canvas!.updateSelectedObject();
+        });
+
+        timeWindow?.addEventListener('blur', () => {
+            let value = parseInt(timeWindow.value);
+            if (value <= 0) {
+                value = 1;
+                timeWindow.value = '1';
+                obj.graphStyle.timeWindow = value;
+                this.canvas!.updateSelectedObject();
+            }
         });
 
         const unit = document.getElementById('prop-unit') as HTMLInputElement;
         unit?.addEventListener('input', () => {
             obj.graphStyle.unit = unit.value;
             this.canvas!.updateSelectedObject();
+        });
+
+        const showInfo = document.getElementById('prop-show-info') as HTMLInputElement;
+        showInfo?.addEventListener('change', () => {
+            obj.graphStyle.showInfo = showInfo.checked;
+            this.canvas!.setGraphShowInfo(obj.uuid, showInfo.checked);
         });
 
         const xOverflow = document.getElementById('prop-x-overflow') as HTMLSelectElement;
