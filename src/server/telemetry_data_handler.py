@@ -5,7 +5,7 @@ from telemetry_data_cache_manager import TelemetryDataCacheManager
 from telemetry_data_processing_manager import TelemetryDataProcessingManager, IntegralHandlerCreator, DerivativeHandlerCreator
 from telemetry_data_saving import TelemetrySaveQueue
 from telemetry_receiver_simulation_server import TelemetryReceiverSimulationServer
-# from rocket_communication_controller import RocketCommunication
+from rocket_communication_controller import RocketCommunication
 from telemetry_data_transfer_types_retrieval import TelemetryDataTransferTypes
 
 from data_types import InputDataPoint, InputTelemetryID, ProcessedDataPoint, ProcessedTelemetryID, RadioDataObject
@@ -36,11 +36,11 @@ class TelemetryDataManager:
         ) # Simulation server for receiving telemetry data from the rocket (uses same protocols as real rocket communication)
         
         # Uncomment below to use real RFM9x radio hardware instead of simulation server:
-        #self._communication_server = RocketCommunication(
-        #    radio_freq_mhz=915.0,  # Simulation server doesn't use frequency (HTTP-based)
-        #    aes_key=self._aes_key,
-        #    telemetry_data_transfer_types=self._telemetry_data_transfer_types
-        #)
+        self._communication_server = RocketCommunication(
+            radio_freq_mhz=915.0,  # Simulation server doesn't use frequency (HTTP-based)
+            aes_key=self._aes_key,
+            telemetry_data_transfer_types=self._telemetry_data_transfer_types
+        )
 
         self._is_active: bool = False
 
