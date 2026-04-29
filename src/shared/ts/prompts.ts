@@ -9,7 +9,7 @@ export abstract class FullscreenPrompt {
     private promptTitle!: string;
 
     private onConfirm: (...args: any[]) => void;
-    private onCancel: () => void;
+    private onCancel: (() => void) | null;
     
     private escapeKeyListener!: (e: KeyboardEvent) => void;
 
@@ -23,9 +23,9 @@ export abstract class FullscreenPrompt {
     private promptHeight?: number;
 
     constructor(
-        promptTitle: string, 
+        promptTitle: string,
         onConfirm: (...args: any[]) => void,
-        onCancel: () => void = () => {},
+        onCancel: (() => void) | null = null,
         promptWidth: number = 550,
         promptHeight?: number
     ) {
@@ -128,8 +128,10 @@ export abstract class FullscreenPrompt {
         confirmButton.onmouseout = () => { confirmButton.style.backgroundColor = '#6ba3ff'; };
         this.confirmButton = confirmButton;
 
-        // Assemble dialog
-        buttonContainer.appendChild(this.cancelButton);
+        // Assemble dialog — only add cancel button if a cancel callback was provided
+        if (this.onCancel !== null) {
+            buttonContainer.appendChild(this.cancelButton);
+        }
         buttonContainer.appendChild(this.confirmButton);
         dialog.appendChild(titleEl);
         dialog.appendChild(buttonContainer);
@@ -186,7 +188,7 @@ export abstract class FullscreenPrompt {
     }
 
     protected cancel(): void {
-        this.onCancel();
+        if (this.onCancel) this.onCancel();
     }
 
     protected closePrompt(): void {
@@ -380,7 +382,7 @@ export class ConfirmationPrompt extends FullscreenPrompt {
         promptTitle: string,
         promptHTML: string, 
         confirmButtonText: string,
-        cancelButtonText: string,
+        cancelButtonText: string | null,
         onConfirm: () => void, onCancel: () => void = () => {}
     ) {
             
@@ -400,7 +402,7 @@ export class ConfirmationPrompt extends FullscreenPrompt {
         // Set button text variables
         this.promptHTML = promptHTML;
         this.confirmButtonText = confirmButtonText;
-        this.cancelButtonText = cancelButtonText;
+        this.cancelButtonText = cancelButtonText || '';
         // Initialize the DOM structure for the specific prompt.
         this.initializePrimaryDOM();
     }
@@ -411,6 +413,10 @@ export class ConfirmationPrompt extends FullscreenPrompt {
         
         // Set cancel button text
         this.cancelButton.textContent = this.cancelButtonText;
+
+        if (this.cancelButtonText == null || this.cancelButtonText.trim() === '') {
+            this.cancelButton.style.display = 'none';
+        }
 
         // Create prompt message element
         const messageEl = document.createElement('p');
@@ -1905,11 +1911,11 @@ export class InterfaceCollectionFileListViewerPrompt extends FileListViewerPromp
             },
             940,
             580,
-            false, // no upload for now
+            false,
             null,
             '.icollection',
-            false, // no delete for now
-            null
+            true,
+            '/interface_collection/delete'
         );
         this.initializeAdditionalDOM();
     }

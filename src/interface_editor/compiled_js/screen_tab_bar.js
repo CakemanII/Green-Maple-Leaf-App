@@ -1,6 +1,7 @@
 /**
  * ScreenTabBar - Manages screen tabs at bottom of editor
  */
+import { SingleTextInputPrompt } from '../../shared/compiled_js/prompts.js';
 export class ScreenTabBar {
     constructor(container) {
         this.screens = [];
@@ -12,10 +13,8 @@ export class ScreenTabBar {
     initializeEventListeners() {
         const addBtn = document.getElementById('add-screen-btn');
         addBtn === null || addBtn === void 0 ? void 0 : addBtn.addEventListener('click', () => {
-            const name = prompt('Enter screen name:', `Screen ${this.screens.length + 1}`);
-            if (name) {
-                this.emit('screenAdded', name);
-            }
+            new SingleTextInputPrompt('New Screen', 'Enter a name for the new screen:', `Screen ${this.screens.length + 1}`, 'Create', 'Cancel', (name) => { if (name.trim())
+                this.emit('screenAdded', name.trim()); });
         });
         // Context menu handling
         this.container.addEventListener('contextmenu', (e) => {
@@ -72,12 +71,11 @@ export class ScreenTabBar {
         duplicateBtn === null || duplicateBtn === void 0 ? void 0 : duplicateBtn.replaceWith(newDuplicateBtn);
         deleteBtn === null || deleteBtn === void 0 ? void 0 : deleteBtn.replaceWith(newDeleteBtn);
         newRenameBtn === null || newRenameBtn === void 0 ? void 0 : newRenameBtn.addEventListener('click', () => {
+            var _a;
             const screen = this.screens.find(s => s.uuid === uuid);
-            const newName = prompt('Enter new name:', screen === null || screen === void 0 ? void 0 : screen.name);
-            if (newName) {
-                this.emit('screenRenamed', uuid, newName);
-            }
             menu.style.display = 'none';
+            new SingleTextInputPrompt('Rename Screen', 'Enter a new name for the screen:', (_a = screen === null || screen === void 0 ? void 0 : screen.name) !== null && _a !== void 0 ? _a : '', 'Rename', 'Cancel', (newName) => { if (newName.trim())
+                this.emit('screenRenamed', uuid, newName.trim()); });
         });
         newDuplicateBtn === null || newDuplicateBtn === void 0 ? void 0 : newDuplicateBtn.addEventListener('click', () => {
             this.emit('screenDuplicated', uuid);

@@ -86,11 +86,13 @@ export var LineGraphYOverflowMode;
  * Class representing a line graph.
  */
 export class LineGraphRepresentation extends GraphicalRepresentation {
-    constructor(title, unit, yMin, yMax, timeWindow = 30, collections = { 'default': LineGraphRepresentation.DEFAULT_LINE_STYLE }, graphsContainerId = GraphicalRepresentation.GRAPHS_CONTAINER_ID) {
+    constructor(title, unit, yMin, yMax, timeWindow = 30, collections = { 'default': LineGraphRepresentation.DEFAULT_LINE_STYLE }, graphsContainerId = GraphicalRepresentation.GRAPHS_CONTAINER_ID, displayNames = {}) {
         super(graphsContainerId);
+        this.displayNames = {};
         this.collectionBeingInspected = null;
         this.collectionVisibility = {};
         this.collectionVisibilityBeforeInspection = {};
+        this.displayNames = displayNames;
         // Initialize general graph settings
         this.title = title;
         this.unit = unit;
@@ -231,8 +233,8 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
         // Create collection buttons container
         this.collectionButtonsContainer = document.createElement('div');
         this.collectionButtonsContainer.className = 'collection-buttons';
-        this.collectionButtonsContainer.style.display = 'grid';
-        this.collectionButtonsContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
+        this.collectionButtonsContainer.style.display = 'flex';
+        this.collectionButtonsContainer.style.flexDirection = 'column';
         this.collectionButtonsContainer.style.gap = '4px';
         this.collectionButtonsContainer.style.marginBottom = '10px';
         // Only show buttons if there are multiple collections
@@ -285,7 +287,7 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
     createCollectionButton(collectionKey) {
         const button = document.createElement('button');
         button.className = 'collection-button';
-        button.textContent = collectionKey;
+        button.textContent = this.displayNames[collectionKey] || collectionKey;
         button.style.cursor = 'pointer';
         button.style.border = '1px solid #555';
         button.style.borderRadius = '4px';

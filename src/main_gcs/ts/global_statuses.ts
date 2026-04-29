@@ -4,27 +4,6 @@ import { GlobalTelemetryManager } from './global_rocket_communication.js';
 
 // Types for statuses, flags, and etc.
 
-// Example: Should Parachute be Deployed?
-// Status: Should Parachute be Deployed?
-    // Flag: No, Do Not Deploy Parachute
-        // (This is the default flag if no other flags are true)
-    
-    // Flag: Yes, Deploy Parachute
-        // PrimaryConditionalGroup (ALWAYS 'AND'):
-            // Not: False
-            // ConditionalGroup:
-                // Not: False
-                // Condition: Vertical Velocity LESS_THAN 1
-            // ConditionalGroup:
-                // Not: False
-                // Condition: Acceleration is LESS_THAN 0
-            // ConditionalGroup:
-                // Not: False
-                // Condition: Time Since Launch GREATER_THAN_OR_EQUAL 3 seconds
-            // ConditionalGroup:
-                // Not: True
-                // Condition: Parachute is already Deployed
-
 export class GlobalStatusesManager {
     private static instance: GlobalStatusesManager;
     public static get INSTANCE(): GlobalStatusesManager { return GlobalStatusesManager.instance; }
@@ -55,37 +34,73 @@ export class GlobalStatusesManager {
             }
         });
 
-        // Load all statuses
-        this.statuses = this.loadStatuses();
+        this.initializeAsync();
+    }
 
-        // Create evaluators for each status
+    private async initializeAsync(): Promise<void> {
+        await this.loadStatuses();
+
         this.statuses.forEach(status => {
             this.statusEvaluators[status.UUID] = new LiveStatus(
-                status, 
+                status,
                 (flagsTriggeredUUIDs: string[]) => {
-                    // Callback to handle status update
                     const activeFlag = this.statusEvaluators[status.UUID].getActiveFlag();
-                    this.sendStatusUpdateToIframes(
-                        status.UUID, 
-                        activeFlag,
-                        flagsTriggeredUUIDs
-                    );
+                    this.sendStatusUpdateToIframes(status.UUID, activeFlag, flagsTriggeredUUIDs);
                 }
             );
         });
 
-        // Setup iframe communication
         this.initializeIFrameCommunication();
+        console.log(`[GlobalStatusesManager] Loaded ${this.statuses.length} status(es).`);
     }
 
     /**
-     * Load all statuses from some data source.
+     * Load all statuses from all saved status collections on the server.
      */
-    private loadStatuses(): Status[] {
-        // Implementation to retrieve all statuses
-        return [
+    private async loadStatuses(): Promise<void> {
+        try {
+            const listResp = await fetch('/status_collection/list_metadatas');
+            if (!listResp.ok) return;
+            const listData = await listResp.json();
+            const metadatas: { UUID: string }[] = listData.metadatas || [];
 
-        ];
+            for (const meta of metadatas) {
+                const collResp = await fetch(`/status_collection/fetch?uuid=${meta.UUID}`);
+                if (!collResp.ok) continue;
+                const collection: StatusCollection = JSON.parse(await collResp.text());
+                if (Array.isArray(collection.statuses)) {
+                    this.statuses.push(...collection.statuses);
+                }
+            }
+        } catch (error) {
+            console.error('[GlobalStatusesManager] Failed to load statuses:', error);
+        }
+    }
+
+    /**
+     * Reload statuses from a specific set of collection UUIDs (called by operational mode).
+     */
+    public async loadFromCollections(collectionUUIDs: string[]): Promise<void> {
+        this.statuses = [];
+        this.statusEvaluators = {};
+        for (const uuid of collectionUUIDs) {
+            const resp = await fetch(`/status_collection/fetch?uuid=${uuid}`);
+            if (!resp.ok) continue;
+            const collection: StatusCollection = JSON.parse(await resp.text());
+            if (Array.isArray(collection.statuses)) {
+                this.statuses.push(...collection.statuses);
+            }
+        }
+        this.statuses.forEach(status => {
+            this.statusEvaluators[status.UUID] = new LiveStatus(
+                status,
+                (flagsTriggeredUUIDs: string[]) => {
+                    const activeFlag = this.statusEvaluators[status.UUID].getActiveFlag();
+                    this.sendStatusUpdateToIframes(status.UUID, activeFlag, flagsTriggeredUUIDs);
+                }
+            );
+        });
+        console.log(`[GlobalStatusesManager] Reloaded ${this.statuses.length} status(es) from ${collectionUUIDs.length} collection(s).`);
     }
 
     /**

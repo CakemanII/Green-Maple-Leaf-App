@@ -3,7 +3,7 @@
  * Base class for prompts
  */
 export class FullscreenPrompt {
-    constructor(promptTitle, onConfirm, onCancel = () => { }, promptWidth = 550, promptHeight) {
+    constructor(promptTitle, onConfirm, onCancel = null, promptWidth = 550, promptHeight) {
         // Store callbacks
         this.promptTitle = promptTitle;
         this.onConfirm = onConfirm;
@@ -96,8 +96,10 @@ export class FullscreenPrompt {
         confirmButton.onmouseover = () => { confirmButton.style.backgroundColor = '#5a92ee'; };
         confirmButton.onmouseout = () => { confirmButton.style.backgroundColor = '#6ba3ff'; };
         this.confirmButton = confirmButton;
-        // Assemble dialog
-        buttonContainer.appendChild(this.cancelButton);
+        // Assemble dialog — only add cancel button if a cancel callback was provided
+        if (this.onCancel !== null) {
+            buttonContainer.appendChild(this.cancelButton);
+        }
         buttonContainer.appendChild(this.confirmButton);
         dialog.appendChild(titleEl);
         dialog.appendChild(buttonContainer);
@@ -148,7 +150,8 @@ export class FullscreenPrompt {
         this.onConfirm(...args);
     }
     cancel() {
-        this.onCancel();
+        if (this.onCancel)
+            this.onCancel();
     }
     closePrompt() {
         // Clean up DOM elements and event listeners
@@ -304,7 +307,7 @@ export class ConfirmationPrompt extends FullscreenPrompt {
         // Set button text variables
         this.promptHTML = promptHTML;
         this.confirmButtonText = confirmButtonText;
-        this.cancelButtonText = cancelButtonText;
+        this.cancelButtonText = cancelButtonText || '';
         // Initialize the DOM structure for the specific prompt.
         this.initializePrimaryDOM();
     }
@@ -313,6 +316,9 @@ export class ConfirmationPrompt extends FullscreenPrompt {
         this.confirmButton.textContent = this.confirmButtonText;
         // Set cancel button text
         this.cancelButton.textContent = this.cancelButtonText;
+        if (this.cancelButtonText == null || this.cancelButtonText.trim() === '') {
+            this.cancelButton.style.display = 'none';
+        }
         // Create prompt message element
         const messageEl = document.createElement('p');
         messageEl.innerHTML = this.promptHTML;
@@ -633,9 +639,11 @@ export class ColorPickerPrompt extends PopoutMenuPrompt {
     }
 }
 export class TelemetryLabelSelectorPrompt extends PopoutMenuPrompt {
-    constructor(clickEvent, onConfirm, onCancel) {
+    constructor(clickEvent, onConfirm, onCancel = () => { }, numericalOnly = false) {
         super(onConfirm, onCancel);
         this.telemetryDict = null;
+        this.numericalOnly = false;
+        this.numericalOnly = numericalOnly;
         this.initializePrimaryDOM();
         this.fetchTelemetryTypes();
         requestAnimationFrame(() => this.positionPrompt(clickEvent));
@@ -720,11 +728,34 @@ export class TelemetryLabelSelectorPrompt extends PopoutMenuPrompt {
         if (!types)
             return;
         for (const typeName of Object.keys(types)) {
+            // Filter based on numericalOnly flag
+            if (this.numericalOnly) {
+                const typeData = types[typeName];
+                const isNumeric = this.isNumericType(typeData);
+                if (!isNumeric)
+                    continue;
+            }
             const opt = document.createElement('option');
             opt.value = typeName;
             opt.textContent = typeName;
             this.typeSelect.appendChild(opt);
         }
+    }
+    isNumericType(typeData) {
+        if (typeof typeData === 'string') {
+            // Scalar type
+            return typeData === 'number';
+        }
+        else if (typeData !== null && typeof typeData === 'object' && !Array.isArray(typeData)) {
+            // Vector type — check if all subfields are numeric
+            for (const subValue of Object.values(typeData)) {
+                if (typeof subValue === 'string' && subValue !== 'number') {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
     }
     populateObserver(valueType) {
         this.observerSelect.innerHTML = '<option value="" disabled selected>Observer…</option>';
@@ -1501,9 +1532,7 @@ export class InterfaceCollectionFileListViewerPrompt extends FileListViewerPromp
             'Date Modified': FileSortType.DATE,
             'Size': FileSortType.NUMBER,
             'UUID': FileSortType.NONE,
-        }, 940, 580, false, // no upload for now
-        null, '.icollection', false, // no delete for now
-        null);
+        }, 940, 580, false, null, '.icollection', true, '/interface_collection/delete');
         this.initializeAdditionalDOM();
     }
     initializeFileItemDOM(...metadata) {

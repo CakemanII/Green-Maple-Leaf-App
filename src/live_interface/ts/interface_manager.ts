@@ -42,6 +42,7 @@ class InterfaceManager {
 
         this.initializeTelemetryReceiving();
         this.initializeOperationalModeWatcher();
+        this.initializeCollectionMessageHandler();
     }
 
     private initializeTelemetryReceiving(): void {
@@ -358,6 +359,133 @@ class InterfaceManager {
             && typeof value.x === "number"
             && typeof value.y === "number"
             && typeof value.z === "number";
+    }
+
+    private initializeCollectionMessageHandler(): void {
+        window.addEventListener('message', async (e: MessageEvent) => {
+            if (e.data?.type !== 'loadCollection') return;
+            const uuid: string = e.data.uuid;
+            if (!uuid) return;
+            try {
+                const response = await fetch(`/interface_collection/fetch?uuid=${encodeURIComponent(uuid)}`);
+                const text = await response.text();
+                const collection = JSON.parse(text);
+                const screenDefs = this.convertCollectionToScreenDefs(collection);
+                if (screenDefs.length === 0) return;
+                window.parent?.postMessage?.({ type: 'updateSessionRequest', key: InterfaceManager.SESSION_SCREENS_KEY, value: screenDefs }, '*');
+                // Broadcast notifications to sub-components
+                window.dispatchEvent(new MessageEvent('message', { data: { type: 'loadCollection', notifications: collection.notifications ?? [] } }));
+                this.clearAllScreens();
+                this.setScreenUUIDS(screenDefs.map((s: InterfaceScreenData) => s.UUID));
+                screenDefs.forEach((def: InterfaceScreenData) => this.instantiateScreenIntoDOM(def));
+                if (screenDefs.length > 0) this.selectScreen(screenDefs[0].UUID);
+            } catch (err) {
+                console.error('[InterfaceManager] Failed to load collection:', err);
+            }
+        });
+    }
+
+    private convertCollectionToScreenDefs(collection: any): InterfaceScreenData[] {
+        if (!Array.isArray(collection?.screens)) return [];
+        return collection.screens.map((screen: any) => ({
+            UUID: screen.uuid,
+            name: screen.name,
+            interfaceObjects: (screen.objects ?? []).map((obj: any) => this.convertEditorObject(obj)).filter(Boolean)
+        }));
+    }
+
+    private convertEditorObject(obj: any): InterfaceObjectRuntimeData | null {
+        const base = {
+            UUID: obj.uuid,
+            posX: obj.position?.x ?? 0,
+            posY: obj.position?.y ?? 0,
+            width: obj.size?.width ?? 20,
+            height: obj.size?.height ?? 20,
+        };
+
+        switch (obj.type) {
+            case 'PANEL':
+                return { ...base, type: InterfaceObjectType.PANEL, childrenInterfaceObjects: [] };
+            case 'LINE_GRAPH':
+                return {
+                    ...base,
+                    type: InterfaceObjectType.LINE_GRAPH,
+                    monitorDataKeys: obj.monitorDataKeys ?? [],
+                    lineGraphSettings: {
+                        title: obj.name || 'Line Graph',
+                        unit: obj.graphStyle?.unit ?? '',
+                        yMin: obj.graphStyle?.yMin ?? 0,
+                        yMax: obj.graphStyle?.yMax ?? 100,
+                        maxPoints: 180,
+                        vectorComponents: ['x', 'y', 'z'],
+                        lineColors: obj.graphStyle?.lineColors ?? {}
+                    }
+                };
+            case 'BAR_GRAPH': {
+                const bars = obj.bars ?? [];
+                const groups = bars.map((bar: any) => ({
+                    id: bar.id,
+                    label: bar.label,
+                    series: [{ id: bar.id, label: bar.label, key: bar.monitorKey }]
+                }));
+                const barColors: { [k: string]: string } = {};
+                bars.forEach((bar: any) => { barColors[bar.id] = bar.color; });
+                return {
+                    ...base,
+                    type: InterfaceObjectType.BAR_GRAPH,
+                    monitorDataKeys: bars.map((b: any) => b.monitorKey).filter(Boolean),
+                    barGraphSettings: {
+                        title: obj.graphStyle?.title ?? 'Bar Graph',
+                        unit: '',
+                        yMin: obj.graphStyle?.yMin ?? 0,
+                        yMax: obj.graphStyle?.yMax ?? 100,
+                        decimals: 2,
+                        groups,
+                        barColors
+                    }
+                };
+            }
+            case 'MODEL_3D':
+                return {
+                    ...base,
+                    type: InterfaceObjectType.THREE_D_MODEL_ABS_ROTATION,
+                    monitorDataKeys: [obj.rollKey, obj.pitchKey, obj.yawKey].filter(Boolean),
+                    threeDModelAbsRotationSettings: {
+                        title: obj.name || '3D Model',
+                        eulerOrder: 'ZYX',
+                        angleUnit: obj.angleUnit ?? 'deg',
+                        rollKey: obj.rollKey,
+                        pitchKey: obj.pitchKey,
+                        yawKey: obj.yawKey,
+                        modelColor: obj.modelColor ?? '#7fb8ff'
+                    }
+                };
+            case 'MINIMAP':
+                return {
+                    ...base,
+                    type: InterfaceObjectType.MINIMAP,
+                    monitorDataKeys: [obj.latKey, obj.lngKey].filter(Boolean),
+                    minimapSettings: {
+                        defaultZoom: obj.defaultZoom ?? 15,
+                        followRocket: obj.followRocket ?? true,
+                        showGeofences: obj.showGeofences ?? true,
+                        latKey: obj.latKey ?? '',
+                        lngKey: obj.lngKey ?? ''
+                    }
+                };
+            case 'STATUS_DISPLAY':
+                return {
+                    ...base,
+                    type: InterfaceObjectType.STATUS_DISPLAY,
+                    statusDisplaySettings: {
+                        statusUUID: obj.statusUUID ?? '',
+                        title: obj.name || 'Status',
+                        emptyText: 'No active flag'
+                    }
+                };
+            default:
+                return null;
+        }
     }
 }
 

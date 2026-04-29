@@ -1,6 +1,7 @@
 /**
  * EditorCanvas - Manages the 1920x1080 canvas rendering and interaction
  */
+import { DEFAULT_BAR_GRAPH_STYLE, DEFAULT_STATUS_DISPLAY_STYLE } from './types.js';
 import { LineGraphRepresentation, LineGraphXOverflowMode, LineGraphYOverflowMode } from '../../live_data/compiled_js/graph_representations.js';
 import { ConfirmationPrompt } from '../../shared/compiled_js/prompts.js';
 export class EditorCanvas {
@@ -55,7 +56,8 @@ export class EditorCanvas {
     }
     renderObject(obj) {
         const element = document.createElement('div');
-        element.className = `canvas-object ${obj.type === 'LINE_GRAPH' ? 'line-graph' : 'panel'}`;
+        const typeClass = obj.type.toLowerCase().replace(/_/g, '-');
+        element.className = `canvas-object ${typeClass}`;
         element.dataset.uuid = obj.uuid;
         element.draggable = false;
         // Set position and size (convert percentage to pixels)
@@ -73,8 +75,21 @@ export class EditorCanvas {
         else if (obj.type === 'PANEL') {
             this.renderPanel(element, obj);
         }
+        else if (obj.type === 'BAR_GRAPH') {
+            this.renderBarGraph(element, obj);
+        }
+        else if (obj.type === 'MODEL_3D') {
+            this.renderModel3D(element, obj);
+        }
+        else if (obj.type === 'MINIMAP') {
+            this.renderMinimap(element, obj);
+        }
+        else if (obj.type === 'STATUS_DISPLAY') {
+            this.renderStatusDisplay(element, obj);
+        }
     }
     updateObjectElement(element, obj) {
+        var _a;
         const canvasWidth = 1920;
         const canvasHeight = 1080;
         const left = (obj.position.x / 100) * canvasWidth;
@@ -86,9 +101,15 @@ export class EditorCanvas {
         element.style.width = `${width}px`;
         element.style.height = `${height}px`;
         element.style.zIndex = obj.zIndex.toString();
+        // Scale is applied to .scale-wrapper inside .object-content, not the element itself
+        const scale = ((_a = obj.scale) !== null && _a !== void 0 ? _a : 100) / 100;
+        const scaleWrapper = element.querySelector('.scale-wrapper');
+        if (scaleWrapper) {
+            scaleWrapper.style.transform = `scale(${scale})`;
+        }
     }
     renderLineGraph(element, obj) {
-        var _a;
+        var _a, _b;
         element.style.backgroundColor = 'transparent';
         // Only clear the content layer — preserve resize handles
         let content = element.querySelector('.object-content');
@@ -99,6 +120,12 @@ export class EditorCanvas {
             element.insertBefore(content, element.firstChild);
         }
         content.innerHTML = '';
+        // Scale wrapper — clips at content boundary, only content inside scales
+        const scaleWrapper = document.createElement('div');
+        scaleWrapper.className = 'scale-wrapper';
+        const scale = ((_a = obj.scale) !== null && _a !== void 0 ? _a : 100) / 100;
+        scaleWrapper.style.cssText = `width:100%;height:100%;transform-origin:top left;transform:scale(${scale});`;
+        content.appendChild(scaleWrapper);
         // Create container for the graph
         const graphContainer = document.createElement('div');
         graphContainer.id = `graph-${obj.uuid}`;
@@ -107,7 +134,7 @@ export class EditorCanvas {
         graphContainer.style.position = 'relative';
         graphContainer.style.overflow = 'hidden';
         graphContainer.style.backgroundColor = obj.graphStyle.backgroundColor;
-        content.appendChild(graphContainer);
+        scaleWrapper.appendChild(graphContainer);
         // Clean up old graph instance
         if (this.graphInstances.has(obj.uuid)) {
             this.graphInstances.delete(obj.uuid);
@@ -130,7 +157,7 @@ export class EditorCanvas {
         });
         // Create graph instance
         try {
-            const graph = new LineGraphRepresentation(obj.name || 'Graph', obj.graphStyle.unit || '', obj.graphStyle.yMin, obj.graphStyle.yMax, obj.graphStyle.timeWindow, lineCollections, graphContainer.id);
+            const graph = new LineGraphRepresentation(obj.name || 'Graph', obj.graphStyle.unit || '', obj.graphStyle.yMin, obj.graphStyle.yMax, obj.graphStyle.timeWindow, lineCollections, graphContainer.id, obj.graphStyle.labelDisplayNames || {});
             // Set overflow modes - convert string to enum
             const xMode = obj.graphStyle.xOverflowMode === 'ShiftGraph' ? LineGraphXOverflowMode.ShiftGraph :
                 obj.graphStyle.xOverflowMode === 'ScaleAxis' ? LineGraphXOverflowMode.ScaleAxis :
@@ -140,7 +167,7 @@ export class EditorCanvas {
             graph.setOverflowX(xMode);
             graph.setOverflowY(yMode);
             graph.setBackgroundColor(obj.graphStyle.backgroundColor);
-            graph.setShowInfo((_a = obj.graphStyle.showInfo) !== null && _a !== void 0 ? _a : true);
+            graph.setShowInfo((_b = obj.graphStyle.showInfo) !== null && _b !== void 0 ? _b : true);
             graph.setFillHeight();
             // Generate sample data for preview
             this.generateSampleData(graph, obj.monitorDataKeys, obj.graphStyle.timeWindow);
@@ -163,6 +190,7 @@ export class EditorCanvas {
         }
     }
     renderPanel(element, obj) {
+        var _a;
         element.style.backgroundColor = obj.style.backgroundColor;
         element.style.borderWidth = `${obj.style.borderWidth}px`;
         element.style.borderColor = obj.style.borderColor;
@@ -173,10 +201,105 @@ export class EditorCanvas {
         if (!content) {
             content = document.createElement('div');
             content.className = 'object-content';
-            content.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;';
+            content.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;';
             element.insertBefore(content, element.firstChild);
         }
-        content.innerHTML = '<div style="color:#555;font-size:14px;">Panel</div>';
+        content.innerHTML = '';
+        // Scale wrapper — clips at content boundary
+        const scaleWrapper = document.createElement('div');
+        scaleWrapper.className = 'scale-wrapper';
+        const scale = ((_a = obj.scale) !== null && _a !== void 0 ? _a : 100) / 100;
+        scaleWrapper.style.cssText = `width:100%;height:100%;transform-origin:top left;transform:scale(${scale});display:flex;align-items:center;justify-content:center;`;
+        scaleWrapper.innerHTML = '<div style="color:#555;font-size:14px;">Panel</div>';
+        content.appendChild(scaleWrapper);
+    }
+    renderPlaceholder(element, obj, label, bgColor) {
+        var _a;
+        element.style.backgroundColor = 'transparent';
+        let content = element.querySelector('.object-content');
+        if (!content) {
+            content = document.createElement('div');
+            content.className = 'object-content';
+            content.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;';
+            element.insertBefore(content, element.firstChild);
+        }
+        content.innerHTML = '';
+        const scaleWrapper = document.createElement('div');
+        scaleWrapper.className = 'scale-wrapper';
+        const scale = ((_a = obj.scale) !== null && _a !== void 0 ? _a : 100) / 100;
+        scaleWrapper.style.cssText = `width:100%;height:100%;transform-origin:top left;transform:scale(${scale});display:flex;align-items:center;justify-content:center;background-color:${bgColor};border:1px solid #333;`;
+        scaleWrapper.innerHTML = `<div style="color:#aaa;font-size:13px;text-align:center;">${label}</div>`;
+        content.appendChild(scaleWrapper);
+    }
+    renderBarGraph(element, obj) {
+        var _a;
+        element.style.backgroundColor = 'transparent';
+        let content = element.querySelector('.object-content');
+        if (!content) {
+            content = document.createElement('div');
+            content.className = 'object-content';
+            content.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;';
+            element.insertBefore(content, element.firstChild);
+        }
+        content.innerHTML = '';
+        const scaleWrapper = document.createElement('div');
+        scaleWrapper.className = 'scale-wrapper';
+        const scale = ((_a = obj.scale) !== null && _a !== void 0 ? _a : 100) / 100;
+        scaleWrapper.style.cssText = `width:100%;height:100%;transform-origin:top left;transform:scale(${scale});display:flex;flex-direction:column;background-color:${obj.graphStyle.backgroundColor};border:1px solid #333;`;
+        if (obj.bars.length === 0) {
+            scaleWrapper.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:#666;font-size:13px;">No bars configured</div>';
+            content.appendChild(scaleWrapper);
+            return;
+        }
+        // Title
+        const title = document.createElement('div');
+        title.style.cssText = 'color:#aaa;font-size:11px;text-align:center;padding:4px 4px 2px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+        title.textContent = obj.graphStyle.title || 'Bar Graph';
+        scaleWrapper.appendChild(title);
+        // Bar area
+        const barArea = document.createElement('div');
+        barArea.style.cssText = 'flex:1;display:flex;align-items:flex-end;gap:4px;padding:4px 8px 20px;overflow:hidden;';
+        const yRange = (obj.graphStyle.yMax - obj.graphStyle.yMin) || 1;
+        const sampleValues = [0.75, 0.45, 0.85, 0.30, 0.60, 0.55, 0.40, 0.90];
+        obj.bars.forEach((bar, i) => {
+            const barWrap = document.createElement('div');
+            barWrap.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;min-width:0;';
+            const fillPct = sampleValues[i % sampleValues.length] * 100;
+            const barEl = document.createElement('div');
+            barEl.style.cssText = `width:100%;height:${fillPct}%;background-color:${bar.color};border-radius:2px 2px 0 0;min-height:2px;`;
+            const labelEl = document.createElement('div');
+            labelEl.style.cssText = 'color:#888;font-size:9px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;margin-top:2px;';
+            labelEl.textContent = bar.label || bar.monitorKey;
+            barWrap.appendChild(barEl);
+            barWrap.appendChild(labelEl);
+            barArea.appendChild(barWrap);
+        });
+        // Y-axis labels
+        const yAxis = document.createElement('div');
+        yAxis.style.cssText = 'position:absolute;left:2px;top:18px;bottom:20px;display:flex;flex-direction:column;justify-content:space-between;';
+        const yMax = document.createElement('span');
+        yMax.style.cssText = 'color:#555;font-size:8px;';
+        yMax.textContent = String(obj.graphStyle.yMax);
+        const yMin = document.createElement('span');
+        yMin.style.cssText = 'color:#555;font-size:8px;';
+        yMin.textContent = String(obj.graphStyle.yMin);
+        yAxis.appendChild(yMax);
+        yAxis.appendChild(yMin);
+        scaleWrapper.style.position = 'relative';
+        scaleWrapper.appendChild(barArea);
+        scaleWrapper.appendChild(yAxis);
+        content.appendChild(scaleWrapper);
+    }
+    renderModel3D(element, obj) {
+        this.renderPlaceholder(element, obj, `3D Model<br><small>${obj.rollKey || 'No keys set'}</small>`, obj.backgroundColor);
+    }
+    renderMinimap(element, obj) {
+        const hasKeys = obj.latKey && obj.lngKey;
+        this.renderPlaceholder(element, obj, `Minimap<br><small>${hasKeys ? `${obj.latKey} / ${obj.lngKey}` : 'No keys set'}</small>`, '#1a1a1a');
+    }
+    renderStatusDisplay(element, obj) {
+        const hasStatus = obj.statusUUID.length > 0;
+        this.renderPlaceholder(element, obj, `Status Display<br><small>${hasStatus ? obj.statusUUID.slice(0, 8) + '...' : 'No status selected'}</small>`, obj.style.backgroundColor);
     }
     addResizeHandles(element) {
         const corners = ['nw', 'ne', 'se', 'sw'];
@@ -332,6 +455,7 @@ export class EditorCanvas {
             name: '',
             position,
             size: { width: 20, height: 20 },
+            scale: 100,
             zIndex: this.currentScreen.objects.length
         };
         let obj;
@@ -357,6 +481,18 @@ export class EditorCanvas {
                     yOverflowMode: 'ScaleAxis',
                     showInfo: true
                 } });
+        }
+        else if (type === 'BAR_GRAPH') {
+            obj = Object.assign(Object.assign({}, baseObj), { type: 'BAR_GRAPH', bars: [], graphStyle: Object.assign({}, DEFAULT_BAR_GRAPH_STYLE) });
+        }
+        else if (type === 'MODEL_3D') {
+            obj = Object.assign(Object.assign({}, baseObj), { type: 'MODEL_3D', rollKey: '', pitchKey: '', yawKey: '', angleUnit: 'deg', modelColor: '#7fb8ff', backgroundColor: '#1a1a1a' });
+        }
+        else if (type === 'MINIMAP') {
+            obj = Object.assign(Object.assign({}, baseObj), { type: 'MINIMAP', defaultZoom: 15, showGeofences: true, followRocket: true, latKey: '', lngKey: '' });
+        }
+        else if (type === 'STATUS_DISPLAY') {
+            obj = Object.assign(Object.assign({}, baseObj), { type: 'STATUS_DISPLAY', statusCollectionUUID: '', statusUUID: '', style: Object.assign({}, DEFAULT_STATUS_DISPLAY_STYLE) });
         }
         else {
             obj = Object.assign(Object.assign({}, baseObj), { type: 'PANEL', style: {
@@ -398,6 +534,18 @@ export class EditorCanvas {
             }
             else if (this.selectedObject.type === 'PANEL') {
                 this.renderPanel(element, this.selectedObject);
+            }
+            else if (this.selectedObject.type === 'BAR_GRAPH') {
+                this.renderBarGraph(element, this.selectedObject);
+            }
+            else if (this.selectedObject.type === 'MODEL_3D') {
+                this.renderModel3D(element, this.selectedObject);
+            }
+            else if (this.selectedObject.type === 'MINIMAP') {
+                this.renderMinimap(element, this.selectedObject);
+            }
+            else if (this.selectedObject.type === 'STATUS_DISPLAY') {
+                this.renderStatusDisplay(element, this.selectedObject);
             }
         }
         this.emit('objectChanged');

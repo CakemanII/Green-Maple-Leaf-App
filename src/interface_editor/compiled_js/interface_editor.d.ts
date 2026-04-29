@@ -7,6 +7,7 @@ import { EditorScreen } from './editor_screen.js';
 export declare class InterfaceEditor {
     static INSTANCE: InterfaceEditor | null;
     private collection;
+    private originalCollection;
     private screens;
     private activeScreenUuid;
     private isDirty;
@@ -15,6 +16,7 @@ export declare class InterfaceEditor {
     private propertiesPanel;
     private screenTabBar;
     private objectPalette;
+    private notificationPanel;
     private saveBtn;
     private revertBtn;
     private loadBtn;
@@ -28,6 +30,7 @@ export declare class InterfaceEditor {
     renameScreen(uuid: string, newName: string): void;
     duplicateScreen(uuid: string): void;
     private handleSave;
+    private performSave;
     private handleLoad;
     private openLoadDialog;
     private handleRevert;

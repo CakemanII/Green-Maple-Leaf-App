@@ -23,6 +23,11 @@ export declare class EditorCanvas {
     private renderLineGraph;
     private generateSampleData;
     private renderPanel;
+    private renderPlaceholder;
+    private renderBarGraph;
+    private renderModel3D;
+    private renderMinimap;
+    private renderStatusDisplay;
     private addResizeHandles;
     private handleCanvasClick;
     private handleObjectMouseDown;

@@ -1,3 +1,43 @@
+export type GeofenceAnchorPoint = {
+    anchorPos: {
+        lat: number;
+        lng: number;
+    };
+    relIncomingHandlePos: {
+        lat: number;
+        lng: number;
+    } | null;
+    relOutgoingHandlePos: {
+        lat: number;
+        lng: number;
+    } | null;
+};
+export type GeofenceRegion = {
+    UUID: string;
+    LayerIndex: number;
+    RegionType: number;
+    General: {
+        Name: string;
+        IsVisible: boolean;
+        IsRestricted: boolean;
+    };
+    Style: {
+        FillColor: string;
+        FillOpacity: number;
+        StrokeColor: string;
+        StrokeOpacity: number;
+    };
+    FrontEndData: GeofenceAnchorPoint[];
+};
+export type Geofence = {
+    metadata: {
+        UUID: string;
+        name: string;
+        lastModified: string;
+        fileSize: number;
+    };
+    regions: GeofenceRegion[];
+};
 export type StatusCollection = {
     UUID: string;
     name: string;
@@ -81,7 +121,8 @@ export declare enum InterfaceObjectType {
     LINE_GRAPH = 1,
     BAR_GRAPH = 2,
     THREE_D_MODEL_ABS_ROTATION = 3,
-    STATUS_DISPLAY = 4
+    STATUS_DISPLAY = 4,
+    MINIMAP = 5
 }
 export type InterfaceObjectData = {
     type: InterfaceObjectType;

@@ -9,7 +9,8 @@ import { EditorCanvas } from './editor_canvas.js';
 import { PropertiesPanel } from './properties_panel.js';
 import { ScreenTabBar } from './screen_tab_bar.js';
 import { ObjectPalette } from './object_palette.js';
-import { InterfaceCollectionFileListViewerPrompt, ConfirmationPrompt } from '../../shared/compiled_js/prompts.js';
+import { NotificationPanel } from './notification_panel.js';
+import { InterfaceCollectionFileListViewerPrompt, ConfirmationPrompt, SingleTextInputPrompt } from '../../shared/compiled_js/prompts.js';
 import type { FileMetadata } from '../../shared/compiled_js/types.js';
 
 export class InterfaceEditor {
@@ -27,6 +28,7 @@ export class InterfaceEditor {
     private propertiesPanel: PropertiesPanel;
     private screenTabBar: ScreenTabBar;
     private objectPalette: ObjectPalette;
+    private notificationPanel: NotificationPanel;
 
     // UI Elements
     private saveBtn: HTMLButtonElement;
@@ -44,6 +46,10 @@ export class InterfaceEditor {
         this.propertiesPanel = new PropertiesPanel(document.getElementById('properties-content') as HTMLDivElement);
         this.screenTabBar = new ScreenTabBar(document.getElementById('screen-tabs-container') as HTMLDivElement);
         this.objectPalette = new ObjectPalette(this.canvas);
+        this.notificationPanel = new NotificationPanel(
+            document.getElementById('notifications-content') as HTMLDivElement,
+            () => this.markDirty()
+        );
 
         // Get button references
         this.saveBtn = document.getElementById('main-save-btn') as HTMLButtonElement;
@@ -78,24 +84,29 @@ export class InterfaceEditor {
 
     private createEmptyCollection(): void {
         this.collection = {
+            UUID: this.generateUUID(),
             version: '1.0',
-            collectionName: 'Untitled Collection',
+            name: 'Untitled Collection',
             screens: [{
                 uuid: this.generateUUID(),
                 name: 'Screen 1',
                 objects: []
             }],
+            notifications: [],
             metadata: {
                 lastModified: new Date().toISOString(),
                 activeScreen: null
             }
         };
-
+        this.originalCollection = JSON.parse(JSON.stringify(this.collection));
         this.loadCollectionIntoEditor();
+        this.markDirty();
     }
 
     private loadCollectionIntoEditor(): void {
         if (!this.collection) return;
+
+        if (!this.collection.notifications) this.collection.notifications = [];
 
         // Clear existing screens
         this.screens.clear();
@@ -108,6 +119,9 @@ export class InterfaceEditor {
 
         // Update tab bar
         this.screenTabBar.setScreens(this.collection.screens);
+
+        // Load notification panel
+        this.notificationPanel.loadCollection(this.collection);
 
         // Activate first screen or saved active screen
         const firstScreenUuid = this.collection.metadata.activeScreen || this.collection.screens[0]?.uuid;
@@ -149,7 +163,7 @@ export class InterfaceEditor {
     public deleteScreen(uuid: string): void {
         if (!this.collection) return;
         if (this.collection.screens.length <= 1) {
-            new ConfirmationPrompt('Cannot Delete', 'Cannot delete the last screen.', 'OK', '', () => {});
+            new ConfirmationPrompt('Cannot Delete', 'Cannot delete the last screen.', 'OK', null, () => {});
             return;
         }
 
@@ -206,32 +220,54 @@ export class InterfaceEditor {
     }
 
     private async handleSave(): Promise<void> {
-        if (!this.isDirty || !this.collection) return;
+        if (!this.collection) return;
+
+        // First save — prompt for a name
+        if (this.currentFilePath === null) {
+            new SingleTextInputPrompt(
+                'Save Collection',
+                'Enter a name for this interface collection:',
+                this.collection.name,
+                'Save',
+                'Cancel',
+                async (inputName: string) => {
+                    const trimmed = inputName.trim();
+                    if (!trimmed) return;
+                    this.collection!.name = trimmed;
+                    this.currentFilePath = this.collection!.UUID;
+                    await this.performSave();
+                }
+            );
+            return;
+        }
+
+        await this.performSave();
+    }
+
+    private async performSave(): Promise<void> {
+        if (!this.collection) return;
 
         // Validate collection
         const errors = this.validateCollection();
         if (errors.length > 0) {
             const errorList = errors.map(e => `• ${e.message}`).join('<br>');
-            new ConfirmationPrompt('Validation Errors', `Cannot save: ${errors.length} error(s) found.<br><br>${errorList}`, 'OK', '', () => {});
+            new ConfirmationPrompt('Validation Errors', `Cannot save: ${errors.length} error(s) found.<br><br>${errorList}`, 'OK', null, () => {});
             return;
         }
 
         try {
-            // Update metadata
             this.collection.metadata.lastModified = new Date().toISOString();
             this.collection.metadata.activeScreen = this.activeScreenUuid;
 
-            // Save to server
             const response = await fetch('/interface_collection/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(this.collection)
             });
 
-            if (!response.ok) {
-                throw new Error('Save failed');
-            }
+            if (!response.ok) throw new Error('Save failed');
 
+            this.originalCollection = JSON.parse(JSON.stringify(this.collection));
             this.markClean();
             console.log('Collection saved successfully');
         } catch (error) {
@@ -286,7 +322,7 @@ export class InterfaceEditor {
             'Revert all changes? Unsaved work will be lost.',
             'Revert', 'Cancel',
             () => {
-                if (!this.originalCollection) return;
+                if (!this.originalCollection) { console.error('No original collection to revert to'); return; }
                 
                 // Restore from the stored original collection
                 this.collection = JSON.parse(JSON.stringify(this.originalCollection)) as ScreenCollection;
@@ -305,17 +341,6 @@ export class InterfaceEditor {
         // Validate each screen
         this.collection.screens.forEach(screen => {
             screen.objects.forEach(obj => {
-                // Check for required fields
-                if (obj.type === 'LINE_GRAPH') {
-                    if (!obj.monitorDataKeys || obj.monitorDataKeys.length === 0) {
-                        errors.push({
-                            objectUuid: obj.uuid,
-                            field: 'monitorDataKeys',
-                            message: `Line Graph "${obj.name || obj.uuid}" must have at least one telemetry label`
-                        });
-                    }
-                }
-
                 // Validate position/size ranges
                 if (obj.position.x < 0 || obj.position.x > 100 || obj.position.y < 0 || obj.position.y > 100) {
                     errors.push({

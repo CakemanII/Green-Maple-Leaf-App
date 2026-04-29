@@ -150,6 +150,7 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
     private yMax: number;
     private timeWindow: number; // in seconds
 
+    private displayNames: { [key: string]: string } = {};
     private collectionBeingInspected: string | null = null;
     private collectionVisibility: { [collectionKey: string]: boolean } = {};
     private collectionVisibilityBeforeInspection: { [collectionKey: string]: boolean } = {};
@@ -175,10 +176,12 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
         yMax: number,
         timeWindow: number = 30,
         collections: { [key: string]: LineStyle } = { 'default': LineGraphRepresentation.DEFAULT_LINE_STYLE },
-        graphsContainerId: string = GraphicalRepresentation.GRAPHS_CONTAINER_ID
+        graphsContainerId: string = GraphicalRepresentation.GRAPHS_CONTAINER_ID,
+        displayNames: { [key: string]: string } = {}
     ) {
         super(graphsContainerId);
-        
+        this.displayNames = displayNames;
+
         // Initialize general graph settings
         this.title = title;
         this.unit = unit;
@@ -352,8 +355,8 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
         // Create collection buttons container
         this.collectionButtonsContainer = document.createElement('div');
         this.collectionButtonsContainer.className = 'collection-buttons';
-        this.collectionButtonsContainer.style.display = 'grid';
-        this.collectionButtonsContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
+        this.collectionButtonsContainer.style.display = 'flex';
+        this.collectionButtonsContainer.style.flexDirection = 'column';
         this.collectionButtonsContainer.style.gap = '4px';
         this.collectionButtonsContainer.style.marginBottom = '10px';
         
@@ -416,7 +419,7 @@ export class LineGraphRepresentation extends GraphicalRepresentation {
     private createCollectionButton(collectionKey: string): void {
         const button = document.createElement('button');
         button.className = 'collection-button';
-        button.textContent = collectionKey;
+        button.textContent = this.displayNames[collectionKey] || collectionKey;
         button.style.cursor = 'pointer';
         button.style.border = '1px solid #555';
         button.style.borderRadius = '4px';

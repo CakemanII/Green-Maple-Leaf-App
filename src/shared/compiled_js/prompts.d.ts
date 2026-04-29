@@ -13,7 +13,7 @@ export declare abstract class FullscreenPrompt {
     protected cancelButton: HTMLButtonElement;
     private promptWidth;
     private promptHeight?;
-    constructor(promptTitle: string, onConfirm: (...args: any[]) => void, onCancel?: () => void, promptWidth?: number, promptHeight?: number);
+    constructor(promptTitle: string, onConfirm: (...args: any[]) => void, onCancel?: (() => void) | null, promptWidth?: number, promptHeight?: number);
     private initializeBaseDOM;
     /**
      * Utility method for subclasses to add their specific elements into the dialog, above the buttons
@@ -54,7 +54,7 @@ export declare class ConfirmationPrompt extends FullscreenPrompt {
     private promptHTML;
     private confirmButtonText;
     private cancelButtonText;
-    constructor(promptTitle: string, promptHTML: string, confirmButtonText: string, cancelButtonText: string, onConfirm: () => void, onCancel?: () => void);
+    constructor(promptTitle: string, promptHTML: string, confirmButtonText: string, cancelButtonText: string | null, onConfirm: () => void, onCancel?: () => void);
     protected initializePrimaryDOM(): void;
 }
 export declare class ColorPickerPrompt extends PopoutMenuPrompt {
@@ -82,6 +82,7 @@ export declare class ColorPickerPrompt extends PopoutMenuPrompt {
 }
 export declare class TelemetryLabelSelectorPrompt extends PopoutMenuPrompt {
     private telemetryDict;
+    private numericalOnly;
     private categorySelect;
     private typeSelect;
     private unitSelect;
@@ -89,11 +90,12 @@ export declare class TelemetryLabelSelectorPrompt extends PopoutMenuPrompt {
     private cascadeRow;
     private addBtn;
     private loadingEl;
-    constructor(clickEvent: MouseEvent, onConfirm: (key: string) => void, onCancel: () => void);
+    constructor(clickEvent: MouseEvent, onConfirm: (key: string) => void, onCancel?: () => void, numericalOnly?: boolean);
     private initializePrimaryDOM;
     private fetchTelemetryTypes;
     private populateCategorySelect;
     private repopulateTypes;
+    private isNumericType;
     private populateObserver;
     private repopulateUnits;
     private attachCascadeListeners;

@@ -659,6 +659,51 @@ StatusDisplayIObject.objectsByStatusUUID = {};
 StatusDisplayIObject.latestStatusValues = {};
 StatusDisplayIObject.statusBridgeInitialized = false;
 StatusDisplayIObject.initialStatusesLoad = null;
+export class MinimapIObject extends InterfaceObject {
+    constructor(uuid, posX, posY, width, height, settings) {
+        var _a, _b, _c, _d, _e;
+        const resolvedSettings = {
+            defaultZoom: (_a = settings === null || settings === void 0 ? void 0 : settings.defaultZoom) !== null && _a !== void 0 ? _a : 15,
+            followRocket: (_b = settings === null || settings === void 0 ? void 0 : settings.followRocket) !== null && _b !== void 0 ? _b : true,
+            showGeofences: (_c = settings === null || settings === void 0 ? void 0 : settings.showGeofences) !== null && _c !== void 0 ? _c : true,
+            latKey: (_d = settings === null || settings === void 0 ? void 0 : settings.latKey) !== null && _d !== void 0 ? _d : '',
+            lngKey: (_e = settings === null || settings === void 0 ? void 0 : settings.lngKey) !== null && _e !== void 0 ? _e : ''
+        };
+        const keys = [resolvedSettings.latKey, resolvedSettings.lngKey].filter(k => k.length > 0);
+        super(uuid, false, keys, posX, posY, width, height);
+        this.latestLat = 0;
+        this.latestLng = 0;
+        this.settings = resolvedSettings;
+    }
+    initializeSecondaryDOM() {
+        this.secondaryDOMElement.classList.add("minimap-content");
+        this.secondaryDOMElement.style.cssText += 'background:#1a1a1a;position:relative;overflow:hidden;';
+        this.mapContainer = document.createElement('div');
+        this.mapContainer.style.cssText = 'width:100%;height:100%;position:relative;';
+        this.markerEl = document.createElement('div');
+        this.markerEl.style.cssText = 'position:absolute;width:10px;height:10px;border-radius:50%;background:#ff4444;transform:translate(-50%,-50%);top:50%;left:50%;z-index:2;';
+        this.labelEl = document.createElement('div');
+        this.labelEl.style.cssText = 'position:absolute;bottom:4px;left:4px;color:#aaa;font-size:11px;z-index:3;';
+        this.labelEl.textContent = 'Minimap (no GPS data)';
+        const bg = document.createElement('div');
+        bg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:repeating-linear-gradient(0deg,#222 0px,#222 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,#222 0px,#222 1px,transparent 1px,transparent 40px);';
+        this.mapContainer.appendChild(bg);
+        this.mapContainer.appendChild(this.markerEl);
+        this.mapContainer.appendChild(this.labelEl);
+        this.secondaryDOMElement.appendChild(this.mapContainer);
+    }
+    updateData(packet) {
+        if (typeof packet.value !== 'number')
+            return;
+        if (packet.label === this.settings.latKey)
+            this.latestLat = packet.value;
+        if (packet.label === this.settings.lngKey)
+            this.latestLng = packet.value;
+    }
+    renderFrame() {
+        this.labelEl.textContent = `Lat: ${this.latestLat.toFixed(5)}  Lng: ${this.latestLng.toFixed(5)}`;
+    }
+}
 export function createInterfaceObjectFromData(data, warnings) {
     var _a, _b, _c, _d, _e;
     const uuid = (_a = data.UUID) !== null && _a !== void 0 ? _a : `iobj-${Math.random().toString(36).slice(2, 10)}`;
@@ -726,6 +771,9 @@ export function createInterfaceObjectFromData(data, warnings) {
             return null;
         }
         return new StatusDisplayIObject(uuid, posX, posY, width, height, data.statusDisplaySettings);
+    }
+    if (data.type === InterfaceObjectType.MINIMAP) {
+        return new MinimapIObject(uuid, posX, posY, width, height, data.minimapSettings);
     }
     warnings.push(`[${uuid}] Unsupported interface object type '${String(data.type)}'. Object was skipped.`);
     return null;

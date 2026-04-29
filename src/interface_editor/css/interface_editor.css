@@ -157,6 +157,38 @@ body {
     flex-direction: column;
     gap: 16px;
     flex-shrink: 0;
+    overflow: hidden;
+    transition: width 0.2s ease, opacity 0.2s ease, gap 0.2s ease;
+}
+
+.left-sidebar.collapsed {
+    width: 0;
+    opacity: 0;
+    gap: 0;
+}
+
+.sidebar-toggle-btn {
+    width: 16px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+    align-self: stretch;
+    padding: 0;
+}
+
+.sidebar-toggle-btn:hover {
+    background: var(--card);
+    color: #ffffff;
+    border-color: var(--accent);
 }
 
 /* Object Palette */

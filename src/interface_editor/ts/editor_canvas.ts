@@ -2,7 +2,8 @@
  * EditorCanvas - Manages the 1920x1080 canvas rendering and interaction
  */
 
-import type { InterfaceObject, LineGraphObject, PanelObject } from './types.js';
+import type { InterfaceObject, LineGraphObject, PanelObject, BarGraphObject, Model3DObject, MinimapObject, StatusDisplayObject } from './types.js';
+import { DEFAULT_BAR_GRAPH_STYLE, DEFAULT_STATUS_DISPLAY_STYLE } from './types.js';
 import { EditorScreen } from './editor_screen.js';
 import { LineGraphRepresentation, LineGraphXOverflowMode, LineGraphYOverflowMode } from '../../live_data/compiled_js/graph_representations.js';
 import { ConfirmationPrompt } from '../../shared/compiled_js/prompts.js';
@@ -81,7 +82,8 @@ export class EditorCanvas {
 
     private renderObject(obj: InterfaceObject): void {
         const element = document.createElement('div');
-        element.className = `canvas-object ${obj.type === 'LINE_GRAPH' ? 'line-graph' : 'panel'}`;
+        const typeClass = obj.type.toLowerCase().replace(/_/g, '-');
+        element.className = `canvas-object ${typeClass}`;
         element.dataset.uuid = obj.uuid;
         element.draggable = false;
 
@@ -102,6 +104,14 @@ export class EditorCanvas {
             this.renderLineGraph(element, obj);
         } else if (obj.type === 'PANEL') {
             this.renderPanel(element, obj);
+        } else if (obj.type === 'BAR_GRAPH') {
+            this.renderBarGraph(element, obj);
+        } else if (obj.type === 'MODEL_3D') {
+            this.renderModel3D(element, obj);
+        } else if (obj.type === 'MINIMAP') {
+            this.renderMinimap(element, obj);
+        } else if (obj.type === 'STATUS_DISPLAY') {
+            this.renderStatusDisplay(element, obj);
         }
     }
 
@@ -119,11 +129,13 @@ export class EditorCanvas {
         element.style.width = `${width}px`;
         element.style.height = `${height}px`;
         element.style.zIndex = obj.zIndex.toString();
-        
-        // Apply scale transform (0-300%)
+
+        // Scale is applied to .scale-wrapper inside .object-content, not the element itself
         const scale = (obj.scale ?? 100) / 100;
-        element.style.transform = `scale(${scale})`;
-        element.style.transformOrigin = 'top left';
+        const scaleWrapper = element.querySelector<HTMLDivElement>('.scale-wrapper');
+        if (scaleWrapper) {
+            scaleWrapper.style.transform = `scale(${scale})`;
+        }
     }
 
     private renderLineGraph(element: HTMLDivElement, obj: LineGraphObject): void {
@@ -139,6 +151,13 @@ export class EditorCanvas {
         }
         content.innerHTML = '';
 
+        // Scale wrapper — clips at content boundary, only content inside scales
+        const scaleWrapper = document.createElement('div');
+        scaleWrapper.className = 'scale-wrapper';
+        const scale = (obj.scale ?? 100) / 100;
+        scaleWrapper.style.cssText = `width:100%;height:100%;transform-origin:top left;transform:scale(${scale});`;
+        content.appendChild(scaleWrapper);
+
         // Create container for the graph
         const graphContainer = document.createElement('div');
         graphContainer.id = `graph-${obj.uuid}`;
@@ -147,7 +166,7 @@ export class EditorCanvas {
         graphContainer.style.position = 'relative';
         graphContainer.style.overflow = 'hidden';
         graphContainer.style.backgroundColor = obj.graphStyle.backgroundColor;
-        content.appendChild(graphContainer);
+        scaleWrapper.appendChild(graphContainer);
 
         // Clean up old graph instance
         if (this.graphInstances.has(obj.uuid)) {
@@ -180,7 +199,8 @@ export class EditorCanvas {
                 obj.graphStyle.yMax,
                 obj.graphStyle.timeWindow,
                 lineCollections,
-                graphContainer.id
+                graphContainer.id,
+                obj.graphStyle.labelDisplayNames || {}
             );
 
             // Set overflow modes - convert string to enum
@@ -230,10 +250,121 @@ export class EditorCanvas {
         if (!content) {
             content = document.createElement('div');
             content.className = 'object-content';
-            content.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;';
+            content.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;';
             element.insertBefore(content, element.firstChild);
         }
-        content.innerHTML = '<div style="color:#555;font-size:14px;">Panel</div>';
+        content.innerHTML = '';
+
+        // Scale wrapper — clips at content boundary
+        const scaleWrapper = document.createElement('div');
+        scaleWrapper.className = 'scale-wrapper';
+        const scale = (obj.scale ?? 100) / 100;
+        scaleWrapper.style.cssText = `width:100%;height:100%;transform-origin:top left;transform:scale(${scale});display:flex;align-items:center;justify-content:center;`;
+        scaleWrapper.innerHTML = '<div style="color:#555;font-size:14px;">Panel</div>';
+        content.appendChild(scaleWrapper);
+    }
+
+    private renderPlaceholder(element: HTMLDivElement, obj: BarGraphObject | Model3DObject | MinimapObject | StatusDisplayObject, label: string, bgColor: string): void {
+        element.style.backgroundColor = 'transparent';
+        let content = element.querySelector<HTMLDivElement>('.object-content');
+        if (!content) {
+            content = document.createElement('div');
+            content.className = 'object-content';
+            content.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;';
+            element.insertBefore(content, element.firstChild);
+        }
+        content.innerHTML = '';
+        const scaleWrapper = document.createElement('div');
+        scaleWrapper.className = 'scale-wrapper';
+        const scale = (obj.scale ?? 100) / 100;
+        scaleWrapper.style.cssText = `width:100%;height:100%;transform-origin:top left;transform:scale(${scale});display:flex;align-items:center;justify-content:center;background-color:${bgColor};border:1px solid #333;`;
+        scaleWrapper.innerHTML = `<div style="color:#aaa;font-size:13px;text-align:center;">${label}</div>`;
+        content.appendChild(scaleWrapper);
+    }
+
+    private renderBarGraph(element: HTMLDivElement, obj: BarGraphObject): void {
+        element.style.backgroundColor = 'transparent';
+        let content = element.querySelector<HTMLDivElement>('.object-content');
+        if (!content) {
+            content = document.createElement('div');
+            content.className = 'object-content';
+            content.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;';
+            element.insertBefore(content, element.firstChild);
+        }
+        content.innerHTML = '';
+
+        const scaleWrapper = document.createElement('div');
+        scaleWrapper.className = 'scale-wrapper';
+        const scale = (obj.scale ?? 100) / 100;
+        scaleWrapper.style.cssText = `width:100%;height:100%;transform-origin:top left;transform:scale(${scale});display:flex;flex-direction:column;background-color:${obj.graphStyle.backgroundColor};border:1px solid #333;`;
+
+        if (obj.bars.length === 0) {
+            scaleWrapper.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:#666;font-size:13px;">No bars configured</div>';
+            content.appendChild(scaleWrapper);
+            return;
+        }
+
+        // Title
+        const title = document.createElement('div');
+        title.style.cssText = 'color:#aaa;font-size:11px;text-align:center;padding:4px 4px 2px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+        title.textContent = obj.graphStyle.title || 'Bar Graph';
+        scaleWrapper.appendChild(title);
+
+        // Bar area
+        const barArea = document.createElement('div');
+        barArea.style.cssText = 'flex:1;display:flex;align-items:flex-end;gap:4px;padding:4px 8px 20px;overflow:hidden;';
+
+        const yRange = (obj.graphStyle.yMax - obj.graphStyle.yMin) || 1;
+        const sampleValues = [0.75, 0.45, 0.85, 0.30, 0.60, 0.55, 0.40, 0.90];
+
+        obj.bars.forEach((bar, i) => {
+            const barWrap = document.createElement('div');
+            barWrap.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;min-width:0;';
+
+            const fillPct = sampleValues[i % sampleValues.length] * 100;
+
+            const barEl = document.createElement('div');
+            barEl.style.cssText = `width:100%;height:${fillPct}%;background-color:${bar.color};border-radius:2px 2px 0 0;min-height:2px;`;
+
+            const labelEl = document.createElement('div');
+            labelEl.style.cssText = 'color:#888;font-size:9px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;margin-top:2px;';
+            labelEl.textContent = bar.label || bar.monitorKey;
+
+            barWrap.appendChild(barEl);
+            barWrap.appendChild(labelEl);
+            barArea.appendChild(barWrap);
+        });
+
+        // Y-axis labels
+        const yAxis = document.createElement('div');
+        yAxis.style.cssText = 'position:absolute;left:2px;top:18px;bottom:20px;display:flex;flex-direction:column;justify-content:space-between;';
+        const yMax = document.createElement('span');
+        yMax.style.cssText = 'color:#555;font-size:8px;';
+        yMax.textContent = String(obj.graphStyle.yMax);
+        const yMin = document.createElement('span');
+        yMin.style.cssText = 'color:#555;font-size:8px;';
+        yMin.textContent = String(obj.graphStyle.yMin);
+        yAxis.appendChild(yMax);
+        yAxis.appendChild(yMin);
+
+        scaleWrapper.style.position = 'relative';
+        scaleWrapper.appendChild(barArea);
+        scaleWrapper.appendChild(yAxis);
+        content.appendChild(scaleWrapper);
+    }
+
+    private renderModel3D(element: HTMLDivElement, obj: Model3DObject): void {
+        this.renderPlaceholder(element, obj, `3D Model<br><small>${obj.rollKey || 'No keys set'}</small>`, obj.backgroundColor);
+    }
+
+    private renderMinimap(element: HTMLDivElement, obj: MinimapObject): void {
+        const hasKeys = obj.latKey && obj.lngKey;
+        this.renderPlaceholder(element, obj, `Minimap<br><small>${hasKeys ? `${obj.latKey} / ${obj.lngKey}` : 'No keys set'}</small>`, '#1a1a1a');
+    }
+
+    private renderStatusDisplay(element: HTMLDivElement, obj: StatusDisplayObject): void {
+        const hasStatus = obj.statusUUID.length > 0;
+        this.renderPlaceholder(element, obj, `Status Display<br><small>${hasStatus ? obj.statusUUID.slice(0, 8) + '...' : 'No status selected'}</small>`, obj.style.backgroundColor);
     }
 
     private addResizeHandles(element: HTMLDivElement): void {
@@ -405,7 +536,7 @@ export class EditorCanvas {
         this.createObject(objectType as any, { x: constrainedX, y: constrainedY });
     }
 
-    private createObject(type: 'LINE_GRAPH' | 'PANEL', position: { x: number; y: number }): void {
+    private createObject(type: 'LINE_GRAPH' | 'PANEL' | 'BAR_GRAPH' | 'MODEL_3D' | 'MINIMAP' | 'STATUS_DISPLAY', position: { x: number; y: number }): void {
         if (!this.currentScreen) return;
 
         const uuid = crypto.randomUUID();
@@ -445,6 +576,42 @@ export class EditorCanvas {
                     yOverflowMode: 'ScaleAxis' as const,
                     showInfo: true
                 }
+            };
+        } else if (type === 'BAR_GRAPH') {
+            obj = {
+                ...baseObj,
+                type: 'BAR_GRAPH',
+                bars: [],
+                graphStyle: { ...DEFAULT_BAR_GRAPH_STYLE }
+            };
+        } else if (type === 'MODEL_3D') {
+            obj = {
+                ...baseObj,
+                type: 'MODEL_3D',
+                rollKey: '',
+                pitchKey: '',
+                yawKey: '',
+                angleUnit: 'deg' as const,
+                modelColor: '#7fb8ff',
+                backgroundColor: '#1a1a1a'
+            };
+        } else if (type === 'MINIMAP') {
+            obj = {
+                ...baseObj,
+                type: 'MINIMAP',
+                defaultZoom: 15,
+                showGeofences: true,
+                followRocket: true,
+                latKey: '',
+                lngKey: ''
+            };
+        } else if (type === 'STATUS_DISPLAY') {
+            obj = {
+                ...baseObj,
+                type: 'STATUS_DISPLAY',
+                statusCollectionUUID: '',
+                statusUUID: '',
+                style: { ...DEFAULT_STATUS_DISPLAY_STYLE }
             };
         } else {
             obj = {
@@ -497,6 +664,14 @@ export class EditorCanvas {
                 this.renderLineGraph(element, this.selectedObject);
             } else if (this.selectedObject.type === 'PANEL') {
                 this.renderPanel(element, this.selectedObject);
+            } else if (this.selectedObject.type === 'BAR_GRAPH') {
+                this.renderBarGraph(element, this.selectedObject);
+            } else if (this.selectedObject.type === 'MODEL_3D') {
+                this.renderModel3D(element, this.selectedObject);
+            } else if (this.selectedObject.type === 'MINIMAP') {
+                this.renderMinimap(element, this.selectedObject);
+            } else if (this.selectedObject.type === 'STATUS_DISPLAY') {
+                this.renderStatusDisplay(element, this.selectedObject);
             }
         }
         this.emit('objectChanged');

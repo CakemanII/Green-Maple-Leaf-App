@@ -1,4 +1,6 @@
 import { TabHandler } from "../../shared/compiled_js/main/tab_handler.js";
+import { GlobalGeofence } from "./global_geofence.js";
+import { GlobalStatusesManager } from "./global_statuses.js";
 
 type OperationalState = "active" | "edit"
 
@@ -43,6 +45,13 @@ class OperationalStateHandler {
         this.stateToggleButton.addEventListener('click', () => {
             this.operationalStatePrompt.updatePromptText(this.operationalState);
             this.operationalStatePrompt.show();
+        });
+
+        // Listen for manual apply from file selection iframe
+        window.addEventListener('message', (e) => {
+            if (e.data?.type === 'fileSelectionApplied' && this.operationalState === 'active') {
+                this.compileSelectedFiles();
+            }
         });
     }
     
@@ -124,12 +133,45 @@ class OperationalStateHandler {
     }
 
     /**
-     * Update the active / inactive tabs.
+     * Update the active / inactive tabs based on operational state.
      */
     private updateActiveInactiveTabs(): void {
-        // main_gcs only has liveInterface + preferences tabs.
-        TabHandler.INSTANCE?.setTabEnabled("liveInterface", this.operationalState === "active" || this.DEBUGGING_MODE);
+        const isOperational = this.operationalState === "active" || this.DEBUGGING_MODE;
+        TabHandler.INSTANCE?.setTabEnabled("liveInterface",  isOperational);
+        TabHandler.INSTANCE?.setTabEnabled("fileSelection",  isOperational);
         TabHandler.INSTANCE?.setTabEnabled("preferences", true);
+
+        // When transitioning into operational mode, compile selected files
+        if (this.operationalState === "active" && this.previousOperationalState === "edit") {
+            this.compileSelectedFiles();
+        }
+    }
+
+    /**
+     * Read saved file selections and broadcast to global managers.
+     */
+    private compileSelectedFiles(): void {
+        try {
+            const geofenceUUIDs         = JSON.parse(localStorage.getItem('fileSelection_geofenceUUIDs') || '[]') as string[];
+            const statusCollectionUUIDs = JSON.parse(localStorage.getItem('fileSelection_statusCollectionUUIDs') || '[]') as string[];
+            const interfaceUUID         = (JSON.parse(localStorage.getItem('fileSelection_interfaceCollectionUUID') || '[]') as string[])[0] ?? null;
+
+            if (geofenceUUIDs.length > 0) {
+                GlobalGeofence.INSTANCE?.loadFromUUIDs(geofenceUUIDs);
+            }
+            if (statusCollectionUUIDs.length > 0) {
+                GlobalStatusesManager.INSTANCE?.loadFromCollections(statusCollectionUUIDs);
+            }
+            if (interfaceUUID) {
+                const liveIframe = document.getElementById('live_interface_tab') as HTMLIFrameElement | null;
+                liveIframe?.contentWindow?.postMessage({ type: 'loadCollection', uuid: interfaceUUID }, '*');
+            }
+
+            console.log('[OperationalState] Compiled: geofences=%o statuses=%o interface=%s',
+                geofenceUUIDs, statusCollectionUUIDs, interfaceUUID);
+        } catch (error) {
+            console.error('[OperationalState] Failed to compile selected files:', error);
+        }
     }
 
     private toggleOperationalState(): void {

@@ -3,6 +3,7 @@
  */
 
 import type { Screen } from './types.js';
+import { SingleTextInputPrompt } from '../../shared/compiled_js/prompts.js';
 
 type EventCallback = (...args: any[]) => void;
 
@@ -20,10 +21,14 @@ export class ScreenTabBar {
     private initializeEventListeners(): void {
         const addBtn = document.getElementById('add-screen-btn');
         addBtn?.addEventListener('click', () => {
-            const name = prompt('Enter screen name:', `Screen ${this.screens.length + 1}`);
-            if (name) {
-                this.emit('screenAdded', name);
-            }
+            new SingleTextInputPrompt(
+                'New Screen',
+                'Enter a name for the new screen:',
+                `Screen ${this.screens.length + 1}`,
+                'Create',
+                'Cancel',
+                (name: string) => { if (name.trim()) this.emit('screenAdded', name.trim()); }
+            );
         });
 
         // Context menu handling
@@ -95,11 +100,15 @@ export class ScreenTabBar {
 
         newRenameBtn?.addEventListener('click', () => {
             const screen = this.screens.find(s => s.uuid === uuid);
-            const newName = prompt('Enter new name:', screen?.name);
-            if (newName) {
-                this.emit('screenRenamed', uuid, newName);
-            }
             menu.style.display = 'none';
+            new SingleTextInputPrompt(
+                'Rename Screen',
+                'Enter a new name for the screen:',
+                screen?.name ?? '',
+                'Rename',
+                'Cancel',
+                (newName: string) => { if (newName.trim()) this.emit('screenRenamed', uuid, newName.trim()); }
+            );
         });
 
         newDuplicateBtn?.addEventListener('click', () => {

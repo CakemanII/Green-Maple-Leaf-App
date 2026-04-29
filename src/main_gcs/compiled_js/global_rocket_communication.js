@@ -44,11 +44,14 @@ export class GlobalTelemetryManager {
             const label = data.label; // Graph key/label
             const timestamp = data.timestamp; // Time value for x-axis
             const content = data.content; // Data value for y-axis
-            // Cache data
+            // Cache data (cap to avoid unbounded growth)
             if (!this.dataCache[label]) {
                 this.dataCache[label] = [];
             }
             this.dataCache[label].push({ x: timestamp, y: content });
+            if (this.dataCache[label].length > GlobalTelemetryManager.DATA_CACHE_MAX_POINTS) {
+                this.dataCache[label].shift();
+            }
             // Send data to all telemetry iframes
             this.sendMessageToTelemetryIframes(label, timestamp, content);
             // Notify global statuses of updated telemetry data
@@ -58,7 +61,7 @@ export class GlobalTelemetryManager {
             // Connected
         });
         socket.on('disconnect', () => {
-            // Disconnected
+            this.dataCache = {};
         });
     }
     /**
@@ -104,6 +107,7 @@ export class GlobalTelemetryManager {
         return null;
     }
 }
+GlobalTelemetryManager.DATA_CACHE_MAX_POINTS = 1000;
 new GlobalTelemetryManager();
 // Expose to global scope for breaking circular dependency
 globalThis.GlobalTelemetryManager = GlobalTelemetryManager;

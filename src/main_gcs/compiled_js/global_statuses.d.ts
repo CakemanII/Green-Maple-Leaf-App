@@ -6,10 +6,15 @@ export declare class GlobalStatusesManager {
     private statuses;
     private statusEvaluators;
     constructor();
+    private initializeAsync;
     /**
-     * Load all statuses from some data source.
+     * Load all statuses from all saved status collections on the server.
      */
     private loadStatuses;
+    /**
+     * Reload statuses from a specific set of collection UUIDs (called by operational mode).
+     */
+    loadFromCollections(collectionUUIDs: string[]): Promise<void>;
     /**
      * Retreive the active flag uuid for a specific status.
      */
